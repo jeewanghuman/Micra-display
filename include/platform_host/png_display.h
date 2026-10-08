@@ -29,6 +29,11 @@ class PngDisplay {
   // on write failure. Call render_frame() first.
   bool save_png(const char* path) const;
 
+  // Round-glass preview: dim everything outside the inscribed circle and draw
+  // its outline, so a render shows what the 3.4C's circular panel hides. Call
+  // after render_frame(), before save_png(). Only the PNG changes.
+  void mask_round();
+
   // Called by the LVGL flush callback (file-local in the .cpp) to deposit the
   // finished RGB565 frame. Not intended for external use.
   void absorb_frame(const uint8_t* rgb565, int width, int height);

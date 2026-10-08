@@ -131,6 +131,7 @@ bool render(core::IMachine& machine, core::IProvisioner& provisioner,
   }
   display.render_frame();
   if (screensaver && !check_saver_dirty_area(screen)) return false;
+  if (screen.round) display.mask_round();
   if (!display.save_png(out_path)) {
     std::fprintf(stderr, "error: failed to write %s\n", out_path);
     return false;
@@ -172,6 +173,36 @@ int main() {
   bool ok = true;
   ok &= r({800, 480}, "renders/home_800x480.png");
   ok &= r({320, 240}, "renders/home_320x240.png");
+  // Round glass (the 3.4C, 800x800): every tab in the content band, tabs in a
+  // pill below it, the tray above. The PNGs are masked to the circle (edge in
+  // red, off-glass dimmed) so anything the panel would hide is obvious.
+  {
+    const ui::ScreenProfile rd{800, 800, 1.0f, true};
+    ok &= r(rd, "renders/round_home_800x800.png");
+    machine.set_temps(78.0f, 96.0f);
+    ok &= r(rd, "renders/round_home_heating_800x800.png");
+    machine.set_temps(93.0f, 123.0f);
+    ok &= r(rd, "renders/round_toast_800x800.png", 0, -1, false, 0, -1, false, -1, 0,
+            false, false, false, true);
+    ok &= r(rd, "renders/round_settings_800x800.png", 1);
+    ok &= r(rd, "renders/round_micra_controls_800x800.png", 1, ui::kSectionMicraControls);
+    ok &= r(rd, "renders/round_device_display_800x800.png", 1, ui::kSectionDeviceDisplay);
+    ok &= r(rd, "renders/round_stats_800x800.png", 2);
+    ok &= r(rd, "renders/round_token_modal_800x800.png", 0, -1, true);
+    ok &= r(rd, "renders/round_clean_lock_800x800.png", 0, -1, false, 0, -1, true);
+    ok &= r(rd, "renders/round_screensaver_800x800.png", 0, -1, false, 0, -1, false, -1,
+            0, false, false, false, false, false, true);
+    updates.set_available(true);
+    ok &= r(rd, "renders/round_update_modal_800x800.png", 0, -1, false, 0, -1, false, -1,
+            0, false, false, false, false, false, false, true);
+    updates.set_available(false);
+    ok &= r(rd, "renders/round_backflush_800x800.png", 1, -1, false, 0, -1, false, -1, 0,
+            true);
+    ok &= r(rd, "renders/round_shot_card_800x800.png", 0, -1, false, 0, -1, false, 0);
+    scale_provisioner.set_saved(false);
+    ok &= r(rd, "renders/round_home_noscale_800x800.png");
+    scale_provisioner.set_saved(true);
+  }
   // Scrolling strip-chart graph (the non-default style; scope is the default).
   disp.set_scope_graph(false);
   ok &= r({800, 480}, "renders/home_scroll_800x480.png");

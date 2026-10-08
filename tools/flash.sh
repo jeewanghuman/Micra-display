@@ -26,6 +26,8 @@ board_to_env() {
     p4-x-7|p4x7|esp32-p4-micra-x-7)                       echo "esp32-p4-micra-x-7" ;;
     p4-x-8|p4x8|esp32-p4-micra-x-8)                       echo "esp32-p4-micra-x-8" ;;
     p4-x-10-1|p4-x-10|p4x101|esp32-p4-micra-x-10-1)       echo "esp32-p4-micra-x-10-1" ;;
+    p4-3-4c|p434c|3.4c|esp32-p4-micra-3-4c)               echo "esp32-p4-micra-3-4c" ;;
+    p4-3-4c-rev3|esp32-p4-micra-3-4c-rev3)                echo "esp32-p4-micra-3-4c-rev3" ;;
     *) echo "" ;;
   esac
 }
@@ -60,6 +62,8 @@ while time.time() < deadline:
     if b"P4-WIFI6-Touch-LCD-X-10.1" in buf: print("esp32-p4-micra-x-10-1"); break  # X boards before the generic P4 match
     if b"P4-WIFI6-Touch-LCD-X-7" in buf: print("esp32-p4-micra-x-7"); break
     if b"P4-WIFI6-Touch-LCD-X-8" in buf: print("esp32-p4-micra-x-8"); break
+    if b"P4-WIFI6-Touch-LCD-3.4C (rev3)" in buf: print("esp32-p4-micra-3-4c-rev3"); break  # before the plain 3.4C
+    if b"P4-WIFI6-Touch-LCD-3.4C" in buf: print("esp32-p4-micra-3-4c"); break  # before the generic P4 match
     if b"P4-WIFI6-Touch-LCD-5" in buf: print("esp32-p4-micra-5"); break  # before the generic P4 match
     if b"P4-WIFI6" in buf: print("esp32-p4-micra-43");  break  # before LCD-4: its banner has "LCD-4.3" too
     if b"LCD-7" in buf:   print("esp32-s3-micra-7b");   break
@@ -77,7 +81,7 @@ ENV=""
 if [ -n "$BOARD" ]; then
   ENV="$(board_to_env "$BOARD")"
   if [ -z "$ENV" ]; then
-    echo "flash: unknown board '$BOARD' (use p4-5 | p4-4-3 | s3-4-3c | p4-x-8 | s3-2 | s3-7b | s3-4-3b | p4-x-7 | p4-x-10-1)" >&2
+    echo "flash: unknown board '$BOARD' (use p4-5 | p4-4-3 | s3-4-3c | p4-x-8 | s3-2 | s3-7b | s3-4-3b | p4-x-7 | p4-x-10-1 | p4-3-4c | p4-3-4c-rev3)" >&2
     exit 2
   fi
 elif [ -n "$PORT" ]; then
@@ -98,6 +102,8 @@ if [ -z "$ENV" ]; then
   echo "         make flash-s3-7b     (S3 7\" 1024x600)" >&2
   echo "         make flash-p4-x-7    (P4-WIFI6 X 7\" box 1280x720)" >&2
   echo "         make flash-p4-x-10-1 (P4-WIFI6 X 10.1\" box 1280x800)" >&2
+  echo "         make flash-p4-3-4c   (P4-WIFI6 3.4C round 800x800, rev v1.x silicon)" >&2
+  echo "         make flash-p4-3-4c-rev3 (P4-WIFI6 3.4C round 800x800, rev v3 silicon)" >&2
   exit 2
 fi
 

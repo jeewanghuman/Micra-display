@@ -327,6 +327,8 @@ class App {
   uint32_t saver_art_since_ = 0;        // lv_tick when saver_art_ went up
   void start_screensaver(int style);  // core::IDisplaySettings::SaverStyle
   void set_saver_art(int art);        // (re)size + source the bouncing image
+  // Where the saver art bounces: the whole screen, or the band on round glass.
+  ui::Band saver_box() const { return ui::round_band(screen_); }
   void stop_screensaver();
   // Cleaning lock: a full-screen opaque overlay on the top layer swallows all
   // touch input for kCleanLockSecs while a countdown shows time remaining.

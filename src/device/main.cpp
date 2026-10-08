@@ -380,8 +380,13 @@ void setup() {
   }
 
   // Build the UI bound to the machine + provisioner + battery + display.
+#if defined(BOARD_DISPLAY_ROUND)
+  constexpr bool kRoundGlass = true;
+#else
+  constexpr bool kRoundGlass = false;
+#endif
   const ui::ScreenProfile screen{g_display.width(), g_display.height(),
-                                 board::kUiScale};
+                                 board::kUiScale, kRoundGlass};
 #if defined(BOARD_HAS_SD_MMC)
   g_shots.begin();  // writer task; mounts lazily, so no card is fine
 #endif

@@ -216,6 +216,27 @@ run the workflow at `vX.Y.Z`. Devices on the beta see the release as newer
 - Commit as `marcus@turboio.com` (repo-local config). Do NOT add
   "Co-Authored-By: Claude" or other AI-signature trailers.
 
+## Round glass (P4-WIFI6-Touch-LCD-3.4C, 800x800)
+
+The 3.4C is the P4-4.3's electronics behind an 800x800 ROUND panel; board
+block `BOARD_WAVESHARE_P4_WIFI6_3_4C` (both silicon envs share it; the -rev3
+env adds `-DBOARD_P4_SILICON_REV3`), panel table `BOARD_DSI_PANEL_JD9365_RD34`
+(Waveshare's 3.4C vendor table — NOT the 4C's). The board defines
+`BOARD_DISPLAY_ROUND`, which main.cpp turns into `ScreenProfile::round`.
+
+- The UI is NOT redesigned per screen. `ui::round_band()` is the 0.8D x 0.6D
+  rectangle whose corners sit exactly on the circle (640x480 at 800); every tab
+  is built into a band-sized body, and `is_compact`/`is_xl` read the band
+  (`ui::layout_width/height`), so the 3.4C runs the ordinary wide layout. The
+  caps hold the tray (`build_round_tray`, top) and the tab buttons (pill row,
+  bottom). Full-screen overlays call `fit_overlay_to_glass` so their
+  lv_pct-sized cards land in the band; the saver bounces inside the band.
+- New code that sizes from `screen_.width/height` must use the band instead
+  on round glass, or it will draw off the glass. The sim's `round_*_800x800`
+  renders are masked to the circle (red edge, off-glass dimmed) — check them.
+- UNVERIFIED on hardware: panel orientation (MADCTL), touch mirror flags,
+  backlight polarity (Waveshare drives it normal-polarity, unlike the 4.3).
+
 ## Support matrix (READ BEFORE TOUCHING ANY BOARD LIST)
 
 FOUR boards are released and advertised. Nothing else is, on purpose:
@@ -239,7 +260,8 @@ steps**: it is the only supported board that is a finished box *and* has
 opto-isolators on-board (three wires into screw terminals). It is the slower
 part; that is the trade. The **X 8"** is the counter-top box.
 
-Every OTHER env — `esp32-s3-micra` (2"), `-7b`, `-4-3b`, `-x-7`, `-x-10-1` — is
+Every OTHER env — `esp32-s3-micra` (2"), `-7b`, `-4-3b`, `-x-7`, `-x-10-1`,
+`-3-4c` / `-3-4c-rev3` (the round 3.4C, see "Round glass" below) — is
 **INTERNAL-ONLY**: it still builds, is still maintained,
 and is deliberately absent from the release matrix, the web flasher and every
 user-facing doc. They are kept as the record of how those boards differ, and as

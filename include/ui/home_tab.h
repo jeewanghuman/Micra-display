@@ -264,6 +264,10 @@ void build_rail_tray(lv_obj_t* rail, const lv_font_t* font, HomeWidgets& out);
 // Compact counterpart: clock + battery pushed to the right of the bottom tab bar
 // (the compact tab bar is horizontal). Same "no top bar" treatment as build_rail_tray.
 void build_bottom_tray(lv_obj_t* bar, const lv_font_t* font, HomeWidgets& out);
+// Round glass: the same tray as one centered row floating in the top cap above
+// the content band (cap_h = the band's top edge, in px).
+void build_round_tray(lv_obj_t* screen, int cap_h, const lv_font_t* font,
+                      HomeWidgets& out);
 
 // Apply machine + battery + scale state to the built widgets (live, no rebuild).
 // scale_features/scale_connect_enabled drive the sleep-aware scale status: a
