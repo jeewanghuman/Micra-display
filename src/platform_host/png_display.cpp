@@ -1,6 +1,7 @@
 #include "platform_host/png_display.h"
 
 #include <chrono>
+#include <cmath>
 #include <cstdlib>
 
 #include <lvgl.h>
@@ -75,6 +76,24 @@ void PngDisplay::absorb_frame(const uint8_t* rgb565, int width, int height) {
     rgb888_[i * 3 + 0] = (r5 * 255 + 15) / 31;
     rgb888_[i * 3 + 1] = (g6 * 255 + 31) / 63;
     rgb888_[i * 3 + 2] = (b5 * 255 + 15) / 31;
+  }
+}
+
+void PngDisplay::mask_round() {
+  const float cx = (width_ - 1) / 2.0f;
+  const float cy = (height_ - 1) / 2.0f;
+  const float r = (width_ < height_ ? width_ : height_) / 2.0f;
+  for (int y = 0; y < height_; ++y) {
+    for (int x = 0; x < width_; ++x) {
+      const float dx = x - cx, dy = y - cy;
+      const float d = std::sqrt(dx * dx + dy * dy);
+      uint8_t* px = &rgb888_[(static_cast<size_t>(y) * width_ + x) * 3];
+      if (d >= r - 1.5f && d <= r + 1.5f) {  // the glass edge
+        px[0] = 230; px[1] = 60; px[2] = 60;
+      } else if (d > r) {  // off-glass: keep it faintly visible, so clipping shows
+        for (int c = 0; c < 3; ++c) px[c] = static_cast<uint8_t>(24 + (px[c] - 24) / 4);
+      }
+    }
   }
 }
 

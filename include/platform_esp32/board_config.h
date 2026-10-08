@@ -857,9 +857,10 @@ constexpr bool kSupportsBrightness = true;  // LEDC PWM backlight (dimmable)
 // Screensaver Dim floor (SaverMode::kDim). Historical 5%, untested low end.
 constexpr int kSaverDimPercent = 5;
 
-// UI zoom: 800 px across 3.4" is ~235 ppi against the 5"'s ~294 ppi at 1.5x,
-// so 1.2x keeps controls about the same physical size. Logical 667x667.
-#define BOARD_UI_SCALE 1.2f
+// UI zoom: none (1.0). 800 px across 3.4" is ~235 ppi, close to the released
+// 4.3"'s ~217 ppi at 1.0, so controls come out ~8% smaller than on the 4.3 —
+// and the round content band stays 640x480, the size the wide layout is
+// designed for (a 1.2x zoom shrinks it to 533x400 and the panels cramp).
 
 // --- Shared I2C bus (touch + ES8311; also the 4-pin I2C header J6) ---
 constexpr int kI2cSda = 7;

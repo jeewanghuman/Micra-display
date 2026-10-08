@@ -790,6 +790,36 @@ void build_rail_tray(lv_obj_t* rail, const lv_font_t* font, HomeWidgets& out) {
   lv_obj_add_flag(out.wifi_label, LV_OBJ_FLAG_HIDDEN);
 }
 
+void build_round_tray(lv_obj_t* screen, int cap_h, const lv_font_t* font,
+                      HomeWidgets& out) {
+  // Round tray: one centered row (clock, WiFi, battery) low in the top cap, just
+  // above the content band, where the circle is still ~500 px wide on the 800
+  // panel. Created after the tabview so it draws on top; a plain object, so it
+  // takes no clicks from the tabs.
+  lv_obj_t* tray = lv_obj_create(screen);
+  lv_obj_remove_style_all(tray);
+  lv_obj_remove_flag(tray, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_remove_flag(tray, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_set_size(tray, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+  lv_obj_set_flex_flow(tray, LV_FLEX_FLOW_ROW);
+  lv_obj_set_flex_align(tray, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER,
+                        LV_FLEX_ALIGN_CENTER);
+  lv_obj_set_style_pad_column(tray, ui::dp(14), 0);
+  lv_obj_align(tray, LV_ALIGN_TOP_MID, 0, cap_h * 11 / 20);
+
+  out.clock_label = lv_label_create(tray);
+  lv_obj_set_style_text_color(out.clock_label, lv_color_hex(ui::theme::text()), 0);
+  lv_obj_set_style_text_font(out.clock_label, font, 0);
+
+  out.wifi_label = lv_label_create(tray);  // WiFi glyph; update_home shows/hides + colors it
+  lv_obj_set_style_text_font(out.wifi_label, font, 0);
+  lv_obj_add_flag(out.wifi_label, LV_OBJ_FLAG_HIDDEN);
+
+  out.battery_label = lv_label_create(tray);
+  lv_obj_set_style_text_color(out.battery_label, lv_color_hex(ui::theme::muted()), 0);
+  lv_obj_set_style_text_font(out.battery_label, font, 0);
+}
+
 void build_bottom_tray(lv_obj_t* bar, const lv_font_t* font, HomeWidgets& out) {
   // Compact tray: the tab bar runs along the bottom. The tab buttons flex-grow to
   // fill the bar (App sizes them), so this tray — a plain, non-grow object the
@@ -1005,7 +1035,7 @@ void build_home_tab(lv_obj_t* parent, const ScreenProfile& screen, bool scale_en
   // every extra pixel — so panels gets a fixed height there and the graph
   // card stays the only grower.
   const int design_flex_h = ui::dp(480) - 2 * pad - gap;  // panels+graph at design
-  if (!xl && screen.height > ui::dp(480)) {
+  if (!xl && layout_height(screen) > ui::dp(480)) {
     lv_obj_set_height(panels, design_flex_h * 7 / 12);
   } else {
     lv_obj_set_flex_grow(panels, 7);

@@ -35,6 +35,19 @@ void style_tab_button(lv_obj_t* btn, const lv_font_t* font) {
   lv_obj_set_style_shadow_width(btn, 0, LV_STATE_CHECKED);
 }
 
+// Round glass: pad a full-screen top-layer overlay so its CONTENT area is the
+// band (ui::round_band) — cards sized in lv_pct and centered then stay inside
+// the circle. The overlay itself still covers the whole screen (dim + touch
+// swallow). No-op on rectangular screens.
+void fit_overlay_to_glass(lv_obj_t* bg, const ui::ScreenProfile& screen) {
+  if (!ui::is_round(screen)) return;
+  const ui::Band b = ui::round_band(screen);
+  lv_obj_set_style_pad_left(bg, b.x, 0);
+  lv_obj_set_style_pad_right(bg, screen.width - (b.x + b.w), 0);
+  lv_obj_set_style_pad_top(bg, b.y, 0);
+  lv_obj_set_style_pad_bottom(bg, screen.height - (b.y + b.h), 0);
+}
+
 void on_power_clicked(lv_event_t* e) {
   static_cast<ui::App*>(lv_event_get_user_data(e))->toggle_power();
 }
@@ -922,6 +935,8 @@ void App::build(core::IMachine& machine, core::IProvisioner& provisioner,
   ui::set_scale(screen.scale);  // before any widget: ui::dp/font_dp read this
   const bool compact = is_compact(screen);
   const bool xl = is_xl(screen);
+  const bool round = is_round(screen);
+  const ui::Band band = ui::round_band(screen);
 
   ui::theme::set_active(display_->theme());  // pick the palette before any widget is colored
 
@@ -984,8 +999,11 @@ void App::build(core::IMachine& machine, core::IProvisioner& provisioner,
   lv_obj_t* tv = lv_tabview_create(scr);
   tabview_ = tv;
   lv_obj_add_event_cb(tv, on_tab_changed, LV_EVENT_VALUE_CHANGED, this);  // commit on tab exit
-  lv_tabview_set_tab_bar_position(tv, compact ? LV_DIR_BOTTOM : LV_DIR_LEFT);
-  lv_tabview_set_tab_bar_size(tv, ui::dp(compact ? 44 : xl ? 120 : 96));
+  lv_tabview_set_tab_bar_position(tv, compact || round ? LV_DIR_BOTTOM : LV_DIR_LEFT);
+  // Round: the tab bar is the whole cap below the content band (its buttons are
+  // inset to the circle below); otherwise the usual per-tier bar.
+  lv_tabview_set_tab_bar_size(
+      tv, round ? screen.height - (band.y + band.h) : ui::dp(compact ? 44 : xl ? 120 : 96));
   lv_obj_set_style_bg_opa(tv, LV_OPA_TRANSP, 0);
   lv_obj_set_style_border_width(tv, 0, 0);
 
@@ -1004,6 +1022,20 @@ void App::build(core::IMachine& machine, core::IProvisioner& provisioner,
   lv_obj_set_style_pad_all(rail, rail_pad, 0);
   lv_obj_set_style_pad_row(rail, rail_pad, 0);
   lv_obj_set_style_pad_column(rail, rail_pad, 0);
+  if (round) {
+    // Round: no bar — the cap below the band is screen background, and the three
+    // tab buttons sit as a centered pill row where the circle is still wide. The
+    // insets keep the row's outer corners inside the glass: at 800 px the row is
+    // 312 x 80 with its bottom edge 340 px below center (156^2 + 340^2 < 400^2).
+    const int cap = screen.height - (band.y + band.h);
+    const int row_w = ui::dp(3 * 96 + 2 * 12);
+    lv_obj_set_style_bg_opa(rail, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_pad_left(rail, (screen.width - row_w) / 2, 0);
+    lv_obj_set_style_pad_right(rail, (screen.width - row_w) / 2, 0);
+    lv_obj_set_style_pad_top(rail, cap / 8, 0);
+    lv_obj_set_style_pad_bottom(rail, cap * 3 / 8, 0);
+    lv_obj_set_style_pad_column(rail, ui::dp(12), 0);
+  }
 
   lv_obj_t* home = lv_tabview_add_tab(tv, LV_SYMBOL_HOME);
   lv_obj_t* settings = lv_tabview_add_tab(tv, LV_SYMBOL_SETTINGS);
@@ -1019,8 +1051,27 @@ void App::build(core::IMachine& machine, core::IProvisioner& provisioner,
     // Compact: the tab bar is horizontal and shares the row with the clock/battery
     // tray. Grow the buttons so they fill the bar (big touch targets) instead of
     // sitting small with dead space; the non-grow tray labels stay at the right.
-    if (compact) lv_obj_set_flex_grow(tb, 1);
+    if (compact || round) lv_obj_set_flex_grow(tb, 1);
+    if (round) lv_obj_set_style_radius(tb, LV_RADIUS_CIRCLE, 0);
   }
+
+  // Round: each tab lays out in the content band, not the full square — the
+  // page stays full-size (so the tabview's paging is untouched) and the builders
+  // get a band-sized body instead. Their tier checks already use the band (see
+  // ui::layout_width), so the 800 panel builds the 640x480 wide layout.
+  auto band_body = [&](lv_obj_t* page) -> lv_obj_t* {
+    if (!round) return page;
+    lv_obj_remove_flag(page, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_style_pad_all(page, 0, 0);
+    lv_obj_t* body = lv_obj_create(page);
+    lv_obj_remove_style_all(body);
+    lv_obj_set_pos(body, band.x, band.y);
+    lv_obj_set_size(body, band.w, band.h);
+    return body;
+  };
+  home = band_body(home);
+  settings = band_body(settings);
+  stats = band_body(stats);
 
   const bool scale_on =
       scale_provisioner_ != nullptr && !scale_provisioner_->saved_name().empty();
@@ -1030,7 +1081,11 @@ void App::build(core::IMachine& machine, core::IProvisioner& provisioner,
   // bar; large scale-aware -> the side rail (tabs spread via SPACE_BETWEEN so the
   // tray anchors the bottom, not a void). Must precede update_home, which populates
   // home_.clock_label / battery_label.
-  if (compact) {
+  if (round) {
+    // Round: clock / WiFi / battery as one centered row in the cap above the
+    // band, floating over every tab (a child of the screen, not of a page).
+    ui::build_round_tray(scr, band.y, ui::font_dp(16), home_);
+  } else if (compact) {
     ui::build_bottom_tray(rail, ui::font_dp(14), home_);
   } else {
     lv_obj_set_flex_align(rail, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER,
@@ -1991,7 +2046,8 @@ void App::start_screensaver(int style) {
   saver_alternate_ = style == core::IDisplaySettings::kSaverAlternate;
   saver_color_i_ = 0;
   set_saver_art(saver_alternate_ ? static_cast<int>(lv_tick_get() & 1u) : style);
-  lv_obj_set_pos(saver_img_, screen_.width / 7, screen_.height / 5);
+  const ui::Band box = saver_box();
+  lv_obj_set_pos(saver_img_, box.x + box.w / 7, box.y + box.h / 5);
   // 1 px per frame on every board: at ~30 fps that is ~30 px/s -- a slow
   // drift, but each frame moves by the smallest possible step, which reads
   // smoother than a faster 2-3 px hop (owner, 4.3C bench, 2026-09-17).
@@ -2013,7 +2069,8 @@ void App::set_saver_art(int art) {
   // sidesteps the LVGL padding quirk noted in start_screensaver. A screen
   // height the generator doesn't list falls back to the nearest variant,
   // stretched.
-  const int target_h = ui::saver_art_height(screen_.height);
+  const ui::Band box = saver_box();
+  const int target_h = ui::saver_art_height(box.h);
   const ui::ArtMap& map = ui::saver_art_map(static_cast<ui::SaverArt>(art), target_h);
   // A8 map recolored by LVGL per frame. MEASURED and rejected (4.3C bench,
   // 2026-09-17): pre-blending the drawing once per bounce into an opaque
@@ -2039,10 +2096,10 @@ void App::set_saver_art(int art) {
   if (!native_fits) lv_image_set_inner_align(saver_img_, LV_IMAGE_ALIGN_STRETCH);
   // A swap mid-bounce may land a wider artwork past an edge: pull it back in.
   int x = lv_obj_get_x(saver_img_), y = lv_obj_get_y(saver_img_);
-  if (x + w > screen_.width) x = screen_.width - w;
-  if (y + h > screen_.height) y = screen_.height - h;
-  if (x < 0) x = 0;
-  if (y < 0) y = 0;
+  if (x + w > box.x + box.w) x = box.x + box.w - w;
+  if (y + h > box.y + box.h) y = box.y + box.h - h;
+  if (x < box.x) x = box.x;
+  if (y < box.y) y = box.y;
   lv_obj_set_pos(saver_img_, x, y);
 }
 
@@ -2077,10 +2134,11 @@ void App::saver_anim_tick() {
   int x = lv_obj_get_x(saver_img_) + saver_vx_;
   int y = lv_obj_get_y(saver_img_) + saver_vy_;
   bool bounced = false;
-  if (x <= 0) { x = 0; saver_vx_ = -saver_vx_; bounced = true; }
-  if (x + w >= screen_.width) { x = screen_.width - w; saver_vx_ = -saver_vx_; bounced = true; }
-  if (y <= 0) { y = 0; saver_vy_ = -saver_vy_; bounced = true; }
-  if (y + h >= screen_.height) { y = screen_.height - h; saver_vy_ = -saver_vy_; bounced = true; }
+  const ui::Band box = saver_box();
+  if (x <= box.x) { x = box.x; saver_vx_ = -saver_vx_; bounced = true; }
+  if (x + w >= box.x + box.w) { x = box.x + box.w - w; saver_vx_ = -saver_vx_; bounced = true; }
+  if (y <= box.y) { y = box.y; saver_vy_ = -saver_vy_; bounced = true; }
+  if (y + h >= box.y + box.h) { y = box.y + box.h - h; saver_vy_ = -saver_vy_; bounced = true; }
   if (bounced) {
     saver_color_i_ = (saver_color_i_ + 1) % kSaverColorCount;
     lv_obj_set_style_image_recolor(saver_img_,
@@ -2122,7 +2180,7 @@ void App::open_update_modal() {
   lv_obj_t* box = lv_obj_create(card);
   lv_obj_remove_style_all(box);
   lv_obj_set_width(box, lv_pct(100));
-  lv_obj_set_height(box, screen_.height * 45 / 100);
+  lv_obj_set_height(box, ui::layout_height(screen_) * 45 / 100);
   lv_obj_set_style_bg_color(box, lv_color_hex(ui::theme::bg()), 0);
   lv_obj_set_style_bg_opa(box, LV_OPA_COVER, 0);
   lv_obj_set_style_radius(box, ui::dp(6), 0);
@@ -2346,6 +2404,14 @@ void App::show_toast(const char* msg) {
   const bool compact = is_compact(screen_);
   // Above the compact bottom tab bar; over the graph's dead space elsewhere.
   lv_obj_align(card, LV_ALIGN_BOTTOM_MID, 0, -ui::dp(compact ? 50 : 16));
+  if (ui::is_round(screen_)) {
+    // Round: same spot relative to the content band (its bottom edge, over the
+    // graph), at the band's width, so the card stays on the glass.
+    const ui::Band b = ui::round_band(screen_);
+    lv_obj_set_width(card, b.w * 88 / 100);
+    lv_obj_align(card, LV_ALIGN_BOTTOM_MID, 0,
+                 -(screen_.height - (b.y + b.h)) - ui::dp(16));
+  }
   lv_obj_set_style_bg_color(card, lv_color_hex(ui::theme::card()), 0);
   lv_obj_set_style_bg_opa(card, LV_OPA_COVER, 0);
   lv_obj_set_style_radius(card, ui::dp(10), 0);
@@ -2658,6 +2724,7 @@ lv_obj_t* App::open_modal_card(const char* title) {
   lv_obj_set_size(bg, lv_pct(100), lv_pct(100));
   lv_obj_set_style_bg_color(bg, lv_color_hex(0x000000), 0);
   lv_obj_set_style_bg_opa(bg, LV_OPA_70, 0);
+  fit_overlay_to_glass(bg, screen_);
   modal_ = bg;
   // Hide the underlying UI while the modal is up: it's fully covered by the
   // overlay anyway, and not rendering interactive background widgets avoids a
@@ -2864,6 +2931,7 @@ void App::open_backflush() {
                         LV_FLEX_ALIGN_CENTER);
   lv_obj_set_style_pad_all(bg, ui::dp(compact ? 10 : 24), 0);
   lv_obj_set_style_pad_row(bg, ui::dp(compact ? 6 : 12), 0);
+  fit_overlay_to_glass(bg, screen_);
   bf_overlay_ = bg;
   // Nothing behind an opaque overlay is visible; don't render it (same
   // reasoning as open_modal / the cleaning lock).
@@ -3678,7 +3746,7 @@ void App::open_log_modal() {
   lv_obj_t* box = lv_obj_create(card);
   lv_obj_remove_style_all(box);
   lv_obj_set_width(box, lv_pct(100));
-  lv_obj_set_height(box, screen_.height * 58 / 100);
+  lv_obj_set_height(box, ui::layout_height(screen_) * 58 / 100);
   lv_obj_set_style_bg_color(box, lv_color_hex(ui::theme::bg()), 0);
   lv_obj_set_style_bg_opa(box, LV_OPA_COVER, 0);
   lv_obj_set_style_radius(box, ui::dp(6), 0);
@@ -3746,6 +3814,7 @@ void App::open_shot_card(uint32_t id) {
   lv_obj_set_style_bg_opa(bg, LV_OPA_70, 0);
   lv_obj_add_flag(bg, LV_OBJ_FLAG_CLICKABLE);
   lv_obj_add_event_cb(bg, on_shot_modal_close, LV_EVENT_CLICKED, this);
+  fit_overlay_to_glass(bg, screen_);
   modal_ = bg;
   if (tabview_ != nullptr) lv_obj_add_flag(tabview_, LV_OBJ_FLAG_HIDDEN);
 
