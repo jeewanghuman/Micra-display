@@ -819,8 +819,133 @@ constexpr int kSdD3 = 42;
 // SD pads powered from the P4's on-chip LDO channel 4 (schematic ESP_LDO_VO4).
 constexpr int kSdLdoChannel = 4;
 
+#elif defined(BOARD_WAVESHARE_P4_WIFI6_3_4C)
+
+// Waveshare ESP32-P4-WIFI6-Touch-LCD-3.4C — the ROUND board: 3.4" 800x800
+// round IPS over 2-lane MIPI-DSI (JD9365-family controller, own vendor table),
+// GT9271 touch (GT911-compatible register map). Otherwise the P4-4.3's
+// electronics: ESP32-P4NRW32 (32MB flash, 32MB PSRAM), ESP32-C6 radio over
+// SDIO (esp-hosted defaults), ES8311 audio, 4-bit SD, no IO expander. Pins
+// from the board schematic (ESP32-P4-WIFI6-Touch-LCD-XC-Schematic.pdf, rev1.1
+// PCB, shared with the 720x720 4C) and Waveshare's XC repo
+// (docs/HARDWARE.md + examples/arduino/libraries/displays/displays_config.h).
+// UNVERIFIED on hardware.
+//
+// SILICON IS PER UNIT. One block serves both generations; the -rev3 env adds
+// -DBOARD_P4_SILICON_REV3 (+ chip_variant "esp32p4" in its boards json), the
+// plain env is rev v1.x ("esp32p4_es"). `esptool chip-id` before flashing.
+#if defined(BOARD_P4_SILICON_REV3)
+constexpr char kName[] = "Waveshare ESP32-P4-WIFI6-Touch-LCD-3.4C (rev3)";
 #else
-#error "No board selected. Add -DBOARD_WAVESHARE_S3_LCD_2 (or _7B / _43B / _43C / P4_WIFI6_43 / P4_WIFI6_5 / P4_WIFI6_X_7 / P4_WIFI6_X_8 / P4_WIFI6_X_10_1) to build_flags in platformio.ini."
+constexpr char kName[] = "Waveshare ESP32-P4-WIFI6-Touch-LCD-3.4C";
+#endif
+// INTERNAL-ONLY board: NOT in the firmware-release.yml matrix, the web
+// flasher, or the docs, so nothing is published at firmware/app/<slug>.bin
+// and self-update cannot complete here (the check runs, the download 404s —
+// see CLAUDE.md "Support matrix"). Slugs kept so promoting it is a matrix row.
+#if defined(BOARD_P4_SILICON_REV3)
+inline constexpr char kUpdateSlug[] = "p4-wifi6-touch-lcd-3.4c-rev3";
+#else
+inline constexpr char kUpdateSlug[] = "p4-wifi6-touch-lcd-3.4c";
+#endif
+#define BOARD_DISPLAY_DSI
+#define BOARD_DSI_PANEL_JD9365_RD34  // 3.4C round-glass DCS init table
+#define BOARD_TOUCH_GT911            // GT9271, GT911-compatible
+// Round glass: the UI picks its round layout from this (ui::ScreenProfile).
+#define BOARD_DISPLAY_ROUND
+constexpr bool kSupportsBrightness = true;  // LEDC PWM backlight (dimmable)
+// Screensaver Dim floor (SaverMode::kDim). Historical 5%, untested low end.
+constexpr int kSaverDimPercent = 5;
+
+// UI zoom: 800 px across 3.4" is ~235 ppi against the 5"'s ~294 ppi at 1.5x,
+// so 1.2x keeps controls about the same physical size. Logical 667x667.
+#define BOARD_UI_SCALE 1.2f
+
+// --- Shared I2C bus (touch + ES8311; also the 4-pin I2C header J6) ---
+constexpr int kI2cSda = 7;
+constexpr int kI2cScl = 8;
+
+// --- Display: 800x800 square framebuffer, 2-lane MIPI-DSI. Kept on the
+//     shared rotation=1 flush path (a square panel rotates onto itself), so
+//     display.cpp needs no special case — only the init table above. Timing
+//     from Waveshare's SCREEN_3INCH_4_DSI config: 80 MHz DPI clock;
+//     HPW 20, HBP 20, HFP 40; VPW 4, VBP 12, VFP 24; 1500 Mbps per lane. ---
+constexpr int  kLcdNativeW = 800;
+constexpr int  kLcdNativeH = 800;
+constexpr int  kLcdRotation = 1;
+constexpr int  kLcdRst = 27;               // schematic GPIO27 -> R11 -> RESET
+constexpr bool kLcdRstActiveHigh = false;
+// Backlight: AP3032 boost; GPIO26 PWM -> R65/R37 into its FB node, EN on
+// GPIO33 (R61, also pulled up by R57). Waveshare drives it analogWrite(26,
+// 242) for "95% max brightness", i.e. NORMAL polarity — unlike the 4.3,
+// whose identical-looking circuit runs inverted. Flip if full = dark on HW.
+constexpr int  kLcdBacklight = 26;
+constexpr bool kBacklightActiveLow = false;
+constexpr int  kLcdBacklightEn = 33;
+constexpr long kDsiDpiClockHz = 80000000;
+constexpr int  kDsiLaneBitRateMbps = 1500;
+constexpr int  kDsiHsyncPulse = 20, kDsiHsyncBack = 20, kDsiHsyncFront = 40;
+constexpr int  kDsiVsyncPulse = 4,  kDsiVsyncBack = 12, kDsiVsyncFront = 24;
+
+// --- Touch: GT9271. TP_RST reaches GPIO23 (R62) but Waveshare deliberately
+//     leaves it undriven (resetting re-straps the address); TP_INT only goes
+//     to test point TP2 — no MCU route. So: no rst, no int, probe 0x5D then
+//     0x14, poll — the X-series contract. Mapping is a best guess for the
+//     rotation=1 flush; fix on HW from the one-line-per-press serial log. ---
+constexpr int  kTouchSda = 7;   // == kI2cSda (Touch reads these names)
+constexpr int  kTouchScl = 8;
+constexpr int  kTouchAddr = 0x5D;    // 0x5D or 0x14
+constexpr int  kTouchRst = -1;
+constexpr int  kTouchInt = -1;
+constexpr bool kTouchSwapXY = true;
+constexpr bool kTouchMirrorX = false;
+constexpr bool kTouchMirrorY = true;
+
+// --- Battery: none. The schematic has no Li-ion charger or BAT_ADC (GPIO20
+//     is a free header pin here); the "RTC" connector J1 only backs the P4's
+//     VBAT/LP domain. -1 => battery.cpp reports USB power. ---
+constexpr int   kBatteryAdc = -1;
+constexpr float kBatteryDivider = 3.0f;
+constexpr float kBatteryFullVolts = 4.10f;
+constexpr float kBatteryEmptyVolts = 3.40f;
+constexpr float kBatteryCutoffVolts = 3.40f;
+constexpr float kBatteryResumeVolts = 3.70f;
+constexpr float kUsbPowerVolts = 4.15f;
+
+// --- Audio: ES8311 + NS4150B, identical wiring to the 4.3/5 (vendor
+//     09_Audio_Playback: MCLK 13, BCLK 12, LRCK 10, DOUT 9, PA 53). ---
+#define BOARD_HAS_AUDIO
+constexpr int kAudioI2sPort = 1;
+constexpr int kAudioMclk = 13;
+constexpr int kAudioBclk = 12;
+constexpr int kAudioLrclk = 10;
+constexpr int kAudioDout = 9;     // ESP -> ES8311 SDIN (speaker)
+constexpr int kEs8311Addr = 0x18;
+constexpr int kAudioPaPin = 53;   // speaker power-amp enable, active-high
+
+// --- Paddle control (brew-by-weight): GPIO52 = J8 pin 7, GPIO51 = J8 pin 11
+//     on the 40-pin header (GND on pins 6/9), per the schematic — the same
+//     GPIOs and opto-module harness as the 4.3/5, different header position. ---
+constexpr int  kPaddleDrivePin = 52;
+constexpr int  kPaddleSensePin = 51;
+constexpr bool kPaddleActiveHigh = true;
+
+// --- RTC: no discrete RTC chip (same as the other P4 boards). ---
+
+// --- MicroSD: native 4-bit SDMMC, D0-D3 = GPIO39-42, CLK 43, CMD 44 (vendor
+//     HARDWARE.md), pads powered from on-chip LDO channel 4 (vendor 05_sdmmc
+//     default for the P4). ---
+#define BOARD_HAS_SD_MMC
+constexpr int kSdClk = 43;
+constexpr int kSdCmd = 44;
+constexpr int kSdD0 = 39;
+constexpr int kSdD1 = 40;
+constexpr int kSdD2 = 41;
+constexpr int kSdD3 = 42;
+constexpr int kSdLdoChannel = 4;
+
+#else
+#error "No board selected. Add -DBOARD_WAVESHARE_S3_LCD_2 (or _7B / _43B / _43C / P4_WIFI6_43 / P4_WIFI6_5 / P4_WIFI6_X_7 / P4_WIFI6_X_8 / P4_WIFI6_X_10_1 / P4_WIFI6_3_4C) to build_flags in platformio.ini."
 #endif
 
 // Proportional UI zoom for high-DPI panels (see ui::ScreenProfile::scale).

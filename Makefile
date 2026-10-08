@@ -60,9 +60,10 @@ webapp: $(WEBAPP_HDR)
 .DEFAULT_GOAL := build
 .PHONY: flash flash-s3-2 flash-s3-7b flash-s3-4-3b flash-s3-4-3c flash-p4-4-3 \
         flash-p4-5 flash-p4-x-7 flash-p4-x-8 flash-p4-x-10-1 \
+        flash-p4-3-4c flash-p4-3-4c-rev3 \
         flash-2inch flash-7b flash-4-3b flash-4-3c flash-p4 \
         build build-s3-7b build-s3-4-3b build-s3-4-3c build-p4-4-3 build-p4-5 \
-        build-p4-x-7 build-p4-x-8 build-p4-x-10-1 \
+        build-p4-x-7 build-p4-x-8 build-p4-x-10-1 build-p4-3-4c build-p4-3-4c-rev3 \
         build-7b build-4-3b build-4-3c build-p4 \
         build-release build-all \
         webapp monitor padsense paddrive sim docs-img lmtoken lmtoken-release lmtoken-publish clean
@@ -97,6 +98,12 @@ flash-p4-x-8: $(WEBAPP_HDR)
 flash-p4-x-10-1: $(WEBAPP_HDR)
 	@tools/flash.sh p4-x-10-1
 
+flash-p4-3-4c: $(WEBAPP_HDR)
+	@tools/flash.sh p4-3-4c
+
+flash-p4-3-4c-rev3: $(WEBAPP_HDR)
+	@tools/flash.sh p4-3-4c-rev3
+
 build: $(WEBAPP_HDR)
 	$(PIO) run -e esp32-s3-micra
 
@@ -124,6 +131,12 @@ build-p4-x-8: $(WEBAPP_HDR)
 build-p4-x-10-1: $(WEBAPP_HDR)
 	$(PIO) run -e esp32-p4-micra-x-10-1
 
+build-p4-3-4c: $(WEBAPP_HDR)
+	$(PIO) run -e esp32-p4-micra-3-4c
+
+build-p4-3-4c-rev3: $(WEBAPP_HDR)
+	$(PIO) run -e esp32-p4-micra-3-4c-rev3
+
 # --- Sweeps ------------------------------------------------------------------
 # build-release compiles exactly what CI publishes (the four released images)
 # plus the sim - run it before pushing a platform change or cutting a release.
@@ -132,7 +145,7 @@ build-p4-x-10-1: $(WEBAPP_HDR)
 build-release: build-p4-5 build-p4-4-3 build-s3-4-3c build-p4-x-8 sim
 
 build-all: build-release build build-s3-7b build-s3-4-3b \
-           build-p4-x-7 build-p4-x-10-1
+           build-p4-x-7 build-p4-x-10-1 build-p4-3-4c build-p4-3-4c-rev3
 
 # --- Pre-rename aliases (muscle memory + older docs) -------------------------
 flash-2inch: flash-s3-2
