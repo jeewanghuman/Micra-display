@@ -234,6 +234,21 @@ env adds `-DBOARD_P4_SILICON_REV3`), panel table `BOARD_DSI_PANEL_JD9365_RD34`
 - New code that sizes from `screen_.width/height` must use the band instead
   on round glass, or it will draw off the glass. The sim's `round_*_800x800`
   renders are masked to the circle (red edge, off-glass dimmed) — check them.
+- LIQUID-GLASS HOME (round + no scale paired; with a scale the band layout
+  above still runs until the glass Shot screen exists). `round_home.cpp`
+  builds it into the FULL Home page; `ui/glass.*` holds the glass pieces
+  (flat translucent fill + rim + specular top border + shadow — gradients
+  band in RGB565, so none) and the crema backdrop. The backdrop + bezel arcs
+  are a layer on the SCREEN behind the tabview (the arcs pass behind the tab
+  dock), shown only while Home is active (`App::sync_round_backdrop`).
+  `update_home` skips its generic text/fills when `round_glass` and calls
+  `update_round_home` last. Costs (owner-visible, see Memory budget rule):
+  backdrop = one w*h*2 malloc (1.28 MB at 800x800; must land in PSRAM — if
+  malloc can't, it returns null and Home falls back to a flat colour), built
+  once (~0.5 s est. on the P4) and reused across theme rebuilds; hero font
+  `src/ui/fonts/font_outfit_hero.c` ~35 KB flash (Outfit, OFL; regenerate
+  with tools/gen_hero_font.sh); ~25 extra LVGL objects. Not yet measured on
+  hardware: boot-time cost of the backdrop and Home frame times.
 - HW bring-up (rev v1.3 unit, 2026-10): boots, panel + GT911 + hosted radio
   up, UI visible. Backlight is ACTIVE-LOW like the 4.3 (normal polarity =
   dark panel + POWERON reset loop). Orientation (default MADCTL) and the

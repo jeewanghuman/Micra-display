@@ -9,6 +9,7 @@
 
 #include "core/log_ring.h"
 #include "core/system.h"
+#include "ui/glass.h"
 #include "ui/saver_art.h"
 #include "ui/shot_card.h"
 #include "ui/stats_tab.h"
@@ -811,7 +812,9 @@ void set_theme_label(ui::SettingsWidgets& s) {
 
 // Switching the main tab (e.g. leaving Settings) commits any pending temp edit.
 void on_tab_changed(lv_event_t* e) {
-  static_cast<ui::App*>(lv_event_get_user_data(e))->commit_temp_edits();
+  auto* app = static_cast<ui::App*>(lv_event_get_user_data(e));
+  app->commit_temp_edits();
+  app->sync_round_backdrop();
 }
 
 float clampf(float v, float lo, float hi) { return v < lo ? lo : (v > hi ? hi : v); }
@@ -1032,9 +1035,12 @@ void App::build(core::IMachine& machine, core::IProvisioner& provisioner,
     lv_obj_set_style_bg_opa(rail, LV_OPA_TRANSP, 0);
     lv_obj_set_style_pad_left(rail, (screen.width - row_w) / 2, 0);
     lv_obj_set_style_pad_right(rail, (screen.width - row_w) / 2, 0);
-    lv_obj_set_style_pad_top(rail, cap / 8, 0);
-    lv_obj_set_style_pad_bottom(rail, cap * 3 / 8, 0);
+    lv_obj_set_style_pad_top(rail, cap * 3 / 16, 0);
+    lv_obj_set_style_pad_bottom(rail, cap * 7 / 16, 0);
     lv_obj_set_style_pad_column(rail, ui::dp(12), 0);
+    // The cap shows whatever is behind the tabview: the crema backdrop on Home,
+    // the plain theme background elsewhere (pages paint their own, below).
+    lv_obj_set_style_bg_opa(content, LV_OPA_TRANSP, 0);
   }
 
   lv_obj_t* home = lv_tabview_add_tab(tv, LV_SYMBOL_HOME);
@@ -1052,7 +1058,21 @@ void App::build(core::IMachine& machine, core::IProvisioner& provisioner,
     // tray. Grow the buttons so they fill the bar (big touch targets) instead of
     // sitting small with dead space; the non-grow tray labels stay at the right.
     if (compact || round) lv_obj_set_flex_grow(tb, 1);
-    if (round) lv_obj_set_style_radius(tb, LV_RADIUS_CIRCLE, 0);
+    if (round) {
+      // Liquid glass: unselected tabs are bare white glyphs on the dock; the
+      // selected one sits in a brighter glass bubble (see ui::glass kBright).
+      lv_obj_set_style_radius(tb, LV_RADIUS_CIRCLE, 0);
+      lv_obj_set_style_text_color(tb, lv_color_hex(0xFFFFFF), 0);
+      lv_obj_set_style_text_opa(tb, 185, 0);
+      lv_obj_set_style_text_font(tb, ui::font_dp(24), 0);
+      lv_obj_set_style_text_opa(tb, LV_OPA_COVER, LV_STATE_CHECKED);
+      lv_obj_set_style_text_color(tb, lv_color_hex(0xFFFFFF), LV_STATE_CHECKED);
+      lv_obj_set_style_bg_color(tb, lv_color_hex(0xFFFFFF), LV_STATE_CHECKED);
+      lv_obj_set_style_bg_opa(tb, 72, LV_STATE_CHECKED);
+      lv_obj_set_style_border_color(tb, lv_color_hex(0xFFFFFF), LV_STATE_CHECKED);
+      lv_obj_set_style_border_width(tb, ui::dp(2), LV_STATE_CHECKED);
+      lv_obj_set_style_border_opa(tb, 120, LV_STATE_CHECKED);
+    }
   }
 
   // Round: each tab lays out in the content band, not the full square — the
@@ -1063,18 +1083,22 @@ void App::build(core::IMachine& machine, core::IProvisioner& provisioner,
     if (!round) return page;
     lv_obj_remove_flag(page, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_set_style_pad_all(page, 0, 0);
+    lv_obj_set_style_bg_color(page, lv_color_hex(ui::theme::bg()), 0);
+    lv_obj_set_style_bg_opa(page, LV_OPA_COVER, 0);
     lv_obj_t* body = lv_obj_create(page);
     lv_obj_remove_style_all(body);
     lv_obj_set_pos(body, band.x, band.y);
     lv_obj_set_size(body, band.w, band.h);
     return body;
   };
-  home = band_body(home);
+  const bool scale_on =
+      scale_provisioner_ != nullptr && !scale_provisioner_->saved_name().empty();
+  // ...except the liquid-glass Home (round, no scale), which is designed for the
+  // whole circle and takes the full page (build_round_home).
+  if (!(round && !scale_on)) home = band_body(home);
   settings = band_body(settings);
   stats = band_body(stats);
 
-  const bool scale_on =
-      scale_provisioner_ != nullptr && !scale_provisioner_->saved_name().empty();
   build_home_tab(home, screen, scale_on, home_);
   // Every layout except large-no-scale drops the top bar and moves clock/battery to
   // a tray (visible on every tab). Compact -> a horizontal tray on the bottom tab
@@ -1085,6 +1109,16 @@ void App::build(core::IMachine& machine, core::IProvisioner& provisioner,
     // Round: clock / WiFi / battery as one centered row in the cap above the
     // band, floating over every tab (a child of the screen, not of a page).
     ui::build_round_tray(scr, band.y, ui::font_dp(16), home_);
+    // The tab dock: one glass capsule behind the three tab buttons (they sit in
+    // the transparent tab bar above it). Behind the tabview, above the backdrop.
+    const int cap = screen.height - (band.y + band.h);
+    const int row_w = ui::dp(3 * 96 + 2 * 12);
+    const int inset = ui::dp(8);
+    lv_obj_t* dock = ui::glass::make_panel(scr, LV_RADIUS_CIRCLE, ui::glass::Tone::kClear);
+    lv_obj_set_size(dock, row_w + 2 * inset, cap * 6 / 16 + 2 * inset);
+    lv_obj_set_pos(dock, (screen.width - row_w) / 2 - inset,
+                   band.y + band.h + cap * 3 / 16 - inset);
+    lv_obj_move_to_index(dock, lv_obj_get_index(tv));
   } else if (compact) {
     ui::build_bottom_tray(rail, ui::font_dp(14), home_);
   } else {
@@ -1094,6 +1128,7 @@ void App::build(core::IMachine& machine, core::IProvisioner& provisioner,
     // narrow rail without clipping (font metrics differ on-device vs sim).
     ui::build_rail_tray(rail, ui::font_dp(16), home_);
   }
+  sync_round_backdrop();
   lv_obj_add_event_cb(home_.power_btn, on_power_clicked, LV_EVENT_CLICKED, this);
   if (home_.tare_btn != nullptr)
     lv_obj_add_event_cb(home_.tare_btn, on_tare_clicked, LV_EVENT_CLICKED, this);
@@ -1811,6 +1846,19 @@ void App::update_temp_panels(const core::MachineSnapshot& s) {
 
 void App::show_tab(int index) {
   if (tabview_ != nullptr) lv_tabview_set_active(tabview_, index, LV_ANIM_OFF);
+  sync_round_backdrop();
+}
+
+void App::sync_round_backdrop() {
+  // The round-glass Home's backdrop (crema + bezel arcs) lives behind the whole
+  // tabview; only Home is transparent enough to show it, but the bottom cap
+  // would show the arcs on every tab — so it is up only while Home is.
+  if (home_.rg_backdrop == nullptr || tabview_ == nullptr) return;
+  const bool on_home = lv_tabview_get_tab_active(tabview_) == 0;
+  if (on_home == lv_obj_has_flag(home_.rg_backdrop, LV_OBJ_FLAG_HIDDEN)) {
+    if (on_home) lv_obj_remove_flag(home_.rg_backdrop, LV_OBJ_FLAG_HIDDEN);
+    else lv_obj_add_flag(home_.rg_backdrop, LV_OBJ_FLAG_HIDDEN);
+  }
 }
 
 void App::toggle_power() {

@@ -75,6 +75,9 @@ class App {
   // Switch the active tab by index (0=Home, 1=Settings, 2=Stats). Mainly for
   // the simulator to render a specific tab.
   void show_tab(int index);
+  // Round-glass Home: show its screen-level backdrop only while Home is the
+  // active tab (called on every tab change; a no-op elsewhere).
+  void sync_round_backdrop();
 
   // Bound to UI events:
   void toggle_power();         // power button

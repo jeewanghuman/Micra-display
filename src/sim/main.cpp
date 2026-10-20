@@ -199,8 +199,17 @@ int main() {
     ok &= r(rd, "renders/round_backflush_800x800.png", 1, -1, false, 0, -1, false, -1, 0,
             true);
     ok &= r(rd, "renders/round_shot_card_800x800.png", 0, -1, false, 0, -1, false, 0);
+    // The liquid-glass Home (round + no scale): ready, heating, standby, and
+    // the Settings tab with the glass dock but no backdrop.
     scale_provisioner.set_saved(false);
     ok &= r(rd, "renders/round_home_noscale_800x800.png");
+    machine.set_temps(78.0f, 96.0f);
+    ok &= r(rd, "renders/round_home_glass_heating_800x800.png");
+    machine.set_temps(93.0f, 123.0f);
+    machine.set_power(false);
+    ok &= r(rd, "renders/round_home_glass_standby_800x800.png");
+    machine.set_power(true);
+    ok &= r(rd, "renders/round_settings_glass_800x800.png", 1);
     scale_provisioner.set_saved(true);
   }
   // Scrolling strip-chart graph (the non-default style; scope is the default).

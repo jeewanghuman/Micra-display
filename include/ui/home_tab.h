@@ -247,10 +247,29 @@ struct HomeWidgets {
   // rebases it in place (absolute -> shot-relative); this flag records which
   // convention the arrays currently hold.
   bool unwired_ring = false;
+
+  // Round-glass Home (round screens with no scale paired — build_round_home).
+  // The page itself holds the readouts and buttons; the backdrop (crema image,
+  // state dimmer, the brew/steam ring arcs and their captions) is a layer on
+  // the SCREEN behind the tabview, because the arcs run down behind the tab
+  // dock in the bottom cap where the tab page doesn't reach. App shows that
+  // layer only while Home is the active tab (App::sync_round_backdrop).
+  bool round_glass = false;
+  lv_obj_t* rg_backdrop = nullptr;
+  lv_obj_t* rg_dim = nullptr;          // black veil: darker in standby/heating
+  lv_obj_t* rg_brew_arc = nullptr;     // left ring: brew boiler toward target
+  lv_obj_t* rg_brew_glow = nullptr;    // wide, faint copy underneath = glow
+  lv_obj_t* rg_steam_arc = nullptr;    // right ring: steam boiler toward target
+  lv_obj_t* rg_steam_glow = nullptr;
+  lv_obj_t* rg_power_icon = nullptr;   // glyph inside the round power button
+  lv_obj_t* rg_flush_icon = nullptr;
 };
 
 // Build the Home widgets into `parent`, sized for `screen`. `scale_enabled`
 // selects the scale-aware layout. Values are set by a following update_home call.
+// Round screens with no scale get the liquid-glass Home (build_round_home):
+// `parent` must then be the FULL-size tab page, not the round band, and the
+// tabview content must be transparent so the backdrop layer shows through.
 void build_home_tab(lv_obj_t* parent, const ScreenProfile& screen, bool scale_enabled,
                     HomeWidgets& out);
 
@@ -268,6 +287,13 @@ void build_bottom_tray(lv_obj_t* bar, const lv_font_t* font, HomeWidgets& out);
 // the content band (cap_h = the band's top edge, in px).
 void build_round_tray(lv_obj_t* screen, int cap_h, const lv_font_t* font,
                       HomeWidgets& out);
+
+// The liquid-glass Home for round screens (round_home.cpp). build_home_tab
+// dispatches here; update_home calls update_round_home last (a no-op unless
+// the round-glass Home is the one built).
+void build_round_home(lv_obj_t* page, const ScreenProfile& screen, HomeWidgets& out);
+void update_round_home(HomeWidgets& w, const core::MachineSnapshot& state,
+                       const core::BrewSnapshot& brew, bool fahrenheit, bool heating);
 
 // Apply machine + battery + scale state to the built widgets (live, no rebuild).
 // scale_features/scale_connect_enabled drive the sleep-aware scale status: a

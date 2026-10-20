@@ -890,6 +890,17 @@ void build_home_tab(lv_obj_t* parent, const ScreenProfile& screen, bool scale_en
   out.flow_xspan_label = nullptr;
   for (lv_obj_t*& yl : out.flow_ylabels) yl = nullptr;
   for (lv_obj_t*& xl : out.flow_xlabels) xl = nullptr;
+  out.round_glass = false;
+  out.rg_backdrop = out.rg_dim = nullptr;
+  out.rg_brew_arc = out.rg_brew_glow = out.rg_steam_arc = out.rg_steam_glow = nullptr;
+  out.rg_power_icon = out.rg_flush_icon = nullptr;
+  out.power_btn = out.power_label = nullptr;
+
+  // Round glass, no scale: the liquid-glass Home (round_home.cpp).
+  if (is_round(screen) && !scale_enabled) {
+    build_round_home(parent, screen, out);
+    return;
+  }
 
   const int pad = ui::dp(compact ? 8 : xl ? 28 : 20);
   const int gap = ui::dp(compact ? 6 : xl ? 22 : 16);
@@ -1070,8 +1081,12 @@ void update_home(HomeWidgets& w, const core::MachineSnapshot& state,
   // Temperatures: real values when connected, placeholders otherwise. The set point
   // is always compact ("93.0°" — the live value above/beside it carries the unit),
   // whether it's a stepper's value (large) or a grey sub-value (compact).
+  // (The round-glass Home formats its own readouts — update_round_home, below —
+  // so this generic text is skipped there rather than written and rewritten.)
   char buf[24];
-  if (connected) {
+  if (w.round_glass) {
+    // see update_round_home
+  } else if (connected) {
     format_now(buf, sizeof(buf), state.brew_temp_c, fahrenheit);
     ui::set_text(w.brew_value, buf);
     if (w.brew_set != nullptr) {
@@ -1348,6 +1363,9 @@ void update_home(HomeWidgets& w, const core::MachineSnapshot& state,
   // when the button lives inside the MICRA card (card-on-card is invisible).
   const uint32_t pow_neutral =
       (w.scale_connect_btn != nullptr) ? ui::theme::rail() : ui::theme::card();
+  // The round-glass Home keeps the enable/disable logic below but draws its own
+  // fills and words (update_round_home).
+  const bool generic_look = !w.round_glass;
   // Release a pending power toggle: answered (the reported power changed),
   // link lost (nothing left to wait on), or timed out.
   if (w.power_pending_until != 0 &&
@@ -1363,19 +1381,25 @@ void update_home(HomeWidgets& w, const core::MachineSnapshot& state,
         // button disabled so the lag can't read as "didn't work" and invite
         // a second (state-undoing) tap.
         lv_obj_add_state(w.power_btn, LV_STATE_DISABLED);
-        ui::set_bg_color(w.power_btn, pow_neutral);
-        ui::set_text(w.power_label, LV_SYMBOL_REFRESH "  Working...");
+        if (generic_look) {
+          ui::set_bg_color(w.power_btn, pow_neutral);
+          ui::set_text(w.power_label, LV_SYMBOL_REFRESH "  Working...");
+        }
         break;
       }
       lv_obj_remove_state(w.power_btn, LV_STATE_DISABLED);
-      ui::set_bg_color(w.power_btn, on ? pow_neutral : ui::theme::accent());
-      ui::set_text(w.power_label,
-                        on ? LV_SYMBOL_POWER "  Standby" : LV_SYMBOL_POWER "  Turn On");
+      if (generic_look) {
+        ui::set_bg_color(w.power_btn, on ? pow_neutral : ui::theme::accent());
+        ui::set_text(w.power_label,
+                     on ? LV_SYMBOL_POWER "  Standby" : LV_SYMBOL_POWER "  Turn On");
+      }
       break;
     case core::Link::Disconnected:  // configured + tokened, just not connected -> connect
       lv_obj_remove_state(w.power_btn, LV_STATE_DISABLED);
-      ui::set_bg_color(w.power_btn, ui::theme::accent());
-      ui::set_text(w.power_label, LV_SYMBOL_REFRESH "  Connect");
+      if (generic_look) {
+        ui::set_bg_color(w.power_btn, ui::theme::accent());
+        ui::set_text(w.power_label, LV_SYMBOL_REFRESH "  Connect");
+      }
       break;
     case core::Link::NeedsToken:
     case core::Link::Unconfigured:
@@ -1384,16 +1408,20 @@ void update_home(HomeWidgets& w, const core::MachineSnapshot& state,
       // can't take and doesn't say what to do instead. Tapping now opens
       // Settings > Micra > Bluetooth (see App::toggle_power).
       lv_obj_remove_state(w.power_btn, LV_STATE_DISABLED);
-      ui::set_bg_color(w.power_btn, ui::theme::accent());
-      ui::set_text(w.power_label, LV_SYMBOL_SETTINGS "  Set up");
+      if (generic_look) {
+        ui::set_bg_color(w.power_btn, ui::theme::accent());
+        ui::set_text(w.power_label, LV_SYMBOL_SETTINGS "  Set up");
+      }
       break;
     case core::Link::Connecting:
     default:
       lv_obj_add_state(w.power_btn, LV_STATE_DISABLED);
-      ui::set_bg_color(w.power_btn, pow_neutral);
-      ui::set_text(w.power_label, has_status_text
-                                      ? LV_SYMBOL_REFRESH "  Connect"
-                                      : LV_SYMBOL_REFRESH "  Connecting...");
+      if (generic_look) {
+        ui::set_bg_color(w.power_btn, pow_neutral);
+        ui::set_text(w.power_label, has_status_text
+                                        ? LV_SYMBOL_REFRESH "  Connect"
+                                        : LV_SYMBOL_REFRESH "  Connecting...");
+      }
       break;
   }
 
@@ -1410,8 +1438,10 @@ void update_home(HomeWidgets& w, const core::MachineSnapshot& state,
         lv_obj_remove_flag(w.flush_btn, LV_OBJ_FLAG_HIDDEN);
       if (brew.manual_flush) {
         lv_obj_remove_state(w.flush_btn, LV_STATE_DISABLED);
-        ui::set_bg_color(w.flush_btn, ui::theme::alert());
-        ui::set_text(w.flush_label, LV_SYMBOL_STOP "  Stop");
+        if (generic_look) {
+          ui::set_bg_color(w.flush_btn, ui::theme::alert());
+          ui::set_text(w.flush_label, LV_SYMBOL_STOP "  Stop");
+        }
       } else {
         // Backflush owns the line while it runs, and a shot in flight blocks a
         // flush — clean_ready covers both (plus a standby machine).
@@ -1419,11 +1449,15 @@ void update_home(HomeWidgets& w, const core::MachineSnapshot& state,
           lv_obj_remove_state(w.flush_btn, LV_STATE_DISABLED);
         else
           lv_obj_add_state(w.flush_btn, LV_STATE_DISABLED);
-        ui::set_bg_color(w.flush_btn, pow_neutral);
-        ui::set_text(w.flush_label, LV_SYMBOL_TINT "  Flush");
+        if (generic_look) {
+          ui::set_bg_color(w.flush_btn, pow_neutral);
+          ui::set_text(w.flush_label, LV_SYMBOL_TINT "  Flush");
+        }
       }
     }
   }
+
+  update_round_home(w, state, brew, fahrenheit, heating);
 }
 
 namespace {
