@@ -879,11 +879,11 @@ constexpr bool kLcdRstActiveHigh = false;
 // Backlight: AP3032 boost; GPIO26 PWM -> R65/R37 (+C70 filter) -> R36 into
 // its FB node, EN on GPIO33 (R61, also pulled up by R57). PWM high pushes
 // current into FB, so the boost backs off: higher duty = DIMMER, the same
-// inverted sense as the 4.3's identical circuit (verified there). Waveshare's
-// Arduino demo writes analogWrite(26, 242) as "95% brightness", which reads
-// as normal polarity — but the first 3.4C flash with normal polarity showed
-// a blank panel and reset (POWERON) ~0.5 s after backlight-on. Active-low is
-// the bring-up test that tells the two apart; confirm on HW.
+// inverted sense as the 4.3's identical circuit. HW-VERIFIED on a rev v1.3
+// 3.4C (2026-10): normal polarity left the panel dark and the board
+// resetting (POWERON) ~0.5 s after backlight-on; active-low lights the UI
+// and the resets stop. Waveshare's Arduino demo (analogWrite(26, 242) as
+// "95% brightness") reads as normal polarity — don't trust it here.
 constexpr int  kLcdBacklight = 26;
 constexpr bool kBacklightActiveLow = true;
 constexpr int  kLcdBacklightEn = 33;

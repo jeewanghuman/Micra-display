@@ -234,8 +234,10 @@ env adds `-DBOARD_P4_SILICON_REV3`), panel table `BOARD_DSI_PANEL_JD9365_RD34`
 - New code that sizes from `screen_.width/height` must use the band instead
   on round glass, or it will draw off the glass. The sim's `round_*_800x800`
   renders are masked to the circle (red edge, off-glass dimmed) — check them.
-- UNVERIFIED on hardware: panel orientation (MADCTL), touch mirror flags,
-  backlight polarity (Waveshare drives it normal-polarity, unlike the 4.3).
+- HW bring-up (rev v1.3 unit, 2026-10): boots, panel + GT911 + hosted radio
+  up, UI visible. Backlight is ACTIVE-LOW like the 4.3 (normal polarity =
+  dark panel + POWERON reset loop). Still unverified: panel orientation
+  (MADCTL), touch mirror flags.
 
 ## Support matrix (READ BEFORE TOUCHING ANY BOARD LIST)
 
