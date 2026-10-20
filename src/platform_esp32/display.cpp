@@ -1031,8 +1031,8 @@ const lcd_init_cmd_t kDsiPanelInit[] = {
 // (0x80 0x01), sleep-out (120 ms), display-on (20 ms) and TE on. Their
 // Arduino_GFX driver sends this table and nothing else; we prefix only COLMOD
 // RGB565, the same as the 8" wrapper (harmless — DPI packets carry the format).
-// MADCTL is left at the panel default: the glass orientation is unverified on
-// HW, so flip it here (0x03 = GS|SS = 180°) if the image comes up inverted.
+// MADCTL is left at the panel default — HW-verified upright (rev v1.3
+// unit, 2026-10), so no GS|SS flip is needed on this glass.
 // NOT the 4C (720x720) table — that glass has its own branch upstream.
 const lcd_init_cmd_t kDsiPanelInit[] = {
     {0xE0, (uint8_t[]){0x00}, 1, 0},  // page: user

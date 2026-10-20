@@ -236,8 +236,8 @@ env adds `-DBOARD_P4_SILICON_REV3`), panel table `BOARD_DSI_PANEL_JD9365_RD34`
   renders are masked to the circle (red edge, off-glass dimmed) — check them.
 - HW bring-up (rev v1.3 unit, 2026-10): boots, panel + GT911 + hosted radio
   up, UI visible. Backlight is ACTIVE-LOW like the 4.3 (normal polarity =
-  dark panel + POWERON reset loop). Still unverified: panel orientation
-  (MADCTL), touch mirror flags.
+  dark panel + POWERON reset loop). Orientation (default MADCTL) and the
+  touch mapping (swap XY + mirror Y, as committed) are correct as-is.
 
 ## Support matrix (READ BEFORE TOUCHING ANY BOARD LIST)
 

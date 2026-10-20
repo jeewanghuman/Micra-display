@@ -895,8 +895,8 @@ constexpr int  kDsiVsyncPulse = 4,  kDsiVsyncBack = 12, kDsiVsyncFront = 24;
 // --- Touch: GT9271. TP_RST reaches GPIO23 (R62) but Waveshare deliberately
 //     leaves it undriven (resetting re-straps the address); TP_INT only goes
 //     to test point TP2 — no MCU route. So: no rst, no int, probe 0x5D then
-//     0x14, poll — the X-series contract. Mapping is a best guess for the
-//     rotation=1 flush; fix on HW from the one-line-per-press serial log. ---
+//     0x14, poll — the X-series contract. Mapping below is HW-VERIFIED
+//     (rev v1.3 unit, 2026-10) with the default panel orientation. ---
 constexpr int  kTouchSda = 7;   // == kI2cSda (Touch reads these names)
 constexpr int  kTouchScl = 8;
 constexpr int  kTouchAddr = 0x5D;    // 0x5D or 0x14
