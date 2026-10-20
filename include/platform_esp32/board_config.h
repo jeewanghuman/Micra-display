@@ -876,12 +876,16 @@ constexpr int  kLcdNativeH = 800;
 constexpr int  kLcdRotation = 1;
 constexpr int  kLcdRst = 27;               // schematic GPIO27 -> R11 -> RESET
 constexpr bool kLcdRstActiveHigh = false;
-// Backlight: AP3032 boost; GPIO26 PWM -> R65/R37 into its FB node, EN on
-// GPIO33 (R61, also pulled up by R57). Waveshare drives it analogWrite(26,
-// 242) for "95% max brightness", i.e. NORMAL polarity — unlike the 4.3,
-// whose identical-looking circuit runs inverted. Flip if full = dark on HW.
+// Backlight: AP3032 boost; GPIO26 PWM -> R65/R37 (+C70 filter) -> R36 into
+// its FB node, EN on GPIO33 (R61, also pulled up by R57). PWM high pushes
+// current into FB, so the boost backs off: higher duty = DIMMER, the same
+// inverted sense as the 4.3's identical circuit (verified there). Waveshare's
+// Arduino demo writes analogWrite(26, 242) as "95% brightness", which reads
+// as normal polarity — but the first 3.4C flash with normal polarity showed
+// a blank panel and reset (POWERON) ~0.5 s after backlight-on. Active-low is
+// the bring-up test that tells the two apart; confirm on HW.
 constexpr int  kLcdBacklight = 26;
-constexpr bool kBacklightActiveLow = false;
+constexpr bool kBacklightActiveLow = true;
 constexpr int  kLcdBacklightEn = 33;
 constexpr long kDsiDpiClockHz = 80000000;
 constexpr int  kDsiLaneBitRateMbps = 1500;
