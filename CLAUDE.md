@@ -262,8 +262,15 @@ env adds `-DBOARD_P4_SILICON_REV3`), panel table `BOARD_DSI_PANEL_JD9365_RD34`
   deg; regenerate with tools/gen_hero_font.sh); ~40 extra LVGL objects on
   Home, the dial/sheet only while open. Not yet measured on hardware:
   boot-time cost of the backdrop, frame times (shadows, the glassify walk).
-  Unchanged on round: the screensaver artworks (bounce inside the band; a
-  new saver style would widen the stored enum — see the NVS RULE).
+  CLOCK IDLE SCREEN (`kSaverClock`, round only — the cycle skips it and a
+  restored Clock falls back to Lion on rectangular boards): its own screen
+  like the artworks (`App::start_clock_saver` / `clock_saver_tick`, 10 Hz):
+  faint bezel tracks, weekday + hero-font clock with a +-8 px 10-min sway,
+  and a glass orb (brew temp + state, amber shadow as the glow) lapping an
+  ellipse every 4 min — burn-in movement. Stored WITHOUT widening any old
+  key: `ssclock` (bool) rides on ssstyle2 = Logo with ssart untouched, so an
+  older build reads "Logo" and bounces the previous artwork (NVS RULE).
+  The artworks still bounce inside the band on round.
 - HW bring-up (rev v1.3 unit, 2026-10): boots, panel + GT911 + hosted radio
   up, UI visible. Backlight is ACTIVE-LOW like the 4.3 (normal polarity =
   dark panel + POWERON reset loop). Orientation (default MADCTL) and the

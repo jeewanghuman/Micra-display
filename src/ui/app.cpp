@@ -655,7 +655,9 @@ void set_dim_label(ui::SettingsWidgets& s) {
 //   Dim  — backlight at the same dim floor, the live UI stays on screen (the
 //          original screensaver, from before the lion existed)
 //   Off  — backlight fully off (set_brightness(0) is a true off, not a minimum)
-constexpr const char* kSaverName[] = {"Lion", "Apollo", "Alternate", "Dim", "Off"};
+//   Clock — round glass only: the time and a drifting glass orb with the
+//          machine's state, at the same dim floor (start_clock_saver)
+constexpr const char* kSaverName[] = {"Lion", "Apollo", "Alternate", "Dim", "Off", "Clock"};
 constexpr int kSaverCount = static_cast<int>(sizeof(kSaverName) / sizeof(kSaverName[0]));
 static_assert(kSaverCount == core::IDisplaySettings::kSaverStyleCount,
               "kSaverName must follow core::IDisplaySettings::SaverStyle");
@@ -1370,6 +1372,11 @@ void App::build(core::IMachine& machine, core::IProvisioner& provisioner,
   settings_.screen_timeout_min = display_->screen_timeout_min();
   set_dim_label(settings_);
   settings_.screensaver_style = display_->screensaver_style();
+  // A Clock choice restored onto a rectangular board (settings backups
+  // travel) falls back to the default artwork there.
+  if (settings_.screensaver_style == core::IDisplaySettings::kSaverClock &&
+      !ui::is_round(screen_))
+    settings_.screensaver_style = core::IDisplaySettings::kSaverLion;
   sync_saver_row(settings_);
   // Idle-dim poll. Created once (build() reruns on theme rebuilds; the timer
   // isn't part of the widget tree, so it survives them).
@@ -2007,6 +2014,10 @@ void App::cycle_screen_timeout() {
 void App::cycle_screensaver_style() {
   if (display_ == nullptr) return;
   settings_.screensaver_style = (settings_.screensaver_style + 1) % kSaverCount;
+  // Clock is designed for the circle; rectangular screens skip it.
+  if (settings_.screensaver_style == core::IDisplaySettings::kSaverClock &&
+      !ui::is_round(screen_))
+    settings_.screensaver_style = core::IDisplaySettings::kSaverLion;
   display_->set_screensaver_style(settings_.screensaver_style);
   sync_saver_row(settings_);
 }
@@ -2059,6 +2070,10 @@ void App::screensaver_tick() {
 void App::start_screensaver(int style) {
   stop_screensaver();
   close_dial();  // on the top layer, it would float over the saver
+  if (style == core::IDisplaySettings::kSaverClock && ui::is_round(screen_)) {
+    start_clock_saver();
+    return;
+  }
   // A full-screen cover on the top layer. Its first job in every style is to
   // swallow the waking tap so it can't press whatever control happens to sit
   // under the finger. The artworks and Off paint it opaque black; Dim leaves
@@ -2202,9 +2217,15 @@ void App::stop_screensaver() {
     saver_prev_screen_ = nullptr;
   }
   saver_img_ = nullptr;
+  // The clock saver's widgets died with saver_screen_.
+  saver_clock_ = saver_day_ = saver_orb_ = saver_orb_temp_ = saver_orb_state_ = nullptr;
 }
 
 void App::saver_anim_tick() {
+  if (saver_orb_ != nullptr) {
+    clock_saver_tick();
+    return;
+  }
   if (saver_img_ == nullptr) return;
   // Alternate: the other artwork takes over every kSaverSwapMs. Only the image
   // changes -- position, direction and color carry on as they were.
@@ -2228,6 +2249,154 @@ void App::saver_anim_tick() {
                                    lv_color_hex(kSaverColors[saver_color_i_]), 0);
   }
   lv_obj_set_pos(saver_img_, x, y);
+}
+
+// ---- Clock idle screen (round glass) ----------------------------------------
+// The "Apollo Round — Liquid Glass" Idle mockup: on black, faint brew/steam
+// bezel tracks, the weekday and a large thin clock, and a glass orb with the
+// brew temperature and machine state that drifts slowly round an ellipse
+// below the clock. Like the artworks it is its OWN screen (the UI costs
+// nothing while it is unloaded) at the per-board dim backlight. Burn-in: the
+// orb laps every few minutes and the clock sways a few pixels, so no bright
+// pixel stays put for hours.
+
+void App::start_clock_saver() {
+  const int d = screen_.width < screen_.height ? screen_.width : screen_.height;
+  auto at = [d](int px) { return px * d / 800; };
+
+  saver_prev_screen_ = lv_screen_active();
+  saver_screen_ = lv_obj_create(nullptr);
+  lv_obj_remove_style_all(saver_screen_);
+  lv_obj_set_style_bg_color(saver_screen_, lv_color_black(), 0);
+  lv_obj_set_style_bg_opa(saver_screen_, LV_OPA_COVER, 0);
+  lv_obj_add_flag(saver_screen_, LV_OBJ_FLAG_CLICKABLE);  // swallows the waking tap
+  lv_obj_remove_flag(saver_screen_, LV_OBJ_FLAG_SCROLLABLE);
+  lv_screen_load(saver_screen_);
+
+  // Faint bezel tracks: brew (amber) left, steam (blue) right. Static.
+  static constexpr struct { int start, end; uint32_t color; lv_opa_t opa; } kTracks[] = {
+      {120, 240, 0xF2A24A, 85}, {300, 60, 0xA9D2FF, 70}};
+  for (const auto& tr : kTracks) {
+    lv_obj_t* arc = lv_arc_create(saver_screen_);
+    lv_obj_remove_style_all(arc);
+    lv_obj_remove_flag(arc, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_size(arc, 2 * (at(372) + at(2)), 2 * (at(372) + at(2)));
+    lv_obj_center(arc);
+    lv_arc_set_rotation(arc, 0);
+    lv_arc_set_bg_angles(arc, tr.start, tr.end);
+    lv_arc_set_value(arc, lv_arc_get_min_value(arc));
+    lv_obj_set_style_arc_width(arc, at(3), LV_PART_MAIN);
+    lv_obj_set_style_arc_rounded(arc, true, LV_PART_MAIN);
+    lv_obj_set_style_arc_color(arc, lv_color_hex(tr.color), LV_PART_MAIN);
+    lv_obj_set_style_arc_opa(arc, tr.opa, LV_PART_MAIN);
+  }
+
+  saver_day_ = lv_label_create(saver_screen_);
+  lv_obj_set_style_text_font(saver_day_, ui::font_dp(20), 0);
+  lv_obj_set_style_text_color(saver_day_, lv_color_hex(0xFFFFFF), 0);
+  lv_obj_set_style_text_opa(saver_day_, 140, 0);
+  lv_obj_set_style_text_letter_space(saver_day_, ui::dp(2), 0);
+  lv_label_set_text(saver_day_, "");
+
+  saver_clock_ = lv_label_create(saver_screen_);
+  lv_obj_set_style_text_font(saver_clock_, &font_outfit_hero, 0);
+  lv_obj_set_style_text_color(saver_clock_, lv_color_hex(0xFFFFFF), 0);
+  lv_obj_set_style_text_opa(saver_clock_, 225, 0);
+  lv_obj_set_style_text_letter_space(saver_clock_, -at(6), 0);
+  lv_label_set_text(saver_clock_, "--:--");
+
+  // The orb: a glass marble with the amber glow showing through it (the
+  // glow is its shadow, recoloured and spread).
+  saver_orb_ = ui::glass::make_panel(saver_screen_, LV_RADIUS_CIRCLE, ui::glass::Tone::kClear);
+  lv_obj_set_size(saver_orb_, at(124), at(124));
+  lv_obj_set_style_shadow_color(saver_orb_, lv_color_hex(0xE8913E), 0);
+  lv_obj_set_style_shadow_width(saver_orb_, at(70), 0);
+  lv_obj_set_style_shadow_spread(saver_orb_, at(2), 0);
+  lv_obj_set_style_shadow_offset_y(saver_orb_, at(6), 0);
+  lv_obj_set_style_shadow_opa(saver_orb_, 190, 0);
+  lv_obj_set_flex_flow(saver_orb_, LV_FLEX_FLOW_COLUMN);
+  lv_obj_set_flex_align(saver_orb_, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER,
+                        LV_FLEX_ALIGN_CENTER);
+  saver_orb_temp_ = lv_label_create(saver_orb_);
+  lv_obj_set_style_text_font(saver_orb_temp_, ui::font_dp(28), 0);
+  saver_orb_state_ = lv_label_create(saver_orb_);
+  lv_obj_set_style_text_font(saver_orb_state_, ui::font_dp(14), 0);
+  lv_obj_set_style_text_opa(saver_orb_state_, 210, 0);
+
+  // Initial placement; the tick only re-aligns when the sway moves them.
+  lv_obj_align(saver_clock_, LV_ALIGN_TOP_MID, 0, at(232));
+  lv_obj_align(saver_day_, LV_ALIGN_TOP_MID, 0, at(198));
+  saver_clock_t0_ = lv_tick_get();
+  clock_saver_tick();  // place + fill now, not a tick later
+  // 10 Hz: the orb crawls a few px per second; faster would only redraw it
+  // in place.
+  saver_anim_ = lv_timer_create(on_saver_anim_timer, 100, this);
+}
+
+void App::clock_saver_tick() {
+  if (saver_orb_ == nullptr) return;
+  const int d = screen_.width < screen_.height ? screen_.width : screen_.height;
+  auto at = [d](int px) { return px * d / 800; };
+  constexpr float kTwoPi = 6.2831853f;
+  const float t = static_cast<float>(lv_tick_elaps(saver_clock_t0_)) / 1000.0f;
+
+  // Orb: one lap of a flat ellipse below the clock every 4 minutes.
+  const float a = 0.9f + t * (kTwoPi / 240.0f);
+  const int orb = at(124);  // its set size (get_width reads 0 before the first layout)
+  const int ox = screen_.width / 2 + static_cast<int>(std::lround(at(190) * std::cos(a))) - orb / 2;
+  const int oy = at(590) + static_cast<int>(std::lround(at(40) * std::sin(a))) - orb / 2;
+  if (lv_obj_get_x(saver_orb_) != ox || lv_obj_get_y(saver_orb_) != oy)
+    lv_obj_set_pos(saver_orb_, ox, oy);
+  // Clock + weekday: a slow +-8 px sway (10-minute period).
+  const int sway = static_cast<int>(std::lround(at(8) * std::sin(t * (kTwoPi / 600.0f))));
+  if (lv_obj_get_style_x(saver_clock_, LV_PART_MAIN) != sway) {
+    lv_obj_align(saver_clock_, LV_ALIGN_TOP_MID, sway, at(232));
+    lv_obj_align(saver_day_, LV_ALIGN_TOP_MID, sway, at(198));
+  }
+
+  char buf[24];
+  const core::WallTime now = clock_ != nullptr ? clock_->now() : core::WallTime{};
+  if (now.valid) {
+    int h = now.hour;
+    if (!clock_->use_24h()) {  // 12-hour: no AM/PM on the idle clock
+      h %= 12;
+      if (h == 0) h = 12;
+    }
+    std::snprintf(buf, sizeof(buf), "%d:%02d", h, now.minute);
+  } else {
+    std::snprintf(buf, sizeof(buf), "--:--");
+  }
+  ui::set_text(saver_clock_, buf);
+  if (now.date_valid) {
+    // Sakamoto's day-of-week (0 = Sunday).
+    static constexpr int kT[] = {0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4};
+    static constexpr const char* kDay[] = {"SUNDAY",   "MONDAY", "TUESDAY", "WEDNESDAY",
+                                           "THURSDAY", "FRIDAY", "SATURDAY"};
+    int y = now.year;
+    if (now.month < 3) y -= 1;
+    const int dow =
+        (y + y / 4 - y / 100 + y / 400 + kT[(now.month - 1) % 12] + now.day) % 7;
+    ui::set_text(saver_day_, kDay[dow]);
+  } else {
+    ui::set_text(saver_day_, "");
+  }
+
+  // Orb: brew temperature + the machine's state.
+  const char* state = "Offline";
+  if (machine_ != nullptr) {
+    const core::MachineSnapshot m = machine_->snapshot();
+    if (m.link == core::Link::Connected) {
+      std::snprintf(buf, sizeof(buf), "%.0f°",
+                    static_cast<double>(ui::temp_disp(m.brew_temp_c, display_->use_fahrenheit())));
+      state = m.power != core::Power::On ? "Standby" : heating_ ? "Heating" : "Ready";
+    } else {
+      std::snprintf(buf, sizeof(buf), "--");
+    }
+  } else {
+    std::snprintf(buf, sizeof(buf), "--");
+  }
+  ui::set_text(saver_orb_temp_, buf);
+  ui::set_text(saver_orb_state_, state);
 }
 
 void App::pose_screensaver() {

@@ -347,6 +347,16 @@ class App {
   lv_obj_t* saver_prev_screen_ = nullptr;  // the UI screen to load back on wake
   lv_obj_t* saver_img_ = nullptr;       // null in the Dim and Off styles
   lv_timer_t* saver_anim_ = nullptr;
+  // Clock idle screen (round glass; start_clock_saver): it reuses
+  // saver_screen_ / saver_anim_, and saver_orb_ != null marks it running.
+  lv_obj_t* saver_clock_ = nullptr;
+  lv_obj_t* saver_day_ = nullptr;
+  lv_obj_t* saver_orb_ = nullptr;
+  lv_obj_t* saver_orb_temp_ = nullptr;
+  lv_obj_t* saver_orb_state_ = nullptr;
+  uint32_t saver_clock_t0_ = 0;
+  void start_clock_saver();
+  void clock_saver_tick();
   int saver_vx_ = 0, saver_vy_ = 0;     // px per anim tick
   int saver_color_i_ = 0;               // palette index; advances on bounce
   int saver_art_ = 0;                   // ui::SaverArt currently on screen

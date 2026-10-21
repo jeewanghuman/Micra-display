@@ -30,17 +30,20 @@ class IDisplaySettings {
   // Persisted idle-screen style, as the Settings cycle button orders it:
   // three bouncing artworks over the dimmed screen (Lion is the default;
   // Alternate takes turns between them every few minutes), then Dim (the live UI
-  // stays, backlight down) and Off (display off). Takes effect when the
-  // screen-dim timeout fires; irrelevant while the timeout is 0. The device
-  // stores it as two NVS keys (style + artwork) so older builds keep reading
-  // theirs -- see Config::screensaver_style().
+  // stays, backlight down) and Off (display off), then Clock (round glass
+  // only: a large clock and a drifting glass orb with the machine's state).
+  // Takes effect when the screen-dim timeout fires; irrelevant while the
+  // timeout is 0. The device stores it as NVS keys that older builds keep
+  // reading unchanged (style + artwork, plus a separate Clock flag) -- see
+  // Config::screensaver_style().
   enum SaverStyle : int {
     kSaverLion = 0,
     kSaverApollo = 1,
     kSaverAlternate = 2,
     kSaverDim = 3,
     kSaverOff = 4,
-    kSaverStyleCount = 5,
+    kSaverClock = 5,
+    kSaverStyleCount = 6,
   };
   virtual int screensaver_style() const = 0;
   virtual void set_screensaver_style(int style) = 0;

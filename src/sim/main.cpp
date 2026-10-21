@@ -134,7 +134,11 @@ bool render(core::IMachine& machine, core::IProvisioner& provisioner,
   if (round_sheet == 1) app.open_brew_dial();
   if (round_sheet == 2) app.open_steam_sheet();
   display.render_frame();
-  if (screensaver && !check_saver_dirty_area(screen)) return false;
+  // (The Clock idle screen has no bouncing artwork to check.)
+  if (screensaver &&
+      disp_settings.screensaver_style() != core::IDisplaySettings::kSaverClock &&
+      !check_saver_dirty_area(screen))
+    return false;
   if (screen.round) display.mask_round();
   if (!display.save_png(out_path)) {
     std::fprintf(stderr, "error: failed to write %s\n", out_path);
@@ -196,6 +200,10 @@ int main() {
     ok &= r(rd, "renders/round_clean_lock_800x800.png", 0, -1, false, 0, -1, true);
     ok &= r(rd, "renders/round_screensaver_800x800.png", 0, -1, false, 0, -1, false, -1,
             0, false, false, false, false, false, true);
+    disp.set_screensaver_style(core::IDisplaySettings::kSaverClock);
+    ok &= r(rd, "renders/round_screensaver_clock_800x800.png", 0, -1, false, 0, -1, false,
+            -1, 0, false, false, false, false, false, true);
+    disp.set_screensaver_style(core::IDisplaySettings::kSaverLion);
     updates.set_available(true);
     ok &= r(rd, "renders/round_update_modal_800x800.png", 0, -1, false, 0, -1, false, -1,
             0, false, false, false, false, false, false, true);
