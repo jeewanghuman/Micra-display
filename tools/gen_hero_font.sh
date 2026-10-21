@@ -13,9 +13,9 @@ curl -sSLf -o "$WORK/Outfit.ttf" \
 # Freeze the variable font at weight 150 (between Thin and ExtraLight).
 python3 -m fontTools.varLib.instancer "$WORK/Outfit.ttf" wght=150 \
   -o "$WORK/Outfit-150.ttf" -q
-# Digits, '.', '-', '°' and space only: the hero shows "93.0°" / "--".
+# Digits, '.', '-', 'g', '°' and space only: the hero shows "93.0°", "36.4 g" (shot weight) or "--".
 npx -y lv_font_conv --font "$WORK/Outfit-150.ttf" \
-  -r 0x20,0x2D-0x2E,0x30-0x39,0xB0 --size 150 --bpp 4 --format lvgl \
+  -r 0x20,0x2D-0x2E,0x30-0x39,0x67,0xB0 --size 150 --bpp 4 --format lvgl \
   --no-compress --lv-font-name font_outfit_hero \
   -o src/ui/fonts/font_outfit_hero.c
 # lv_font_conv writes a conditional "lvgl/lvgl.h" include; this tree uses
@@ -28,12 +28,12 @@ s = s.replace('''#ifdef LV_LVGL_H_INCLUDE_SIMPLE
 #else
 #include "lvgl/lvgl.h"
 #endif''', '''// Outfit (SIL Open Font License 1.1, see OFL-Outfit.txt beside this file),
-// variable font instanced at wght=150, digits/'.'/'-'/'°' only: the Home
-// screen's large brew temperature on round glass. Regenerate with
+// variable font instanced at wght=150, digits/'.'/'-'/'g'/'°' only: the round
+// Home's large brew temperature and shot weight. Regenerate with
 // tools/gen_hero_font.sh.
 #include "lvgl.h"''', 1)
 import re
-s = re.sub(r" \* Opts: .*", " * Opts: --font Outfit-150.ttf -r 0x20,0x2D-0x2E,0x30-0x39,0xB0 "
+s = re.sub(r" \* Opts: .*", " * Opts: --font Outfit-150.ttf -r 0x20,0x2D-0x2E,0x30-0x39,0x67,0xB0 "
            "--size 150 --bpp 4 --format lvgl --no-compress --lv-font-name font_outfit_hero", s, count=1)
 open(p, "w").write(s)
 PY

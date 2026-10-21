@@ -79,7 +79,8 @@ bool render(core::IMachine& machine, core::IProvisioner& provisioner,
             uint32_t unwired_midshot_ms = 0, bool toast = false,
             bool join_modal = false, bool screensaver = false,
             bool update_modal = false, core::IUpdateSource* updates = nullptr,
-            core::ISettingsBackup* backup = nullptr, int backup_modal = 0) {
+            core::ISettingsBackup* backup = nullptr, int backup_modal = 0,
+            int round_sheet = 0) {
   std::filesystem::path p(out_path);
   if (p.has_parent_path()) std::filesystem::create_directories(p.parent_path());
 
@@ -129,6 +130,9 @@ bool render(core::IMachine& machine, core::IProvisioner& provisioner,
     app.confirm_restore();
     app.pose_backup_result();  // no reboot handler in the sim: the notice stays
   }
+  // Round glass: 1 = the brew temperature dial, 2 = the steam sheet.
+  if (round_sheet == 1) app.open_brew_dial();
+  if (round_sheet == 2) app.open_steam_sheet();
   display.render_frame();
   if (screensaver && !check_saver_dirty_area(screen)) return false;
   if (screen.round) display.mask_round();
@@ -163,12 +167,12 @@ int main() {
                int shot_id = -1, int history_ym = 0, bool backflush = false,
                bool log_modal = false, uint32_t unwired_midshot_ms = 0,
                bool toast = false, bool join_modal = false, bool screensaver = false,
-               bool update_modal = false, int backup_modal = 0) {
+               bool update_modal = false, int backup_modal = 0, int round_sheet = 0) {
     return render(machine, provisioner, battery, disp, clock, history, scale,
                   scale_provisioner, brew, network, shots, s, path, tab, sec, modal, theme,
                   stats, clean_lock, shot_id, history_ym, backflush, log_modal,
                   unwired_midshot_ms, toast, join_modal, screensaver, update_modal,
-                  &updates, &backup, backup_modal);
+                  &updates, &backup, backup_modal, round_sheet);
   };
   bool ok = true;
   ok &= r({800, 480}, "renders/home_800x480.png");
@@ -210,7 +214,26 @@ int main() {
     ok &= r(rd, "renders/round_home_glass_standby_800x800.png");
     machine.set_power(true);
     ok &= r(rd, "renders/round_settings_glass_800x800.png", 1);
+    ok &= r(rd, "renders/round_dial_800x800.png", 0, -1, false, 0, -1, false, -1, 0, false,
+            false, 0, false, false, false, false, 0, 1);
+    ok &= r(rd, "renders/round_steam_sheet_800x800.png", 0, -1, false, 0, -1, false, -1, 0,
+            false, false, 0, false, false, false, false, 0, 2);
     scale_provisioner.set_saved(true);
+    // With a scale: idle (weight / Tare / shot pill), a shot running (ring =
+    // progress, weight as the numerals, flow graph), and the review.
+    ok &= r(rd, "renders/round_home_scale_800x800.png");
+    brew.set_wired_paddle(false);  // the mid-shot pose back-fills an unwired shot
+    brew.set_phase(core::ShotPhase::kBrewing);
+    brew.set_shot_ms(24000);
+    ok &= r(rd, "renders/round_shot_800x800.png", 0, -1, false, 0, -1, false, -1, 0, false,
+            false, 24000);
+    brew.set_wired_paddle(true);
+    brew.set_phase(core::ShotPhase::kReview);
+    ok &= r(rd, "renders/round_review_800x800.png");
+    brew.set_phase(core::ShotPhase::kIdle);
+    brew.set_shot_ms(27000);
+    ok &= r(rd, "renders/round_micra_controls_glass_800x800.png", 1, ui::kSectionMicraControls);
+    ok &= r(rd, "renders/round_history_800x800.png", 2, -1, false, 0, ui::kStatsHistory);
   }
   // Scrolling strip-chart graph (the non-default style; scope is the default).
   disp.set_scope_graph(false);

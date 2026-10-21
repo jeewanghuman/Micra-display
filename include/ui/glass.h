@@ -33,6 +33,17 @@ lv_obj_t* make_panel(lv_obj_t* parent, int radius, Tone tone);
 // and it restores the glass fill after a generic set_bg_color overwrote it.
 void set_tone(lv_obj_t* obj, Tone tone);
 
+// Turn a classic-layout subtree (Settings, Stats, modal cards) into dark
+// glass over the crema backdrop: theme-bg fills go transparent, card()/rail()
+// fills become translucent (their colour kept, so the 2 Hz update paths that
+// recolour buttons still work) with a faint white rim drawn as an outline (an
+// outline sits outside the box, so no layout shifts). Idempotent and cheap —
+// it only touches fills that are still opaque — so App re-runs it on each
+// refresh to catch rows built later (scan results, the history list).
+// Containers holding an lv_canvas (the flow graph) stay opaque: the canvas
+// paints its own solid background.
+void glassify_tree(lv_obj_t* root);
+
 // The crema backdrop: soft, out-of-focus amber / mocha / cream fields with a
 // darker rim, w x h RGB565, ordered-dithered so the gradients don't band.
 // Rendered ONCE on first call into a malloc'd buffer (w*h*2 bytes — on the

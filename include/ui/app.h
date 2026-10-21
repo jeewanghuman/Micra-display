@@ -75,6 +75,16 @@ class App {
   // Switch the active tab by index (0=Home, 1=Settings, 2=Stats). Mainly for
   // the simulator to render a specific tab.
   void show_tab(int index);
+  // Round glass only: the temperature dial (tap the brew numerals) and the
+  // steam sheet (tap the steam capsule). Public so the sim can pose them.
+  void open_brew_dial();
+  void open_steam_sheet();
+  void close_dial();
+  void dial_step(int half_degrees);    // -/+ on the dial (0.5 deg steps)
+  void dial_from_arc();                // the dial's ring was dragged
+  void dial_commit();                  // Set
+  void steam_choose_level(int level);  // steam sheet: level 0..2
+  void steam_choose_enabled(bool on);  // steam sheet: on / off
   // Round-glass Home: show its screen-level backdrop only while Home is the
   // active tab (called on every tab change; a no-op elsewhere).
   void sync_round_backdrop();
@@ -290,6 +300,20 @@ class App {
   lv_obj_t* tabview_ = nullptr;
   ScreenProfile screen_{};          // stored so we can rebuild on a theme change
   lv_obj_t* modal_ = nullptr;       // current overlay modal, if open
+  // Round glass: the Settings / Stats tab bodies glassify_tree re-runs on
+  // (rows built later — scan results, history — start out opaque).
+  lv_obj_t* glass_bodies_[2] = {nullptr, nullptr};
+  // Round glass: the brew temperature dial / steam sheet (one at a time, on
+  // the top layer). dial_target_c_ is the dial's pending value in Celsius.
+  lv_obj_t* dial_ = nullptr;
+  lv_obj_t* dial_value_ = nullptr;
+  lv_obj_t* dial_set_label_ = nullptr;
+  lv_obj_t* dial_arc_ = nullptr;
+  float dial_target_c_ = 93.0f;
+  lv_obj_t* steam_btns_[5] = {};    // steam sheet: On, Off, level 1..3
+  void steam_sheet_refresh();       // re-tone the sheet's buttons in place
+  void dial_refresh_labels();
+  void hide_home_for_sheet();
   // Log-viewer modal (live tail): refreshed from core::log_ring() by a timer
   // while open; all three are torn down together in close_modal().
   lv_obj_t* log_box_ = nullptr;

@@ -4,6 +4,7 @@
 #include <cstdio>
 #include <cstring>
 
+#include "ui/glass.h"
 #include "ui/theme.h"
 #include "ui/units.h"
 #include "ui/widgets.h"
@@ -858,6 +859,15 @@ void build_bottom_tray(lv_obj_t* bar, const lv_font_t* font, HomeWidgets& out) {
   lv_obj_set_style_text_font(out.battery_label, font, 0);
 }
 
+lv_obj_t* build_round_flow_graph(lv_obj_t* parent, int w, int h, HomeWidgets& out) {
+  lv_obj_t* card = make_flow_graph_card(parent);
+  lv_obj_set_flex_grow(card, 0);
+  lv_obj_set_size(card, w, h);
+  lv_obj_update_layout(card);  // populate_flow_graph measures the content box
+  populate_flow_graph(card, out);
+  return card;
+}
+
 void build_home_tab(lv_obj_t* parent, const ScreenProfile& screen, bool scale_enabled,
                     HomeWidgets& out) {
   const bool compact = is_compact(screen);
@@ -894,11 +904,17 @@ void build_home_tab(lv_obj_t* parent, const ScreenProfile& screen, bool scale_en
   out.rg_backdrop = out.rg_dim = nullptr;
   out.rg_brew_arc = out.rg_brew_glow = out.rg_steam_arc = out.rg_steam_glow = nullptr;
   out.rg_power_icon = out.rg_flush_icon = nullptr;
+  out.rg_ring = out.rg_steam_capsule = nullptr;
+  out.rg_idle_view = out.rg_shot_view = nullptr;
+  out.rg_shot_arc = out.rg_shot_glow = out.rg_shot_status = nullptr;
+  out.rg_shot_target = out.rg_weight_small = nullptr;
+  out.rg_home_dim = 0;
   out.power_btn = out.power_label = nullptr;
+  out.shot_btn = out.shot_btn_label = nullptr;
 
-  // Round glass, no scale: the liquid-glass Home (round_home.cpp).
-  if (is_round(screen) && !scale_enabled) {
-    build_round_home(parent, screen, out);
+  // Round glass: the liquid-glass Home (round_home.cpp), with or without a scale.
+  if (is_round(screen)) {
+    build_round_home(parent, screen, scale_enabled, out);
     return;
   }
 
@@ -1457,10 +1473,22 @@ void update_home(HomeWidgets& w, const core::MachineSnapshot& state,
     }
   }
 
-  update_round_home(w, state, brew, fahrenheit, heating);
+  update_round_home(w, state, scale, brew, fahrenheit, heating);
 }
 
 namespace {
+
+// The shot button's flash fill: a warn fill on the classic layouts; on round
+// glass the amber glass tone (a warn colour at glass opacity is too faint to
+// read as a flash) and back to clear.
+void set_shot_flash_fill(ui::HomeWidgets* w, bool lit) {
+  if (w->round_glass) {
+    ui::glass::set_tone(w->shot_btn, lit ? ui::glass::Tone::kAmber : ui::glass::Tone::kClear);
+  } else {
+    lv_obj_set_style_bg_color(w->shot_btn,
+                              lv_color_hex(lit ? ui::theme::warn() : ui::theme::card()), 0);
+  }
+}
 
 // One pulse step of the shot-button attention flash. Alternates a warn fill
 // with the button's normal outlined look, then restores + self-deletes. The
@@ -1472,8 +1500,7 @@ void shot_flash_cb(lv_timer_t* t) {
   if (!dead) {
     --w->shot_flash_count;
     const bool lit = (w->shot_flash_count & 1) != 0;
-    lv_obj_set_style_bg_color(
-        w->shot_btn, lv_color_hex(lit ? ui::theme::warn() : ui::theme::card()), 0);
+    set_shot_flash_fill(w, lit);
     lv_obj_set_style_text_color(
         w->shot_btn_label, lv_color_hex(lit ? ui::theme::bg() : ui::theme::warn()), 0);
   }
@@ -1496,8 +1523,7 @@ void stop_flash_cb(lv_timer_t* t) {
     --w->stop_flash_count;
     const bool lit = (w->stop_flash_count & 1) != 0;
     lv_label_set_text(w->shot_btn_label, "Stop");
-    lv_obj_set_style_bg_color(
-        w->shot_btn, lv_color_hex(lit ? ui::theme::warn() : ui::theme::card()), 0);
+    set_shot_flash_fill(w, lit);
     lv_obj_set_style_text_color(
         w->shot_btn_label, lv_color_hex(lit ? ui::theme::bg() : ui::theme::warn()), 0);
   }
@@ -1505,8 +1531,7 @@ void stop_flash_cb(lv_timer_t* t) {
     // Always end on the resting fill: update_home styles the border/text but
     // NEVER the bg (it assumes card()), so a warn fill left behind here would
     // stick — and with review's warn text on it, render the label invisible.
-    if (w->shot_btn != nullptr)
-      lv_obj_set_style_bg_color(w->shot_btn, lv_color_hex(ui::theme::card()), 0);
+    if (w->shot_btn != nullptr) set_shot_flash_fill(w, false);
     if (w->stop_flash_timer == t) w->stop_flash_timer = nullptr;
     lv_timer_delete(t);
   }

@@ -19,6 +19,8 @@
 #include "ui/widgets.h"
 #include "version.h"
 
+
+LV_FONT_DECLARE(font_outfit_hero);
 namespace {
 
 void style_tab_button(lv_obj_t* btn, const lv_font_t* font) {
@@ -962,6 +964,7 @@ void App::build(core::IMachine& machine, core::IProvisioner& provisioner,
   // The toast lives on lv_layer_top (never cleaned by build) and captured the
   // old theme's colors — kill it rather than carry it across.
   dismiss_toast();
+  close_dial();  // the top layer survives a rebuild; the dial must not
   if (home_.shot_flash_timer != nullptr) {
     lv_timer_delete(home_.shot_flash_timer);
     home_.shot_flash_timer = nullptr;
@@ -1083,8 +1086,6 @@ void App::build(core::IMachine& machine, core::IProvisioner& provisioner,
     if (!round) return page;
     lv_obj_remove_flag(page, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_set_style_pad_all(page, 0, 0);
-    lv_obj_set_style_bg_color(page, lv_color_hex(ui::theme::bg()), 0);
-    lv_obj_set_style_bg_opa(page, LV_OPA_COVER, 0);
     lv_obj_t* body = lv_obj_create(page);
     lv_obj_remove_style_all(body);
     lv_obj_set_pos(body, band.x, band.y);
@@ -1093,11 +1094,13 @@ void App::build(core::IMachine& machine, core::IProvisioner& provisioner,
   };
   const bool scale_on =
       scale_provisioner_ != nullptr && !scale_provisioner_->saved_name().empty();
-  // ...except the liquid-glass Home (round, no scale), which is designed for the
-  // whole circle and takes the full page (build_round_home).
-  if (!(round && !scale_on)) home = band_body(home);
+  // ...except the liquid-glass Home, which is designed for the whole circle
+  // and takes the full page (build_round_home).
+  if (!round) home = band_body(home);
   settings = band_body(settings);
   stats = band_body(stats);
+  glass_bodies_[0] = round ? settings : nullptr;
+  glass_bodies_[1] = round ? stats : nullptr;
 
   build_home_tab(home, screen, scale_on, home_);
   // Every layout except large-no-scale drops the top bar and moves clock/battery to
@@ -1109,16 +1112,20 @@ void App::build(core::IMachine& machine, core::IProvisioner& provisioner,
     // Round: clock / WiFi / battery as one centered row in the cap above the
     // band, floating over every tab (a child of the screen, not of a page).
     ui::build_round_tray(scr, band.y, ui::font_dp(16), home_);
-    // The tab dock: one glass capsule behind the three tab buttons (they sit in
-    // the transparent tab bar above it). Behind the tabview, above the backdrop.
+    // The tab dock: one glass capsule behind the three tab buttons, INSIDE the
+    // tab bar (so it hides with the tabview under a modal or sheet). The
+    // tabview finds its buttons by class, not index, so a plain object at
+    // index 0 is ignored by it — the same trick the rail trays use. Placed
+    // out of the bar's flex layout, around the buttons' row (x/y are relative
+    // to the bar's content box, i.e. inside its padding).
     const int cap = screen.height - (band.y + band.h);
     const int row_w = ui::dp(3 * 96 + 2 * 12);
     const int inset = ui::dp(8);
-    lv_obj_t* dock = ui::glass::make_panel(scr, LV_RADIUS_CIRCLE, ui::glass::Tone::kClear);
+    lv_obj_t* dock = ui::glass::make_panel(rail, LV_RADIUS_CIRCLE, ui::glass::Tone::kClear);
+    lv_obj_add_flag(dock, LV_OBJ_FLAG_IGNORE_LAYOUT);
     lv_obj_set_size(dock, row_w + 2 * inset, cap * 6 / 16 + 2 * inset);
-    lv_obj_set_pos(dock, (screen.width - row_w) / 2 - inset,
-                   band.y + band.h + cap * 3 / 16 - inset);
-    lv_obj_move_to_index(dock, lv_obj_get_index(tv));
+    lv_obj_set_pos(dock, -inset, -inset);
+    lv_obj_move_to_index(dock, 0);
   } else if (compact) {
     ui::build_bottom_tray(rail, ui::font_dp(14), home_);
   } else {
@@ -1129,6 +1136,18 @@ void App::build(core::IMachine& machine, core::IProvisioner& provisioner,
     ui::build_rail_tray(rail, ui::font_dp(16), home_);
   }
   sync_round_backdrop();
+  if (home_.round_glass) {
+    lv_obj_add_event_cb(
+        home_.brew_value,
+        [](lv_event_t* e) { static_cast<ui::App*>(lv_event_get_user_data(e))->open_brew_dial(); },
+        LV_EVENT_CLICKED, this);
+    lv_obj_add_event_cb(
+        home_.rg_steam_capsule,
+        [](lv_event_t* e) {
+          static_cast<ui::App*>(lv_event_get_user_data(e))->open_steam_sheet();
+        },
+        LV_EVENT_CLICKED, this);
+  }
   lv_obj_add_event_cb(home_.power_btn, on_power_clicked, LV_EVENT_CLICKED, this);
   if (home_.tare_btn != nullptr)
     lv_obj_add_event_cb(home_.tare_btn, on_tare_clicked, LV_EVENT_CLICKED, this);
@@ -1313,6 +1332,9 @@ void App::build(core::IMachine& machine, core::IProvisioner& provisioner,
   lv_obj_add_event_cb(settings_.menu, on_menu_page_changed, LV_EVENT_VALUE_CHANGED, this);
 
   build_stats_tab(stats, screen, stats_);
+  // Round: Settings and Stats become dark glass over the crema backdrop.
+  ui::glass::glassify_tree(glass_bodies_[0]);
+  ui::glass::glassify_tree(glass_bodies_[1]);
   for (int i = 0; i < kStatsCount; ++i) {
     lv_obj_add_event_cb(stats_.seg[i], on_stats_segment, LV_EVENT_CLICKED, this);
   }
@@ -1411,6 +1433,14 @@ void App::update_heating(const core::MachineSnapshot& state) {
 }
 
 void App::refresh() {
+  // Round glass: keep rows built after the tab (scan results, history list,
+  // modal content) glassy. Cheap: only still-opaque fills are touched.
+  if (ui::is_round(screen_) && tabview_ != nullptr) {
+    const uint32_t tab = lv_tabview_get_tab_active(tabview_);
+    if (tab == 1 || tab == 2) ui::glass::glassify_tree(glass_bodies_[tab - 1]);
+    ui::glass::glassify_tree(modal_);
+    ui::glass::glassify_tree(bf_overlay_);
+  }
   if (machine_ != nullptr) {
     const core::MachineSnapshot snap = machine_->snapshot();
     if (battery_ != nullptr) {
@@ -1850,15 +1880,19 @@ void App::show_tab(int index) {
 }
 
 void App::sync_round_backdrop() {
-  // The round-glass Home's backdrop (crema + bezel arcs) lives behind the whole
-  // tabview; only Home is transparent enough to show it, but the bottom cap
-  // would show the arcs on every tab — so it is up only while Home is.
-  if (home_.rg_backdrop == nullptr || tabview_ == nullptr) return;
+  // The round-glass backdrop (crema + veil + bezel arcs) lives behind the
+  // whole tabview and shows through every tab. The arcs are Home's: off Home
+  // they hide, and the veil darkens so Settings / Stats text reads over it.
+  if (home_.rg_ring == nullptr || tabview_ == nullptr) return;
   const bool on_home = lv_tabview_get_tab_active(tabview_) == 0;
-  if (on_home == lv_obj_has_flag(home_.rg_backdrop, LV_OBJ_FLAG_HIDDEN)) {
-    if (on_home) lv_obj_remove_flag(home_.rg_backdrop, LV_OBJ_FLAG_HIDDEN);
-    else lv_obj_add_flag(home_.rg_backdrop, LV_OBJ_FLAG_HIDDEN);
+  if (on_home == lv_obj_has_flag(home_.rg_ring, LV_OBJ_FLAG_HIDDEN)) {
+    if (on_home) lv_obj_remove_flag(home_.rg_ring, LV_OBJ_FLAG_HIDDEN);
+    else lv_obj_add_flag(home_.rg_ring, LV_OBJ_FLAG_HIDDEN);
   }
+  constexpr lv_opa_t kTabVeil = 170;
+  const lv_opa_t veil = on_home ? home_.rg_home_dim : kTabVeil;
+  if (lv_obj_get_style_bg_opa(home_.rg_dim, LV_PART_MAIN) != veil)
+    lv_obj_set_style_bg_opa(home_.rg_dim, veil, 0);
 }
 
 void App::toggle_power() {
@@ -2024,6 +2058,7 @@ void App::screensaver_tick() {
 
 void App::start_screensaver(int style) {
   stop_screensaver();
+  close_dial();  // on the top layer, it would float over the saver
   // A full-screen cover on the top layer. Its first job in every style is to
   // swallow the waking tap so it can't press whatever control happens to sit
   // under the finger. The artworks and Off paint it opaque black; Dim leaves
@@ -2692,6 +2727,9 @@ void App::pump_scale_chart() {
     if (snap.connected) std::snprintf(wb, sizeof(wb), "%.1f g", static_cast<double>(shown));
     else std::snprintf(wb, sizeof(wb), "-- g");
     lv_label_set_text(home_.scale_weight, wb);
+    // Round glass: the shot ring follows the weight at the same rate.
+    if (have_brew && snap.connected && bsnap.phase != core::ShotPhase::kIdle)
+      ui::round_shot_progress(home_, shown, bsnap.target_weight_g);
   }
 
   // Shot timer: continuous (ms) value, so redraw on a fixed ~10 Hz cadence that
@@ -2789,6 +2827,7 @@ lv_obj_t* App::open_modal_card(const char* title) {
                         LV_FLEX_ALIGN_CENTER);
   lv_obj_set_style_pad_all(card, ui::dp(14), 0);
   lv_obj_set_style_pad_row(card, ui::dp(10), 0);
+  if (ui::is_round(screen_)) ui::glass::glassify_tree(card);  // its rows: next refresh
 
   // Larger faces on the non-compact tiers: the WiFi/token instructions carry
   // an SSID + URL the user has to read across the room while holding a phone.
@@ -3042,6 +3081,7 @@ void App::open_backflush() {
   bf_state_ = brew_->snapshot().backflush_active ? kBackflushRunning : kBackflushPrompt;
   if (bf_timer_ == nullptr) bf_timer_ = lv_timer_create(on_backflush_timer, 250, this);
   backflush_tick();  // paint the initial state now, not a tick later
+  if (ui::is_round(screen_)) ui::glass::glassify_tree(bf_overlay_);  // over the crema
 }
 
 void App::close_backflush() {
@@ -4422,6 +4462,339 @@ void App::detect_lead_in_adjust(int dir) {
   settings_.detect_lead_in_s = v;
   set_lead_in_label(settings_);
   if (brew_ != nullptr) brew_->set_detect_lead_in_s(v);
+}
+
+
+// ---- Round glass: temperature dial + steam sheet ---------------------------
+// Both live on the top layer over a dimmed Home (the crema stays visible
+// through the veil), in the same glass pieces as the Home. One at a time
+// (dial_). They write through the same set-point paths as the Settings
+// steppers (brew_dirty / boiler_dirty + the machine call), so Settings and
+// Home agree and the machine's confirmation clears the edit as usual.
+
+namespace {
+
+void on_dial_close(lv_event_t* e) {
+  static_cast<ui::App*>(lv_event_get_user_data(e))->close_dial();
+}
+void on_dial_minus(lv_event_t* e) {
+  static_cast<ui::App*>(lv_event_get_user_data(e))->dial_step(-1);
+}
+void on_dial_plus(lv_event_t* e) {
+  static_cast<ui::App*>(lv_event_get_user_data(e))->dial_step(+1);
+}
+void on_dial_arc(lv_event_t* e) {
+  static_cast<ui::App*>(lv_event_get_user_data(e))->dial_from_arc();
+}
+void on_dial_set(lv_event_t* e) {
+  static_cast<ui::App*>(lv_event_get_user_data(e))->dial_commit();
+}
+template <int L>
+void on_steam_level(lv_event_t* e) {
+  static_cast<ui::App*>(lv_event_get_user_data(e))->steam_choose_level(L);
+}
+void on_steam_on(lv_event_t* e) {
+  static_cast<ui::App*>(lv_event_get_user_data(e))->steam_choose_enabled(true);
+}
+void on_steam_off(lv_event_t* e) {
+  static_cast<ui::App*>(lv_event_get_user_data(e))->steam_choose_enabled(false);
+}
+
+// The dimmed full-screen layer both sheets sit on (swallows stray taps).
+lv_obj_t* make_sheet_layer(const ui::ScreenProfile& screen) {
+  lv_obj_t* bg = lv_obj_create(lv_layer_top());
+  lv_obj_remove_style_all(bg);
+  lv_obj_set_size(bg, screen.width, screen.height);
+  lv_obj_set_style_bg_color(bg, lv_color_hex(0x000000), 0);
+  lv_obj_set_style_bg_opa(bg, 110, 0);
+  lv_obj_add_flag(bg, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_remove_flag(bg, LV_OBJ_FLAG_SCROLLABLE);
+  return bg;
+}
+
+lv_obj_t* make_sheet_label(lv_obj_t* parent, const lv_font_t* font, lv_opa_t opa) {
+  lv_obj_t* l = lv_label_create(parent);
+  lv_obj_set_style_text_font(l, font, 0);
+  lv_obj_set_style_text_color(l, lv_color_hex(0xFFFFFF), 0);
+  lv_obj_set_style_text_opa(l, opa, 0);
+  return l;
+}
+
+// A glass button holding one centred label.
+lv_obj_t* make_sheet_button(lv_obj_t* parent, int w, int h, ui::glass::Tone tone,
+                            const char* text, const lv_font_t* font) {
+  lv_obj_t* b = ui::glass::make_button(parent, LV_RADIUS_CIRCLE, tone);
+  lv_obj_set_size(b, w, h);
+  lv_obj_t* l = make_sheet_label(b, font, LV_OPA_COVER);
+  lv_label_set_text(l, text);
+  lv_obj_center(l);
+  return b;
+}
+
+}  // namespace
+
+void App::close_dial() {
+  if (dial_ == nullptr) return;
+  // Async: this is usually called from a button INSIDE the sheet, mid-event.
+  lv_obj_delete_async(dial_);
+  dial_ = dial_value_ = dial_set_label_ = dial_arc_ = nullptr;
+  for (lv_obj_t*& b : steam_btns_) b = nullptr;
+  // Bring Home back (open_* hid it so the sheet reads cleanly over the crema).
+  if (tabview_ != nullptr && modal_ == nullptr)
+    lv_obj_remove_flag(tabview_, LV_OBJ_FLAG_HIDDEN);
+  if (home_.clock_label != nullptr)
+    lv_obj_remove_flag(lv_obj_get_parent(home_.clock_label), LV_OBJ_FLAG_HIDDEN);
+  sync_round_backdrop();
+}
+
+// A sheet replaces Home rather than layering over it: the clear glass would
+// show every readout beneath. The crema backdrop stays; the arcs go too (the
+// dial draws its own ring).
+void App::hide_home_for_sheet() {
+  if (tabview_ != nullptr) lv_obj_add_flag(tabview_, LV_OBJ_FLAG_HIDDEN);
+  if (home_.rg_ring != nullptr) lv_obj_add_flag(home_.rg_ring, LV_OBJ_FLAG_HIDDEN);
+  // The clock tray would sit on the dial's tick ring.
+  if (home_.clock_label != nullptr)
+    lv_obj_add_flag(lv_obj_get_parent(home_.clock_label), LV_OBJ_FLAG_HIDDEN);
+}
+
+void App::open_brew_dial() {
+  close_dial();
+  if (!ui::is_round(screen_)) return;
+  const bool f = display_->use_fahrenheit();
+  const int d = screen_.width < screen_.height ? screen_.width : screen_.height;
+  auto at = [d](int px) { return px * d / 800; };
+  dial_target_c_ = std::round(settings_.brew_target * 2.0f) / 2.0f;
+
+  lv_obj_t* bg = make_sheet_layer(screen_);
+  dial_ = bg;
+  hide_home_for_sheet();
+
+  // Tick ring: 80..100 C (or the same span in F) over the Home arcs' 300 deg.
+  lv_obj_t* sc = lv_scale_create(bg);
+  lv_obj_set_size(sc, at(760), at(760));
+  lv_obj_center(sc);
+  lv_scale_set_mode(sc, LV_SCALE_MODE_ROUND_INNER);
+  lv_scale_set_angle_range(sc, 300);
+  lv_scale_set_rotation(sc, 120);
+  const int lo = static_cast<int>(std::lround(ui::temp_disp(core::kBrewTargetMinC, f)));
+  const int hi = static_cast<int>(std::lround(ui::temp_disp(core::kBrewTargetMaxC, f)));
+  lv_scale_set_range(sc, lo, hi);
+  lv_scale_set_total_tick_count(sc, f ? static_cast<uint32_t>(hi - lo + 1) : 41u);
+  lv_scale_set_major_tick_every(sc, f ? 9u : 10u);
+  lv_scale_set_label_show(sc, true);
+  lv_obj_set_style_arc_opa(sc, LV_OPA_TRANSP, LV_PART_MAIN);
+  lv_obj_set_style_line_color(sc, lv_color_hex(0xFFFFFF), LV_PART_INDICATOR);
+  lv_obj_set_style_line_width(sc, ui::dp(3), LV_PART_INDICATOR);
+  lv_obj_set_style_length(sc, at(20), LV_PART_INDICATOR);
+  lv_obj_set_style_text_color(sc, lv_color_hex(0xFFFFFF), LV_PART_INDICATOR);
+  lv_obj_set_style_text_opa(sc, 190, LV_PART_INDICATOR);
+  lv_obj_set_style_text_font(sc, ui::font_dp(16), LV_PART_INDICATOR);
+  lv_obj_set_style_line_color(sc, lv_color_hex(0xFFFFFF), LV_PART_ITEMS);
+  lv_obj_set_style_line_opa(sc, 90, LV_PART_ITEMS);
+  lv_obj_set_style_line_width(sc, ui::dp(2), LV_PART_ITEMS);
+  lv_obj_set_style_length(sc, at(12), LV_PART_ITEMS);
+  lv_obj_remove_flag(sc, LV_OBJ_FLAG_CLICKABLE);
+
+  // The dial itself: drag the glass knob round the ring (0.5 C steps).
+  lv_obj_t* arc = lv_arc_create(bg);
+  lv_obj_remove_style_all(arc);
+  lv_obj_set_size(arc, 2 * (at(326) + at(6)), 2 * (at(326) + at(6)));
+  lv_obj_center(arc);
+  lv_arc_set_rotation(arc, 0);
+  lv_arc_set_bg_angles(arc, 120, 60);
+  lv_arc_set_range(arc, static_cast<int32_t>(core::kBrewTargetMinC * 2),
+                   static_cast<int32_t>(core::kBrewTargetMaxC * 2));
+  lv_arc_set_value(arc, static_cast<int32_t>(std::lround(dial_target_c_ * 2.0f)));
+  lv_obj_set_style_arc_width(arc, at(12), LV_PART_MAIN);
+  lv_obj_set_style_arc_rounded(arc, true, LV_PART_MAIN);
+  lv_obj_set_style_arc_color(arc, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
+  lv_obj_set_style_arc_opa(arc, 36, LV_PART_MAIN);
+  lv_obj_set_style_arc_width(arc, at(12), LV_PART_INDICATOR);
+  lv_obj_set_style_arc_rounded(arc, true, LV_PART_INDICATOR);
+  lv_obj_set_style_arc_color(arc, lv_color_hex(0xF2A24A), LV_PART_INDICATOR);
+  lv_obj_set_style_bg_opa(arc, LV_OPA_COVER, LV_PART_KNOB);
+  lv_obj_set_style_bg_color(arc, lv_color_hex(0xFFFFFF), LV_PART_KNOB);
+  lv_obj_set_style_bg_opa(arc, 95, LV_PART_KNOB);
+  lv_obj_set_style_radius(arc, LV_RADIUS_CIRCLE, LV_PART_KNOB);
+  lv_obj_set_style_pad_all(arc, at(22), LV_PART_KNOB);
+  lv_obj_set_style_border_width(arc, ui::dp(2), LV_PART_KNOB);
+  lv_obj_set_style_border_color(arc, lv_color_hex(0xFFFFFF), LV_PART_KNOB);
+  lv_obj_set_style_border_opa(arc, 200, LV_PART_KNOB);
+  lv_obj_set_style_shadow_width(arc, ui::dp(24), LV_PART_KNOB);
+  lv_obj_set_style_shadow_color(arc, lv_color_hex(0x000000), LV_PART_KNOB);
+  lv_obj_set_style_shadow_opa(arc, 90, LV_PART_KNOB);
+  lv_obj_add_flag(arc, LV_OBJ_FLAG_ADV_HITTEST);  // only the ring takes touches
+  lv_obj_add_event_cb(arc, on_dial_arc, LV_EVENT_VALUE_CHANGED, this);
+  dial_arc_ = arc;
+
+  lv_obj_t* cap = make_sheet_label(bg, ui::font_dp(20), 225);
+  lv_label_set_text(cap, "Brew temperature");
+  lv_obj_align(cap, LV_ALIGN_TOP_MID, 0, at(196));
+  dial_value_ = make_sheet_label(bg, &font_outfit_hero, LV_OPA_COVER);
+  lv_obj_set_style_text_letter_space(dial_value_, -at(4), 0);
+  lv_obj_align(dial_value_, LV_ALIGN_TOP_MID, 0, at(232));
+  lv_obj_t* now = make_sheet_label(bg, ui::font_dp(16), 185);
+  if (machine_ != nullptr && machine_->snapshot().link == core::Link::Connected) {
+    // std::snprintf, not lv_label_set_text_fmt: LVGL's printf has no %f here.
+    char t[32];
+    std::snprintf(t, sizeof(t), "Boiler now %.1f°",
+                  static_cast<double>(ui::temp_disp(machine_->snapshot().brew_temp_c, f)));
+    lv_label_set_text(now, t);
+  } else {
+    lv_label_set_text(now, "Machine offline");
+  }
+  lv_obj_align(now, LV_ALIGN_TOP_MID, 0, at(366));
+
+  lv_obj_t* minus = make_sheet_button(bg, at(76), at(76), ui::glass::Tone::kClear,
+                                      LV_SYMBOL_MINUS, ui::font_dp(28));
+  lv_obj_align(minus, LV_ALIGN_TOP_MID, -at(112), at(420));
+  lv_obj_add_event_cb(minus, on_dial_minus, LV_EVENT_CLICKED, this);
+  lv_obj_t* plus = make_sheet_button(bg, at(76), at(76), ui::glass::Tone::kClear,
+                                     LV_SYMBOL_PLUS, ui::font_dp(28));
+  lv_obj_align(plus, LV_ALIGN_TOP_MID, at(112), at(420));
+  lv_obj_add_event_cb(plus, on_dial_plus, LV_EVENT_CLICKED, this);
+
+  lv_obj_t* cancel = make_sheet_button(bg, at(72), at(72), ui::glass::Tone::kClear,
+                                       LV_SYMBOL_CLOSE, ui::font_dp(24));
+  lv_obj_align(cancel, LV_ALIGN_TOP_MID, -at(112), at(540));
+  lv_obj_add_event_cb(cancel, on_dial_close, LV_EVENT_CLICKED, this);
+  lv_obj_t* set = make_sheet_button(bg, at(190), at(72), ui::glass::Tone::kBright, "",
+                                    ui::font_dp(20));
+  lv_obj_align(set, LV_ALIGN_TOP_MID, at(48), at(540));
+  lv_obj_add_event_cb(set, on_dial_set, LV_EVENT_CLICKED, this);
+  dial_set_label_ = lv_obj_get_child(set, -1);  // make_sheet_button's label (last child)
+  dial_refresh_labels();
+}
+
+void App::dial_refresh_labels() {
+  if (dial_value_ == nullptr) return;
+  const bool f = display_->use_fahrenheit();
+  const double v = static_cast<double>(ui::temp_disp(dial_target_c_, f));
+  char t[24];
+  std::snprintf(t, sizeof(t), "%.1f°", v);
+  lv_label_set_text(dial_value_, t);
+  if (dial_set_label_ != nullptr) {
+    std::snprintf(t, sizeof(t), "Set %.1f°", v);
+    lv_label_set_text(dial_set_label_, t);
+  }
+}
+
+void App::dial_step(int half_degrees) {
+  if (dial_arc_ == nullptr) return;
+  dial_target_c_ = clampf(dial_target_c_ + 0.5f * static_cast<float>(half_degrees),
+                          core::kBrewTargetMinC, core::kBrewTargetMaxC);
+  lv_arc_set_value(dial_arc_, static_cast<int32_t>(std::lround(dial_target_c_ * 2.0f)));
+  dial_refresh_labels();
+}
+
+void App::dial_from_arc() {
+  if (dial_arc_ == nullptr) return;
+  dial_target_c_ = static_cast<float>(lv_arc_get_value(dial_arc_)) / 2.0f;
+  dial_refresh_labels();
+}
+
+void App::dial_commit() {
+  // The absolute twin of brew_adjust: same dirty flag, labels and machine call.
+  settings_.brew_target = clampf(dial_target_c_, core::kBrewTargetMinC, core::kBrewTargetMaxC);
+  settings_.brew_dirty = true;
+  set_brew_label(settings_, true, display_->use_fahrenheit());
+  set_temp_controls_enabled(settings_, true);
+  sync_home_setpoints(true);
+  if (machine_ != nullptr) machine_->set_brew_target(settings_.brew_target);
+  close_dial();
+}
+
+void App::open_steam_sheet() {
+  close_dial();
+  if (!ui::is_round(screen_)) return;
+  const bool f = display_->use_fahrenheit();
+  const int d = screen_.width < screen_.height ? screen_.width : screen_.height;
+  auto at = [d](int px) { return px * d / 800; };
+
+  lv_obj_t* bg = make_sheet_layer(screen_);
+  dial_ = bg;
+  hide_home_for_sheet();
+  lv_obj_add_event_cb(bg, on_dial_close, LV_EVENT_CLICKED, this);  // tap outside: done
+
+  lv_obj_t* card = ui::glass::make_panel(bg, at(44), ui::glass::Tone::kClear);
+  lv_obj_add_flag(card, LV_OBJ_FLAG_CLICKABLE);  // swallow taps (not "outside")
+  lv_obj_set_size(card, at(540), LV_SIZE_CONTENT);
+  lv_obj_center(card);
+  lv_obj_set_flex_flow(card, LV_FLEX_FLOW_COLUMN);
+  lv_obj_set_flex_align(card, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER,
+                        LV_FLEX_ALIGN_CENTER);
+  lv_obj_set_style_pad_all(card, at(26), 0);
+  lv_obj_set_style_pad_row(card, at(18), 0);
+
+  lv_obj_t* title = make_sheet_label(card, ui::font_dp(24), LV_OPA_COVER);
+  lv_label_set_text(title, "Steam boiler");
+
+  auto row = [&](lv_obj_t* parent) {
+    lv_obj_t* r = lv_obj_create(parent);
+    lv_obj_remove_style_all(r);
+    lv_obj_remove_flag(r, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_flag(r, LV_OBJ_FLAG_OVERFLOW_VISIBLE);
+    lv_obj_set_size(r, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+    lv_obj_set_flex_flow(r, LV_FLEX_FLOW_ROW);
+    lv_obj_set_style_pad_column(r, at(12), 0);
+    return r;
+  };
+  lv_obj_t* onoff = row(card);
+  steam_btns_[0] = make_sheet_button(onoff, at(170), at(58), ui::glass::Tone::kClear, "On",
+                                     ui::font_dp(20));
+  lv_obj_add_event_cb(steam_btns_[0], on_steam_on, LV_EVENT_CLICKED, this);
+  steam_btns_[1] = make_sheet_button(onoff, at(170), at(58), ui::glass::Tone::kClear, "Off",
+                                     ui::font_dp(20));
+  lv_obj_add_event_cb(steam_btns_[1], on_steam_off, LV_EVENT_CLICKED, this);
+
+  lv_obj_t* levels = row(card);
+  static constexpr lv_event_cb_t kLevelCb[3] = {on_steam_level<0>, on_steam_level<1>,
+                                                on_steam_level<2>};
+  for (int i = 0; i < 3; ++i) {
+    char t[12];
+    std::snprintf(t, sizeof(t), "%.0f°",
+                  static_cast<double>(ui::temp_disp(core::kSteamLevelsC[i], f)));
+    steam_btns_[2 + i] = make_sheet_button(levels, at(140), at(58), ui::glass::Tone::kClear, t,
+                                           ui::font_dp(20));
+    lv_obj_add_event_cb(steam_btns_[2 + i], kLevelCb[i], LV_EVENT_CLICKED, this);
+  }
+
+  lv_obj_t* done = make_sheet_button(card, at(200), at(58), ui::glass::Tone::kBright, "Done",
+                                     ui::font_dp(20));
+  lv_obj_add_event_cb(done, on_dial_close, LV_EVENT_CLICKED, this);
+  steam_sheet_refresh();
+}
+
+void App::steam_sheet_refresh() {
+  if (steam_btns_[0] == nullptr) return;
+  using ui::glass::Tone;
+  const bool on = settings_.steam_enabled;
+  ui::glass::set_tone(steam_btns_[0], on ? Tone::kBright : Tone::kClear);
+  ui::glass::set_tone(steam_btns_[1], on ? Tone::kClear : Tone::kBright);
+  for (int i = 0; i < 3; ++i) {
+    ui::glass::set_tone(steam_btns_[2 + i],
+                        on && settings_.boiler_level == i ? Tone::kBright : Tone::kClear);
+    if (on) lv_obj_remove_state(steam_btns_[2 + i], LV_STATE_DISABLED);
+    else lv_obj_add_state(steam_btns_[2 + i], LV_STATE_DISABLED);
+  }
+}
+
+void App::steam_choose_level(int level) {
+  // The absolute twin of boiler_adjust.
+  level = level < 0 ? 0 : (level > 2 ? 2 : level);
+  settings_.boiler_level = level;
+  settings_.boiler_dirty = true;
+  set_boiler_label(settings_, true, display_->use_fahrenheit());
+  set_temp_controls_enabled(settings_, true);
+  sync_home_setpoints(true);
+  if (machine_ != nullptr) machine_->set_steam_target(core::kSteamLevelsC[level]);
+  steam_sheet_refresh();
+}
+
+void App::steam_choose_enabled(bool on) {
+  steam_set_enabled(on);
+  steam_sheet_refresh();
 }
 
 }  // namespace ui

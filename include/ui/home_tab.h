@@ -263,6 +263,20 @@ struct HomeWidgets {
   lv_obj_t* rg_steam_glow = nullptr;
   lv_obj_t* rg_power_icon = nullptr;   // glyph inside the round power button
   lv_obj_t* rg_flush_icon = nullptr;
+  lv_obj_t* rg_ring = nullptr;         // the arcs (Home only; the crema stays on every tab)
+  lv_opa_t rg_home_dim = 0;            // veil level Home wants (other tabs: darker)
+  lv_obj_t* rg_steam_capsule = nullptr;  // tap: steam sheet (App)
+  // With a scale paired the Home swaps between two views: idle (the machine,
+  // plus weight / Tare / shot mode) and shot (weight as the numerals, timer,
+  // flow graph, a progress ring toward the target) while a shot runs,
+  // settles or waits for review.
+  lv_obj_t* rg_idle_view = nullptr;
+  lv_obj_t* rg_shot_view = nullptr;
+  lv_obj_t* rg_shot_arc = nullptr;     // 300 deg ring: shot weight toward target
+  lv_obj_t* rg_shot_glow = nullptr;
+  lv_obj_t* rg_shot_status = nullptr;  // "Brewing · Auto shot", "Shot complete"
+  lv_obj_t* rg_shot_target = nullptr;  // "of 36 g"
+  lv_obj_t* rg_weight_small = nullptr; // idle: weight in its glass capsule
 };
 
 // Build the Home widgets into `parent`, sized for `screen`. `scale_enabled`
@@ -291,9 +305,17 @@ void build_round_tray(lv_obj_t* screen, int cap_h, const lv_font_t* font,
 // The liquid-glass Home for round screens (round_home.cpp). build_home_tab
 // dispatches here; update_home calls update_round_home last (a no-op unless
 // the round-glass Home is the one built).
-void build_round_home(lv_obj_t* page, const ScreenProfile& screen, HomeWidgets& out);
+void build_round_home(lv_obj_t* page, const ScreenProfile& screen, bool scale_enabled,
+                      HomeWidgets& out);
 void update_round_home(HomeWidgets& w, const core::MachineSnapshot& state,
-                       const core::BrewSnapshot& brew, bool fahrenheit, bool heating);
+                       const core::ScaleSnapshot& scale, const core::BrewSnapshot& brew,
+                       bool fahrenheit, bool heating);
+// The shot ring, fed at the scale's notify rate from App::pump_scale_chart
+// (update_round_home's 2 Hz alone would step visibly). No-op off round glass.
+void round_shot_progress(HomeWidgets& w, float shown_g, float target_g);
+// The flow-graph card + canvas at a fixed w x h (the round shot view's glass
+// window), built by the same helpers as the wide layout's graph.
+lv_obj_t* build_round_flow_graph(lv_obj_t* parent, int w, int h, HomeWidgets& out);
 
 // Apply machine + battery + scale state to the built widgets (live, no rebuild).
 // scale_features/scale_connect_enabled drive the sleep-aware scale status: a

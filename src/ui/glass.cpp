@@ -4,6 +4,7 @@
 #include <cstdlib>
 
 #include "ui/screen.h"
+#include "ui/theme.h"
 #include "ui/widgets.h"
 
 namespace ui::glass {
@@ -103,6 +104,57 @@ void set_tone(lv_obj_t* obj, Tone tone) {
       lv_color_to_u32(lv_color_hex(tone_style(tone).top));
   if (lv_obj_get_user_data(obj) == want && fill_ok) return;
   apply_tone(obj, tone);
+}
+
+namespace {
+
+bool has_canvas_child(lv_obj_t* obj) {
+  const uint32_t n = lv_obj_get_child_count(obj);
+  for (uint32_t i = 0; i < n; ++i) {
+    if (lv_obj_check_type(lv_obj_get_child(obj, static_cast<int32_t>(i)), &lv_canvas_class))
+      return true;
+  }
+  return false;
+}
+
+void glassify_one(lv_obj_t* obj, uint32_t bg, uint32_t card, uint32_t rail) {
+  if (lv_obj_get_style_bg_opa(obj, LV_PART_MAIN) != LV_OPA_COVER) return;
+  const uint32_t c = lv_color_to_u32(lv_obj_get_style_bg_color(obj, LV_PART_MAIN)) & 0xFFFFFFu;
+  if (c == bg) {  // page / menu backgrounds: let the backdrop through
+    lv_obj_set_style_bg_opa(obj, LV_OPA_TRANSP, 0);
+    return;
+  }
+  lv_opa_t opa;
+  if (c == card) {
+    opa = 150;
+  } else if (c == rail) {
+    opa = 175;
+  } else {
+    return;  // accent / status fills keep their full colour
+  }
+  if (has_canvas_child(obj)) return;
+  lv_obj_set_style_bg_opa(obj, opa, 0);
+  if (lv_obj_get_style_border_width(obj, LV_PART_MAIN) == 0 &&
+      lv_obj_get_style_outline_width(obj, LV_PART_MAIN) == 0) {
+    lv_obj_set_style_outline_width(obj, 1, 0);
+    lv_obj_set_style_outline_color(obj, lv_color_hex(0xFFFFFF), 0);
+    lv_obj_set_style_outline_opa(obj, 40, 0);
+  }
+}
+
+void glassify_walk(lv_obj_t* obj, uint32_t bg, uint32_t card, uint32_t rail) {
+  glassify_one(obj, bg, card, rail);
+  const uint32_t n = lv_obj_get_child_count(obj);
+  for (uint32_t i = 0; i < n; ++i)
+    glassify_walk(lv_obj_get_child(obj, static_cast<int32_t>(i)), bg, card, rail);
+}
+
+}  // namespace
+
+void glassify_tree(lv_obj_t* root) {
+  if (root == nullptr) return;
+  glassify_walk(root, ui::theme::bg() & 0xFFFFFFu, ui::theme::card() & 0xFFFFFFu,
+                ui::theme::rail() & 0xFFFFFFu);
 }
 
 const lv_image_dsc_t* crema_backdrop(int w, int h) {
