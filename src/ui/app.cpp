@@ -1043,7 +1043,7 @@ void App::build(core::IMachine& machine, core::IProvisioner& provisioner,
     lv_obj_set_style_pad_top(rail, cap * 3 / 16, 0);
     lv_obj_set_style_pad_bottom(rail, cap * 7 / 16, 0);
     lv_obj_set_style_pad_column(rail, ui::dp(12), 0);
-    // The cap shows whatever is behind the tabview: the crema backdrop on Home,
+    // The cap shows whatever is behind the tabview: the black backdrop on Home,
     // the plain theme background elsewhere (pages paint their own, below).
     lv_obj_set_style_bg_opa(content, LV_OPA_TRANSP, 0);
   }
@@ -1334,7 +1334,7 @@ void App::build(core::IMachine& machine, core::IProvisioner& provisioner,
   lv_obj_add_event_cb(settings_.menu, on_menu_page_changed, LV_EVENT_VALUE_CHANGED, this);
 
   build_stats_tab(stats, screen, stats_);
-  // Round: Settings and Stats become dark glass over the crema backdrop.
+  // Round: Settings and Stats become dark glass over the black backdrop.
   ui::glass::glassify_tree(glass_bodies_[0]);
   ui::glass::glassify_tree(glass_bodies_[1]);
   for (int i = 0; i < kStatsCount; ++i) {
@@ -1887,19 +1887,15 @@ void App::show_tab(int index) {
 }
 
 void App::sync_round_backdrop() {
-  // The round-glass backdrop (crema + veil + bezel arcs) lives behind the
-  // whole tabview and shows through every tab. The arcs are Home's: off Home
-  // they hide, and the veil darkens so Settings / Stats text reads over it.
+  // The round-glass backdrop (black + bezel arcs) lives behind the whole
+  // tabview and shows through every tab. The arcs are Home's: off Home they
+  // hide.
   if (home_.rg_ring == nullptr || tabview_ == nullptr) return;
   const bool on_home = lv_tabview_get_tab_active(tabview_) == 0;
   if (on_home == lv_obj_has_flag(home_.rg_ring, LV_OBJ_FLAG_HIDDEN)) {
     if (on_home) lv_obj_remove_flag(home_.rg_ring, LV_OBJ_FLAG_HIDDEN);
     else lv_obj_add_flag(home_.rg_ring, LV_OBJ_FLAG_HIDDEN);
   }
-  constexpr lv_opa_t kTabVeil = 170;
-  const lv_opa_t veil = on_home ? home_.rg_home_dim : kTabVeil;
-  if (lv_obj_get_style_bg_opa(home_.rg_dim, LV_PART_MAIN) != veil)
-    lv_obj_set_style_bg_opa(home_.rg_dim, veil, 0);
 }
 
 void App::toggle_power() {
@@ -3250,7 +3246,7 @@ void App::open_backflush() {
   bf_state_ = brew_->snapshot().backflush_active ? kBackflushRunning : kBackflushPrompt;
   if (bf_timer_ == nullptr) bf_timer_ = lv_timer_create(on_backflush_timer, 250, this);
   backflush_tick();  // paint the initial state now, not a tick later
-  if (ui::is_round(screen_)) ui::glass::glassify_tree(bf_overlay_);  // over the crema
+  if (ui::is_round(screen_)) ui::glass::glassify_tree(bf_overlay_);  // over the black
 }
 
 void App::close_backflush() {
@@ -4635,7 +4631,7 @@ void App::detect_lead_in_adjust(int dir) {
 
 
 // ---- Round glass: temperature dial + steam sheet ---------------------------
-// Both live on the top layer over a dimmed Home (the crema stays visible
+// Both live on the top layer over a dimmed Home (the backdrop stays visible
 // through the veil), in the same glass pieces as the Home. One at a time
 // (dial_). They write through the same set-point paths as the Settings
 // steppers (brew_dirty / boiler_dirty + the machine call), so Settings and
@@ -4708,7 +4704,7 @@ void App::close_dial() {
   lv_obj_delete_async(dial_);
   dial_ = dial_value_ = dial_set_label_ = dial_arc_ = nullptr;
   for (lv_obj_t*& b : steam_btns_) b = nullptr;
-  // Bring Home back (open_* hid it so the sheet reads cleanly over the crema).
+  // Bring Home back (open_* hid it so the sheet reads cleanly).
   if (tabview_ != nullptr && modal_ == nullptr)
     lv_obj_remove_flag(tabview_, LV_OBJ_FLAG_HIDDEN);
   if (home_.clock_label != nullptr)
@@ -4717,7 +4713,7 @@ void App::close_dial() {
 }
 
 // A sheet replaces Home rather than layering over it: the clear glass would
-// show every readout beneath. The crema backdrop stays; the arcs go too (the
+// show every readout beneath. The backdrop stays; the arcs go too (the
 // dial draws its own ring).
 void App::hide_home_for_sheet() {
   if (tabview_ != nullptr) lv_obj_add_flag(tabview_, LV_OBJ_FLAG_HIDDEN);

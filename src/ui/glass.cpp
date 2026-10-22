@@ -1,7 +1,6 @@
 #include "ui/glass.h"
 
 #include <cstdint>
-#include <cstdlib>
 
 #include "ui/screen.h"
 #include "ui/theme.h"
@@ -155,86 +154,6 @@ void glassify_tree(lv_obj_t* root) {
   if (root == nullptr) return;
   glassify_walk(root, ui::theme::bg() & 0xFFFFFFu, ui::theme::card() & 0xFFFFFFu,
                 ui::theme::rail() & 0xFFFFFFu);
-}
-
-const lv_image_dsc_t* crema_backdrop(int w, int h) {
-  static lv_image_dsc_t dsc;
-  static uint16_t* pixels = nullptr;
-  if (pixels != nullptr) {
-    return (static_cast<int>(dsc.header.w) == w && static_cast<int>(dsc.header.h) == h)
-               ? &dsc
-               : nullptr;
-  }
-  pixels = static_cast<uint16_t*>(std::malloc(static_cast<size_t>(w) * h * 2));
-  if (pixels == nullptr) return nullptr;
-
-  // Color fields, in 800-px design coordinates (scaled to w x h). Each is a
-  // soft disc: weight = alpha * (1 - d^2/R^2)^2 inside R, composited in order
-  // over the base — a cheap stand-in for the mockup's 40 px Gaussian blur.
-  struct Blob {
-    float cx, cy, r;
-    uint32_t color;
-    float alpha;
-  };
-  static constexpr Blob kBlobs[] = {
-      {220.0f, 690.0f, 410.0f, 0xC8772F, 1.00f},  // caramel, lower left
-      {680.0f, 150.0f, 360.0f, 0x5A2414, 1.00f},  // deep red-brown, upper right
-      {260.0f, 190.0f, 290.0f, 0x2B160C, 1.00f},  // mocha shadow, upper left
-      {710.0f, 470.0f, 220.0f, 0xA04E22, 0.85f},  // rust, right
-      {540.0f, 620.0f, 230.0f, 0xF2CC94, 0.70f},  // crema highlight, lower right
-  };
-  // 4x4 ordered dither, so 565's 32/64 levels don't band on the soft fields.
-  static constexpr uint8_t kBayer[4][4] = {
-      {0, 8, 2, 10}, {12, 4, 14, 6}, {3, 11, 1, 9}, {15, 7, 13, 5}};
-
-  const float sx = 800.0f / static_cast<float>(w);
-  const float sy = 800.0f / static_cast<float>(h);
-  const float base_r = static_cast<float>((kBackdropBase >> 16) & 0xFF);
-  const float base_g = static_cast<float>((kBackdropBase >> 8) & 0xFF);
-  const float base_b = static_cast<float>(kBackdropBase & 0xFF);
-  for (int y = 0; y < h; ++y) {
-    const float py = (static_cast<float>(y) + 0.5f) * sy;
-    for (int x = 0; x < w; ++x) {
-      const float px = (static_cast<float>(x) + 0.5f) * sx;
-      float r = base_r, g = base_g, b = base_b;
-      for (const Blob& bl : kBlobs) {
-        const float dx = px - bl.cx, dy = py - bl.cy;
-        const float q = (dx * dx + dy * dy) / (bl.r * bl.r);
-        if (q >= 1.0f) continue;
-        const float k = (1.0f - q) * (1.0f - q) * bl.alpha;
-        r += (static_cast<float>((bl.color >> 16) & 0xFF) - r) * k;
-        g += (static_cast<float>((bl.color >> 8) & 0xFF) - g) * k;
-        b += (static_cast<float>(bl.color & 0xFF) - b) * k;
-      }
-      // Darken toward the rim of the glass so the arcs and edge text read.
-      const float dx = px - 400.0f, dy = py - 400.0f;
-      const float t = (dx * dx + dy * dy) / (400.0f * 400.0f);  // 0 centre .. 1 edge
-      float vig = 1.0f;
-      if (t > 0.25f) {
-        const float u = (t - 0.25f) / 0.75f;
-        vig = 1.0f - 0.5f * (u > 1.0f ? 1.0f : u * u * (3.0f - 2.0f * u));
-      }
-      const float d = (static_cast<float>(kBayer[y & 3][x & 3]) + 0.5f) / 16.0f;
-      auto q5 = [&](float v) {
-        int c = static_cast<int>(v * vig * 31.0f / 255.0f + d);
-        return c < 0 ? 0 : (c > 31 ? 31 : c);
-      };
-      int g6 = static_cast<int>(g * vig * 63.0f / 255.0f + d);
-      g6 = g6 < 0 ? 0 : (g6 > 63 ? 63 : g6);
-      pixels[static_cast<size_t>(y) * w + x] =
-          static_cast<uint16_t>((q5(r) << 11) | (g6 << 5) | q5(b));
-    }
-  }
-
-  dsc = {};
-  dsc.header.magic = LV_IMAGE_HEADER_MAGIC;
-  dsc.header.cf = LV_COLOR_FORMAT_RGB565;
-  dsc.header.w = static_cast<uint32_t>(w);
-  dsc.header.h = static_cast<uint32_t>(h);
-  dsc.header.stride = static_cast<uint32_t>(w * 2);
-  dsc.data_size = static_cast<uint32_t>(w * h * 2);
-  dsc.data = reinterpret_cast<const uint8_t*>(pixels);
-  return &dsc;
 }
 
 }  // namespace ui::glass

@@ -249,19 +249,19 @@ env adds `-DBOARD_P4_SILICON_REV3`), panel table `BOARD_DSI_PANEL_JD9365_RD34`
   by `ui::glass::glassify_tree` (theme-bg fills -> transparent, card/rail
   fills -> translucent + 1 px white outline; canvases' parents stay opaque),
   re-run each refresh on the active tab + modal so late-built rows convert.
-  The crema backdrop is on the SCREEN behind the tabview on every tab; the
-  arcs (`rg_ring`) and the Home's state veil only on Home, a fixed darker
-  veil elsewhere (`App::sync_round_backdrop`). The tab dock lives INSIDE the
+  The backdrop is PLAIN BLACK, on the SCREEN behind the tabview on every
+  tab; the arcs (`rg_ring`) only on Home (`App::sync_round_backdrop`). (It
+  was a generated blurred "crema" image until 2026-10-22 — on the real panel
+  it read as muddy and busy behind the numerals and graph; owner dropped it.
+  Don't bring a gradient backdrop back without asking.) The tab dock lives INSIDE the
   tab bar at index 0 (tabview finds buttons by class) so it hides with it.
   `ui/glass.*`: flat fills only — gradients band in RGB565.
-  Costs (owner-visible, see Memory budget rule): backdrop = one w*h*2 malloc
-  (1.28 MB at 800x800; must land in PSRAM — if malloc can't, it returns null
-  and the backdrop falls back to a flat colour), built once (~0.5 s est. on
-  the P4) and reused across theme rebuilds; hero font
+  Costs (owner-visible, see Memory budget rule): no backdrop buffer (black
+  fill); hero font
   `src/ui/fonts/font_outfit_hero.c` ~38 KB flash (Outfit, OFL; digits . - g
   deg; regenerate with tools/gen_hero_font.sh); ~40 extra LVGL objects on
-  Home, the dial/sheet only while open. Not yet measured on hardware:
-  boot-time cost of the backdrop, frame times (shadows, the glassify walk).
+  Home, the dial/sheet only while open. Not yet measured on hardware: frame
+  times (shadows, the glassify walk).
   CLOCK IDLE SCREEN (`kSaverClock`, round only — the cycle skips it and a
   restored Clock falls back to Lion on rectangular boards): its own screen
   like the artworks (`App::start_clock_saver` / `clock_saver_tick`, 10 Hz):

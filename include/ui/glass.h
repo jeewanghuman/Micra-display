@@ -8,8 +8,7 @@
 //   - a translucent white fill (flat — a faint gradient bands in RGB565),
 //   - a thin white rim plus a brighter specular arc along the top edge,
 //   - a soft drop shadow so the piece floats,
-//   - drawn over the generated crema backdrop (crema_backdrop), which is what
-//     gives the clear glass something to show.
+//   - drawn over a plain black backdrop (kBackdropBase).
 
 namespace ui::glass {
 
@@ -34,7 +33,7 @@ lv_obj_t* make_panel(lv_obj_t* parent, int radius, Tone tone);
 void set_tone(lv_obj_t* obj, Tone tone);
 
 // Turn a classic-layout subtree (Settings, Stats, modal cards) into dark
-// glass over the crema backdrop: theme-bg fills go transparent, card()/rail()
+// glass over the black backdrop: theme-bg fills go transparent, card()/rail()
 // fills become translucent (their colour kept, so the 2 Hz update paths that
 // recolour buttons still work) with a faint white rim drawn as an outline (an
 // outline sits outside the box, so no layout shifts). Idempotent and cheap —
@@ -44,15 +43,8 @@ void set_tone(lv_obj_t* obj, Tone tone);
 // paints its own solid background.
 void glassify_tree(lv_obj_t* root);
 
-// The crema backdrop: soft, out-of-focus amber / mocha / cream fields with a
-// darker rim, w x h RGB565, ordered-dithered so the gradients don't band.
-// Rendered ONCE on first call into a malloc'd buffer (w*h*2 bytes — on the
-// ESP32-P4 a large malloc lands in PSRAM) and kept for the life of the app;
-// later calls (theme rebuilds) return the same image. nullptr if the
-// allocation fails: callers fall back to a flat backdrop color.
-const lv_image_dsc_t* crema_backdrop(int w, int h);
-
-// The backdrop's base color — the flat fallback, and what it fades to.
-constexpr uint32_t kBackdropBase = 0x1A0F09;
+// The round UI's backdrop: true black. The glass pieces read as soft grey
+// against it, and the arcs / amber accents carry the colour.
+constexpr uint32_t kBackdropBase = 0x000000;
 
 }  // namespace ui::glass

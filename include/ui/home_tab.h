@@ -249,22 +249,20 @@ struct HomeWidgets {
   bool unwired_ring = false;
 
   // Round-glass Home (round screens with no scale paired — build_round_home).
-  // The page itself holds the readouts and buttons; the backdrop (crema image,
-  // state dimmer, the brew/steam ring arcs and their captions) is a layer on
-  // the SCREEN behind the tabview, because the arcs run down behind the tab
-  // dock in the bottom cap where the tab page doesn't reach. App shows that
-  // layer only while Home is the active tab (App::sync_round_backdrop).
+  // The page itself holds the readouts and buttons; the backdrop (black, with
+  // the brew/steam ring arcs) is a layer on the SCREEN behind the tabview,
+  // because the arcs run down behind the tab dock in the bottom cap where the
+  // tab page doesn't reach. App shows the arcs only while Home is the active
+  // tab (App::sync_round_backdrop).
   bool round_glass = false;
   lv_obj_t* rg_backdrop = nullptr;
-  lv_obj_t* rg_dim = nullptr;          // black veil: darker in standby/heating
   lv_obj_t* rg_brew_arc = nullptr;     // left ring: brew boiler toward target
   lv_obj_t* rg_brew_glow = nullptr;    // wide, faint copy underneath = glow
   lv_obj_t* rg_steam_arc = nullptr;    // right ring: steam boiler toward target
   lv_obj_t* rg_steam_glow = nullptr;
   lv_obj_t* rg_power_icon = nullptr;   // glyph inside the round power button
   lv_obj_t* rg_flush_icon = nullptr;
-  lv_obj_t* rg_ring = nullptr;         // the arcs (Home only; the crema stays on every tab)
-  lv_opa_t rg_home_dim = 0;            // veil level Home wants (other tabs: darker)
+  lv_obj_t* rg_ring = nullptr;         // the arcs (Home only; the black backdrop stays)
   lv_obj_t* rg_steam_capsule = nullptr;  // tap: steam sheet (App)
   // With a scale paired the Home swaps between two views: idle (the machine,
   // plus weight / Tare / shot mode) and shot (weight as the numerals, timer,

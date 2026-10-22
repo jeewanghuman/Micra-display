@@ -901,14 +901,13 @@ void build_home_tab(lv_obj_t* parent, const ScreenProfile& screen, bool scale_en
   for (lv_obj_t*& yl : out.flow_ylabels) yl = nullptr;
   for (lv_obj_t*& xl : out.flow_xlabels) xl = nullptr;
   out.round_glass = false;
-  out.rg_backdrop = out.rg_dim = nullptr;
+  out.rg_backdrop = nullptr;
   out.rg_brew_arc = out.rg_brew_glow = out.rg_steam_arc = out.rg_steam_glow = nullptr;
   out.rg_power_icon = out.rg_flush_icon = nullptr;
   out.rg_ring = out.rg_steam_capsule = nullptr;
   out.rg_idle_view = out.rg_shot_view = nullptr;
   out.rg_shot_arc = out.rg_shot_glow = out.rg_shot_status = nullptr;
   out.rg_shot_target = out.rg_weight_small = nullptr;
-  out.rg_home_dim = 0;
   out.power_btn = out.power_label = nullptr;
   out.shot_btn = out.shot_btn_label = nullptr;
 

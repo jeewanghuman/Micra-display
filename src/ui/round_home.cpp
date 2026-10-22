@@ -176,8 +176,10 @@ void build_round_home(lv_obj_t* page, const ScreenProfile& screen, bool scale_en
   lv_obj_set_style_bg_opa(page, LV_OPA_TRANSP, 0);
 
   // --- Backdrop layer on the screen, behind everything (index 0) -----------
-  // Crema + veil stay up on every tab (the other tabs glass over it); the
-  // arcs in rg_ring are Home's only (App::sync_round_backdrop).
+  // Plain black on every tab (the other tabs glass over it); the arcs in
+  // rg_ring are Home's only (App::sync_round_backdrop). Black, not an image:
+  // the blurred crema fields this used to be read as muddy and busy behind
+  // the numerals and the graph on the real panel.
   lv_obj_t* scr = lv_obj_get_screen(page);
   lv_obj_t* back = lv_obj_create(scr);
   lv_obj_remove_style_all(back);
@@ -189,18 +191,6 @@ void build_round_home(lv_obj_t* page, const ScreenProfile& screen, bool scale_en
   lv_obj_set_style_bg_opa(back, LV_OPA_COVER, 0);
   lv_obj_move_to_index(back, 0);
   out.rg_backdrop = back;
-
-  if (const lv_image_dsc_t* img = ui::glass::crema_backdrop(screen.width, screen.height)) {
-    lv_obj_t* bg = lv_image_create(back);
-    lv_image_set_src(bg, img);
-    lv_obj_set_pos(bg, 0, 0);
-  }
-  out.rg_dim = lv_obj_create(back);
-  lv_obj_remove_style_all(out.rg_dim);
-  lv_obj_remove_flag(out.rg_dim, LV_OBJ_FLAG_CLICKABLE);
-  lv_obj_set_size(out.rg_dim, screen.width, screen.height);
-  lv_obj_set_style_bg_color(out.rg_dim, lv_color_hex(0x000000), 0);
-  lv_obj_set_style_bg_opa(out.rg_dim, LV_OPA_TRANSP, 0);
 
   out.rg_ring = make_view(back);
   const int ring_r = at(372);
@@ -469,15 +459,6 @@ void update_round_home(HomeWidgets& w, const core::MachineSnapshot& state,
       round_shot_progress(w, shown, brew.target_weight_g);
     }
   }
-
-  // --- Backdrop veil: full warmth when ready or brewing, a little darker
-  //     while heating, much darker asleep or offline. App applies it while
-  //     Home is the active tab (other tabs use a fixed, darker veil). -------
-  w.rg_home_dim = shot_view ? 0 : !connected ? 150 : !on ? 140 : heating ? 60 : 0;
-  if (w.rg_dim != nullptr && w.rg_ring != nullptr &&
-      !lv_obj_has_flag(w.rg_ring, LV_OBJ_FLAG_HIDDEN) &&
-      lv_obj_get_style_bg_opa(w.rg_dim, LV_PART_MAIN) != w.rg_home_dim)
-    lv_obj_set_style_bg_opa(w.rg_dim, w.rg_home_dim, 0);
 
   // --- Power: update_home has set the enabled state; draw glass + words. ----
   using ui::glass::Tone;
