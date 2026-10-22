@@ -1,5 +1,10 @@
 #include "ui/stats_tab.h"
 
+#include <cmath>
+#include <cstdio>
+
+#include "ui/glass.h"
+
 #include "ui/shot_card.h"  // shot-mode tag strings, for the history row column
 #include "ui/theme.h"
 #include "ui/units.h"
@@ -205,9 +210,458 @@ lv_obj_t* make_metric_card(lv_obj_t* parent, const char* caption,
   return val;
 }
 
+
+// --- Round glass (the 3.4C) -------------------------------------------------
+// The temperature history drawn for the circle: time is the ANGLE (a 300 deg
+// sweep from 7 o'clock, clockwise over the top to 5 o'clock = now — the same
+// sweep as Home's bezel arcs), temperature is the RADIUS (y_min on the inner
+// ring, y_max on the outer). The lv_chart still holds the data — App feeds it
+// exactly as on the rectangular boards — but its own drawing is switched off
+// and this callback paints everything, so it costs no buffer.
+constexpr int kRoundChartSize = 460;   // the chart object (square)
+constexpr int kRoundRingIn = 112;      // y_min radius
+constexpr int kRoundRingOut = 204;     // y_max radius
+constexpr int kRoundSweepStart = 120;  // degrees, LVGL convention (0 = 3 o'clock)
+constexpr int kRoundSweep = 300;
+
+uint32_t round_trace_color(const StatsWidgets& w) {
+  return w.active == kStatsBoiler ? 0xA9D2FF : 0xF2A24A;  // Home's steam / brew
+}
+
+lv_point_t polar(int32_t cx, int32_t cy, float r, float deg) {
+  const float a = deg * 3.14159265f / 180.0f;
+  return {static_cast<int32_t>(cx + r * std::cos(a) + 0.5f),
+          static_cast<int32_t>(cy + r * std::sin(a) + 0.5f)};
+}
+
+void draw_ring(lv_layer_t* layer, int32_t cx, int32_t cy, int32_t r, int32_t width,
+               float a0, float a1, uint32_t color, lv_opa_t opa, bool rounded) {
+  lv_draw_arc_dsc_t d;
+  lv_draw_arc_dsc_init(&d);
+  d.center.x = cx;
+  d.center.y = cy;
+  d.radius = static_cast<uint16_t>(r);
+  d.width = width;
+  // Normalize: the sweep runs 120 -> 420 deg; the arc drawer wants 0..360.
+  while (a0 >= 360) a0 -= 360;
+  while (a1 >= 360) a1 -= 360;
+  d.start_angle = a0;
+  d.end_angle = a1;
+  d.color = lv_color_hex(color);
+  d.opa = opa;
+  d.rounded = rounded ? 1 : 0;
+  lv_draw_arc(layer, &d);
+}
+
+void draw_text(lv_layer_t* layer, const char* text, const lv_font_t* font,
+               uint32_t color, lv_opa_t opa, int32_t x, int32_t y, int32_t half_w) {
+  lv_draw_label_dsc_t lbl;
+  lv_draw_label_dsc_init(&lbl);
+  lbl.color = lv_color_hex(color);
+  lbl.opa = opa;
+  lbl.font = font;
+  lbl.align = LV_TEXT_ALIGN_CENTER;
+  lbl.text = text;
+  lbl.text_local = 1;
+  const int32_t h = lv_font_get_line_height(font);
+  lv_area_t a = {x - half_w, y - h / 2, x + half_w, y + h - h / 2};
+  lv_draw_label(layer, &lbl, &a);
+}
+
+void round_chart_overlay_cb(lv_event_t* e) {
+  auto* w = static_cast<StatsWidgets*>(lv_event_get_user_data(e));
+  if (w->series == nullptr) return;
+  auto* chart = static_cast<lv_obj_t*>(lv_event_get_target(e));
+  lv_layer_t* layer = lv_event_get_layer(e);
+  lv_area_t obj;
+  lv_obj_get_coords(chart, &obj);
+  const int32_t cx = (obj.x1 + obj.x2 + 1) / 2;
+  const int32_t cy = (obj.y1 + obj.y2 + 1) / 2;
+  const int32_t r_in = ui::dp(kRoundRingIn);
+  const int32_t r_out = ui::dp(kRoundRingOut);
+  const float band = static_cast<float>(r_out - r_in);
+  const float range = static_cast<float>(w->y_max > w->y_min ? w->y_max - w->y_min : 1);
+  const float a_end = kRoundSweepStart + kRoundSweep;
+  const uint32_t trace = round_trace_color(*w);
+  const uint32_t cnt = lv_chart_get_point_count(chart);
+  const int32_t* ys = lv_chart_get_series_y_array(chart, w->series);
+  auto radius_of = [&](float v) {
+    float t = (v - w->y_min) / range;
+    t = t < 0 ? 0 : t > 1 ? 1 : t;
+    return r_in + t * band;
+  };
+  auto angle_of = [&](float i) {
+    return kRoundSweepStart + kRoundSweep * (cnt > 1 ? i / (cnt - 1) : 0.0f);
+  };
+
+  // The glass band the trace lives in, then four faint temperature rings.
+  draw_ring(layer, cx, cy, r_out, r_out - r_in, kRoundSweepStart, a_end, 0xFFFFFF, 16,
+            false);
+  for (int t = 0; t <= 4; ++t)
+    draw_ring(layer, cx, cy, r_in + static_cast<int32_t>(band * t / 4), 1,
+              kRoundSweepStart, a_end, 0xFFFFFF, t == 0 || t == 4 ? 70 : 34, false);
+
+  // No-data runs (before recording / BLE gaps): a darker wedge of the band.
+  for (uint32_t i = 0; i < cnt;) {
+    if (ys[i] != LV_CHART_POINT_NONE) {
+      ++i;
+      continue;
+    }
+    uint32_t j = i;
+    while (j < cnt && ys[j] == LV_CHART_POINT_NONE) ++j;
+    const float a0 = angle_of(i > 0 ? i - 0.5f : 0.0f);
+    const float a1 = angle_of(j < cnt ? j - 0.5f : cnt - 1.0f);
+    if (a1 > a0)
+      draw_ring(layer, cx, cy, r_out - 1, r_out - r_in - 2, a0, a1, 0x000000, 120, false);
+    i = j;
+  }
+
+  // Set-point: a white ring at the target's radius.
+  if (w->target == w->target && w->target >= w->y_min && w->target <= w->y_max)
+    draw_ring(layer, cx, cy, static_cast<int32_t>(radius_of(w->target)) + 1, ui::dp(2),
+              kRoundSweepStart, a_end, 0xFFFFFF, 150, false);
+
+  // The trace: a soft glow pass, then the line, segment by segment (skipping
+  // gaps). The last real point gets a bead — "now".
+  lv_draw_line_dsc_t line;
+  lv_draw_line_dsc_init(&line);
+  line.color = lv_color_hex(trace);
+  line.round_start = 1;
+  line.round_end = 1;
+  int last = -1;
+  for (int pass = 0; pass < 2; ++pass) {
+    // Glow without round caps: overlapping caps at the joints would double
+    // the opacity and read as a string of beads.
+    line.width = ui::dp(pass == 0 ? 12 : 4);
+    line.opa = pass == 0 ? 50 : LV_OPA_COVER;
+    line.round_start = line.round_end = pass == 0 ? 0 : 1;
+    for (uint32_t i = 1; i < cnt; ++i) {
+      if (ys[i - 1] == LV_CHART_POINT_NONE || ys[i] == LV_CHART_POINT_NONE) continue;
+      const lv_point_t a = polar(cx, cy, radius_of(ys[i - 1]), angle_of(i - 1.0f));
+      const lv_point_t b = polar(cx, cy, radius_of(ys[i]), angle_of(static_cast<float>(i)));
+      line.p1.x = a.x;
+      line.p1.y = a.y;
+      line.p2.x = b.x;
+      line.p2.y = b.y;
+      lv_draw_line(layer, &line);
+    }
+  }
+  for (int i = static_cast<int>(cnt) - 1; i >= 0; --i) {
+    if (ys[i] != LV_CHART_POINT_NONE) {
+      last = i;
+      break;
+    }
+  }
+  if (last >= 0) {
+    const lv_point_t p = polar(cx, cy, radius_of(ys[last]), angle_of(static_cast<float>(last)));
+    lv_draw_rect_dsc_t bead;
+    lv_draw_rect_dsc_init(&bead);
+    bead.radius = LV_RADIUS_CIRCLE;
+    bead.bg_color = lv_color_hex(0xFFFFFF);
+    bead.shadow_color = lv_color_hex(trace);
+    bead.shadow_width = ui::dp(16);
+    bead.shadow_opa = 200;
+    const int32_t br = ui::dp(7);
+    lv_area_t a = {p.x - br, p.y - br, p.x + br, p.y + br};
+    lv_draw_rect(layer, &bead, &a);
+  }
+
+  // Temperature labels down the 7 o'clock end, just inside the gap.
+  const lv_font_t* small = ui::font_dp(14);
+  char buf[16];
+  for (int t = 0; t <= 4; t += 2) {
+    const float c = static_cast<float>(w->y_min) + range * t / 4;
+    const float v = ui::temp_disp(c, w->fahrenheit);
+    std::snprintf(buf, sizeof(buf), "%d°", static_cast<int>(v + 0.5f));
+    const lv_point_t p = polar(cx, cy, radius_of(c), kRoundSweepStart - 9);
+    draw_text(layer, buf, small, 0xFFFFFF, 150, p.x, p.y, ui::dp(30));
+  }
+  // Time marks: the window's start under the 7 o'clock end, the midpoint over
+  // the top, "now" under the 5 o'clock end.
+  const int32_t lr = r_out + ui::dp(16);
+  char ago[8];
+  fmt_ago(ago, sizeof(ago), w->window_s);
+  std::snprintf(buf, sizeof(buf), "-%s", ago);
+  lv_point_t p = polar(cx, cy, lr + ui::dp(6), kRoundSweepStart + 12);
+  draw_text(layer, buf, small, 0xFFFFFF, 150, p.x, p.y, ui::dp(34));
+  fmt_ago(ago, sizeof(ago), w->window_s / 2);
+  std::snprintf(buf, sizeof(buf), "-%s", ago);
+  p = polar(cx, cy, lr - ui::dp(2), 270);
+  draw_text(layer, buf, small, 0xFFFFFF, 150, p.x, p.y, ui::dp(34));
+  p = polar(cx, cy, lr + ui::dp(6), a_end - 12);
+  draw_text(layer, "now", small, 0xFFFFFF, 150, p.x, p.y, ui::dp(34));
+
+  // Center: the latest reading, what it is, and the window.
+  if (last >= 0) {
+    std::snprintf(buf, sizeof(buf), "%.1f°", ui::temp_disp(static_cast<float>(ys[last]),
+                                                          w->fahrenheit));
+    draw_text(layer, buf, ui::font_dp(40), 0xFFFFFF, LV_OPA_COVER, cx, cy - ui::dp(34),
+              ui::dp(100));
+  }
+  draw_text(layer, w->active == kStatsBoiler ? "Steam boiler" : "Brew boiler",
+            ui::font_dp(16), trace, LV_OPA_COVER, cx, cy + ui::dp(2), ui::dp(100));
+}
+
+// A glass list/info container inside the circle: a large-radius panel that
+// scrolls its rows.
+lv_obj_t* round_glass_box(lv_obj_t* parent, int x, int y, int w, int h) {
+  lv_obj_t* box = lv_obj_create(parent);
+  lv_obj_remove_style_all(box);
+  lv_obj_set_pos(box, x, y);
+  lv_obj_set_size(box, w, h);
+  return box;
+}
+
+void round_glass_fill(lv_obj_t* obj, int radius) {
+  lv_obj_set_style_bg_color(obj, lv_color_hex(0xFFFFFF), 0);
+  lv_obj_set_style_bg_opa(obj, 22, 0);
+  lv_obj_set_style_radius(obj, radius, 0);
+  lv_obj_set_style_border_width(obj, 1, 0);
+  lv_obj_set_style_border_color(obj, lv_color_hex(0xFFFFFF), 0);
+  lv_obj_set_style_border_opa(obj, 60, 0);
+  lv_obj_set_style_clip_corner(obj, true, 0);
+}
+
+void build_round_stats(lv_obj_t* parent, const ScreenProfile& screen, StatsWidgets& out) {
+  (void)screen;
+  const lv_font_t* font = ui::font_dp(20);
+  const lv_font_t* cap_font = ui::font_dp(14);
+  lv_obj_remove_flag(parent, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_set_style_pad_all(parent, 0, 0);
+
+  // --- Segmented glass capsule just under the tray -------------------------
+  lv_obj_t* seg_row = ui::glass::make_panel(parent, LV_RADIUS_CIRCLE, ui::glass::Tone::kClear);
+  lv_obj_set_size(seg_row, ui::dp(470), ui::dp(56));
+  lv_obj_align(seg_row, LV_ALIGN_TOP_MID, 0, ui::dp(122));
+  lv_obj_set_flex_flow(seg_row, LV_FLEX_FLOW_ROW);
+  lv_obj_set_flex_align(seg_row, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER,
+                        LV_FLEX_ALIGN_CENTER);
+  lv_obj_set_style_pad_all(seg_row, ui::dp(5), 0);
+  lv_obj_set_style_pad_column(seg_row, ui::dp(4), 0);
+  lv_obj_set_style_shadow_width(seg_row, 0, 0);
+  const char* labels[kStatsCount] = {"Brew", "Steam", "History", "Info"};
+  for (int i = 0; i < kStatsCount; ++i) {
+    out.seg[i] = ui::glass::make_button(seg_row, LV_RADIUS_CIRCLE, ui::glass::Tone::kClear);
+    lv_obj_set_flex_grow(out.seg[i], 1);
+    lv_obj_set_height(out.seg[i], lv_pct(100));
+    lv_obj_set_style_shadow_width(out.seg[i], 0, 0);
+    lv_obj_t* l = lv_label_create(out.seg[i]);
+    lv_label_set_text(l, labels[i]);
+    lv_obj_set_style_text_font(l, ui::font_dp(16), 0);
+    lv_obj_center(l);
+  }
+
+  // --- Radial temperature chart --------------------------------------------
+  const int cs = ui::dp(kRoundChartSize);
+  out.graph_box = round_glass_box(parent, 0, 0, cs, cs);
+  lv_obj_align(out.graph_box, LV_ALIGN_TOP_MID, 0, ui::dp(186));
+  lv_obj_remove_flag(out.graph_box, LV_OBJ_FLAG_SCROLLABLE);
+
+  out.chart = lv_chart_create(out.graph_box);
+  lv_obj_remove_style_all(out.chart);
+  lv_obj_set_size(out.chart, lv_pct(100), lv_pct(100));
+  lv_obj_remove_flag(out.chart, LV_OBJ_FLAG_SCROLLABLE);
+  lv_chart_set_type(out.chart, LV_CHART_TYPE_LINE);
+  lv_chart_set_point_count(out.chart, kStatsPoints);
+  lv_chart_set_div_line_count(out.chart, 0, 0);
+  // The chart's own line/points are switched off: the overlay draws the polar
+  // trace from the same series data.
+  lv_obj_set_style_line_opa(out.chart, LV_OPA_TRANSP, LV_PART_ITEMS);
+  lv_obj_set_style_width(out.chart, 0, LV_PART_INDICATOR);
+  lv_obj_set_style_height(out.chart, 0, LV_PART_INDICATOR);
+  out.series = lv_chart_add_series(out.chart, lv_color_hex(0xF2A24A), LV_CHART_AXIS_PRIMARY_Y);
+  lv_obj_add_event_cb(out.chart, round_chart_overlay_cb, LV_EVENT_DRAW_MAIN_END, &out);
+
+  // Zoom -/+ inside the inner ring, under the reading.
+  const int zsz = ui::dp(46);
+  out.zoom_out = ui::glass::make_button(out.chart, LV_RADIUS_CIRCLE, ui::glass::Tone::kClear);
+  lv_obj_set_size(out.zoom_out, zsz, zsz);
+  lv_obj_align(out.zoom_out, LV_ALIGN_CENTER, -ui::dp(32), ui::dp(52));
+  out.zoom_in = ui::glass::make_button(out.chart, LV_RADIUS_CIRCLE, ui::glass::Tone::kClear);
+  lv_obj_set_size(out.zoom_in, zsz, zsz);
+  lv_obj_align(out.zoom_in, LV_ALIGN_CENTER, ui::dp(32), ui::dp(52));
+  const char* zl[2] = {LV_SYMBOL_MINUS, LV_SYMBOL_PLUS};
+  lv_obj_t* zb[2] = {out.zoom_out, out.zoom_in};
+  for (int i = 0; i < 2; ++i) {
+    lv_obj_t* l = lv_label_create(zb[i]);
+    lv_label_set_text(l, zl[i]);
+    lv_obj_set_style_text_font(l, ui::font_dp(20), 0);
+    lv_obj_center(l);
+  }
+
+  out.empty_label = lv_label_create(out.chart);
+  lv_label_set_text(out.empty_label, "No data yet");
+  lv_obj_set_style_text_color(out.empty_label, lv_color_hex(0xFFFFFF), 0);
+  lv_obj_set_style_text_opa(out.empty_label, 160, 0);
+  lv_obj_set_style_text_font(out.empty_label, font, 0);
+  lv_obj_align(out.empty_label, LV_ALIGN_CENTER, 0, -ui::dp(34));
+  lv_obj_add_flag(out.empty_label, LV_OBJ_FLAG_HIDDEN);
+
+  // --- History: three metric bubbles + a glass list -------------------------
+  // Geometry from the 800 panel: everything sits between y 190 and 616 and
+  // inside the circle (the list's corners are rounded far enough to clear it).
+  out.history_box = round_glass_box(parent, ui::dp(110), ui::dp(192), ui::dp(580), ui::dp(430));
+  lv_obj_remove_flag(out.history_box, LV_OBJ_FLAG_SCROLLABLE);
+  {
+    out.history_content = lv_obj_create(out.history_box);
+    lv_obj_remove_style_all(out.history_content);
+    lv_obj_remove_flag(out.history_content, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_size(out.history_content, lv_pct(100), lv_pct(100));
+    lv_obj_set_flex_flow(out.history_content, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_flex_align(out.history_content, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER,
+                          LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_pad_row(out.history_content, ui::dp(8), 0);
+
+    lv_obj_t* metrics = lv_obj_create(out.history_content);
+    lv_obj_remove_style_all(metrics);
+    lv_obj_remove_flag(metrics, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_size(metrics, ui::dp(500), LV_SIZE_CONTENT);
+    lv_obj_set_flex_flow(metrics, LV_FLEX_FLOW_ROW);
+    lv_obj_set_style_pad_column(metrics, ui::dp(10), 0);
+    lv_obj_t** vals[3] = {&out.hist_stat_total, &out.hist_stat_life, &out.hist_stat_30};
+    const char* caps[3] = {"Total shots", "Lifetime acc", "30-day acc"};
+    for (int i = 0; i < 3; ++i) {
+      lv_obj_t* card = ui::glass::make_panel(metrics, ui::dp(30), ui::glass::Tone::kClear);
+      lv_obj_add_flag(card, LV_OBJ_FLAG_CLICKABLE);
+      lv_obj_set_flex_grow(card, 1);
+      lv_obj_set_height(card, LV_SIZE_CONTENT);
+      lv_obj_set_style_pad_ver(card, ui::dp(10), 0);
+      lv_obj_set_style_shadow_width(card, 0, 0);
+      lv_obj_set_flex_flow(card, LV_FLEX_FLOW_COLUMN);
+      lv_obj_set_flex_align(card, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER,
+                            LV_FLEX_ALIGN_CENTER);
+      lv_obj_set_style_bg_main_opa(card, 70, LV_STATE_PRESSED);
+      lv_obj_set_style_bg_grad_opa(card, 70, LV_STATE_PRESSED);
+      lv_obj_t* v = lv_label_create(card);
+      lv_label_set_text(v, "-");
+      lv_obj_set_style_text_font(v, ui::font_dp(28), 0);
+      lv_obj_t* c = lv_label_create(card);
+      lv_label_set_text(c, caps[i]);
+      lv_obj_set_style_text_opa(c, 160, 0);
+      lv_obj_set_style_text_font(c, cap_font, 0);
+      *vals[i] = v;
+      out.hist_metric_cards[i] = card;
+      if (i == 0) out.hist_stat_total_cap = c;
+    }
+
+    // The list: no month filter on round (no room beside it) — App's
+    // filter calls are no-ops when history_filter_list is null.
+    out.history_filter_list = nullptr;
+    out.history_list = lv_obj_create(out.history_content);
+    lv_obj_remove_style_all(out.history_list);
+    lv_obj_set_width(out.history_list, lv_pct(100));
+    lv_obj_set_flex_grow(out.history_list, 1);
+    round_glass_fill(out.history_list, ui::dp(44));
+    lv_obj_set_style_pad_hor(out.history_list, ui::dp(30), 0);
+    lv_obj_set_style_pad_ver(out.history_list, ui::dp(10), 0);
+    lv_obj_set_flex_flow(out.history_list, LV_FLEX_FLOW_COLUMN);
+    lv_obj_add_flag(out.history_list, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scroll_dir(out.history_list, LV_DIR_VER);
+    lv_obj_set_scrollbar_mode(out.history_list, LV_SCROLLBAR_MODE_OFF);
+
+    // Footer: URL centered, capacity right — narrower than the list so its
+    // right end stays inside the circle.
+    lv_obj_t* footer = lv_obj_create(out.history_content);
+    lv_obj_remove_style_all(footer);
+    lv_obj_remove_flag(footer, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_size(footer, ui::dp(500), ui::dp(20));
+    out.history_url_label = lv_label_create(footer);
+    lv_label_set_text(out.history_url_label, "");
+    lv_obj_set_style_text_color(out.history_url_label, lv_color_hex(ui::theme::muted()), 0);
+    lv_obj_set_style_text_font(out.history_url_label, cap_font, 0);
+    lv_obj_align(out.history_url_label, LV_ALIGN_CENTER, 0, 0);
+    // The capacity gets its own line under the URL (App centers it on round):
+    // side by side they collide in the circle's narrower bottom.
+    lv_obj_t* footer2 = lv_obj_create(out.history_content);
+    lv_obj_remove_style_all(footer2);
+    lv_obj_remove_flag(footer2, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_size(footer2, ui::dp(500), ui::dp(18));
+    out.history_sd_label = lv_label_create(footer2);
+    lv_label_set_text(out.history_sd_label, "");
+    lv_obj_set_style_text_color(out.history_sd_label, lv_color_hex(ui::theme::muted()), 0);
+    lv_obj_set_style_text_font(out.history_sd_label, cap_font, 0);
+    lv_obj_align(out.history_sd_label, LV_ALIGN_RIGHT_MID, 0, 0);
+
+    out.history_guidance = lv_obj_create(out.history_box);
+    lv_obj_remove_style_all(out.history_guidance);
+    lv_obj_remove_flag(out.history_guidance, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_size(out.history_guidance, ui::dp(420), ui::dp(320));
+    lv_obj_align(out.history_guidance, LV_ALIGN_CENTER, 0, -ui::dp(10));
+    round_glass_fill(out.history_guidance, LV_RADIUS_CIRCLE);
+    lv_obj_set_style_pad_all(out.history_guidance, ui::dp(40), 0);
+    lv_obj_set_flex_flow(out.history_guidance, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_flex_align(out.history_guidance, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER,
+                          LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_pad_row(out.history_guidance, ui::dp(12), 0);
+    lv_obj_t* icon = lv_label_create(out.history_guidance);
+    lv_label_set_text(icon, LV_SYMBOL_SD_CARD);
+    lv_obj_set_style_text_color(icon, lv_color_hex(0xFFFFFF), 0);
+    lv_obj_set_style_text_font(icon, ui::font_dp(36), 0);
+    out.history_guidance_label = lv_label_create(out.history_guidance);
+    lv_label_set_text(out.history_guidance_label, "");
+    lv_obj_set_width(out.history_guidance_label, lv_pct(100));
+    lv_label_set_long_mode(out.history_guidance_label, LV_LABEL_LONG_WRAP);
+    lv_obj_set_style_text_align(out.history_guidance_label, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_style_text_color(out.history_guidance_label, lv_color_hex(ui::theme::muted()), 0);
+    lv_obj_set_style_text_font(out.history_guidance_label, cap_font, 0);
+    lv_obj_add_flag(out.history_guidance, LV_OBJ_FLAG_HIDDEN);
+  }
+
+  // --- Info: one tall glass card of key/value rows ---------------------------
+  out.info_box = round_glass_box(parent, ui::dp(130), ui::dp(194), ui::dp(540), ui::dp(424));
+  round_glass_fill(out.info_box, ui::dp(60));
+  lv_obj_set_style_pad_hor(out.info_box, ui::dp(44), 0);
+  lv_obj_set_style_pad_ver(out.info_box, ui::dp(16), 0);
+  lv_obj_set_flex_flow(out.info_box, LV_FLEX_FLOW_COLUMN);
+  lv_obj_add_flag(out.info_box, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_set_scroll_dir(out.info_box, LV_DIR_VER);
+  lv_obj_set_scrollbar_mode(out.info_box, LV_SCROLLBAR_MODE_OFF);
+  const lv_font_t* ifont = ui::font_dp(16);
+  make_info_header(out.info_box, "Apollo", ifont);
+  out.info_val[0] = make_info_row(out.info_box, "Firmware", ifont, true);
+  {
+    lv_obj_t* row = lv_obj_get_parent(out.info_val[0]);
+    out.update_btn = ui::glass::make_button(row, LV_RADIUS_CIRCLE, ui::glass::Tone::kClear);
+    lv_obj_set_style_shadow_width(out.update_btn, 0, 0);
+    lv_obj_set_style_pad_hor(out.update_btn, ui::dp(14), 0);
+    lv_obj_set_style_pad_ver(out.update_btn, ui::dp(6), 0);
+    lv_obj_t* lbl = lv_label_create(out.update_btn);
+    lv_label_set_text(lbl, "Check");
+    lv_obj_set_style_text_font(lbl, ifont, 0);
+    lv_obj_center(lbl);
+  }
+  out.info_val[1] = make_info_row(out.info_box, LV_SYMBOL_BATTERY_2 " Runtime", ifont, true);
+  out.info_val[2] = make_info_row(out.info_box, "Uptime", ifont, true);
+  out.info_val[3] = make_info_row(out.info_box, "IP address", ifont, true);
+  out.info_val[4] = make_info_row(out.info_box, "NTP synced", ifont, true);
+  {
+    lv_obj_t* val = make_info_row(out.info_box, "Diagnostic log", ifont, true);
+    lv_label_set_text(val, "View " LV_SYMBOL_RIGHT);
+    lv_obj_set_style_text_color(val, lv_color_hex(ui::theme::accent()), 0);
+    out.info_log_btn = lv_obj_get_parent(val);
+    lv_obj_add_flag(out.info_log_btn, LV_OBJ_FLAG_CLICKABLE);
+  }
+  make_info_header(out.info_box, "Micra", ifont);
+  static const char* kMicraKeys[5] = {"Manufacturer", "Model", "Serial", "Firmware",
+                                      "Software"};
+  for (int i = 0; i < 5; ++i)
+    out.info_val[5 + i] = make_info_row(out.info_box, kMicraKeys[i], ifont, true);
+  // Faint white hairlines instead of the theme's rail colour.
+  for (uint32_t i = 0; i < lv_obj_get_child_count(out.info_box); ++i) {
+    lv_obj_t* row = lv_obj_get_child(out.info_box, static_cast<int32_t>(i));
+    lv_obj_set_style_border_color(row, lv_color_hex(0xFFFFFF), 0);
+    lv_obj_set_style_border_opa(row, 30, 0);
+  }
+
+  stats_select_section(out, kStatsBrew);
+}
 }  // namespace
 
 void build_stats_tab(lv_obj_t* parent, const ScreenProfile& screen, StatsWidgets& out) {
+  if (is_round(screen)) {
+    build_round_stats(parent, screen, out);
+    return;
+  }
   const bool compact = is_compact(screen);
   const bool xl = is_xl(screen);
   const lv_font_t* font = ui::font_dp(compact ? 14 : xl ? 28 : 20);
@@ -520,7 +974,10 @@ void stats_select_section(StatsWidgets& w, int section) {
     }
   }
   for (int i = 0; i < kStatsCount; ++i) {
-    if (i == section) {
+    if (lv_obj_get_user_data(w.seg[i]) != nullptr) {  // round: glass segments
+      ui::glass::set_tone(w.seg[i], i == section ? ui::glass::Tone::kBright
+                                                 : ui::glass::Tone::kClear);
+    } else if (i == section) {
       lv_obj_set_style_bg_color(w.seg[i], lv_color_hex(ui::theme::accent()), 0);
     } else {
       lv_obj_set_style_bg_color(w.seg[i], lv_color_hex(ui::theme::card()), 0);
@@ -556,6 +1013,16 @@ lv_obj_t* history_add_row(StatsWidgets& w, const char* when, const char* mode,
   lv_obj_set_style_bg_color(row, lv_color_hex(ui::theme::card()), 0);
   lv_obj_set_style_bg_opa(row, LV_OPA_COVER, 0);
   lv_obj_set_style_bg_color(row, lv_color_hex(ui::theme::rail()), LV_STATE_PRESSED);
+  if (is_round(screen)) {
+    // Glass list: rows are clear with a faint white hairline, and the press
+    // shows as a brighter pill (the list is glass, so it can't stay opaque).
+    lv_obj_set_style_bg_opa(row, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_bg_color(row, lv_color_hex(0xFFFFFF), LV_STATE_PRESSED);
+    lv_obj_set_style_bg_opa(row, 40, LV_STATE_PRESSED);
+    lv_obj_set_style_radius(row, ui::dp(14), 0);
+    lv_obj_set_style_border_color(row, lv_color_hex(0xFFFFFF), 0);
+    lv_obj_set_style_border_opa(row, 28, 0);
+  }
 
   // Columns, not a run of labels: timestamps and tags are both variable width,
   // so each gets a fixed cell sized to the widest string it can ever hold at

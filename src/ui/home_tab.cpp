@@ -98,9 +98,17 @@ uint16_t blend565(uint16_t dst, uint16_t src, uint8_t a) {
 // Repaint one canvas column to the background + a mid gridline (half scale) so the
 // sweep leaves a clean grid behind it. Writes the RGB565 buffer directly
 // (lv_canvas_set_px is far too slow per-pixel).
+// Flow-graph palette. Round glass draws a crema trace on dark glass (the
+// colour of Home's shot ring); every other board uses the theme. Set by
+// build_home_tab before any graph is painted.
+bool g_flow_round = false;
+uint32_t flow_bg_hex() { return g_flow_round ? 0x161616 : ui::theme::card(); }
+uint32_t flow_grid_hex() { return g_flow_round ? 0x343434 : ui::theme::scrollbar(); }
+uint32_t flow_trace_hex() { return g_flow_round ? 0xFFB866 : ui::theme::accent(); }
+
 void clear_flow_column(HomeWidgets& w, int x) {
-  const uint16_t bg = lv_color_to_u16(lv_color_hex(ui::theme::card()));
-  const uint16_t grid = lv_color_to_u16(lv_color_hex(ui::theme::scrollbar()));
+  const uint16_t bg = lv_color_to_u16(lv_color_hex(flow_bg_hex()));
+  const uint16_t grid = lv_color_to_u16(lv_color_hex(flow_grid_hex()));
   uint16_t* col = w.flow_buf + x;
   for (int y = 0; y < w.flow_h; ++y) col[y * w.flow_stride] = bg;
   for (int t = 1; t <= 2; ++t) {  // gridlines at 1/3 and 2/3 of full scale
@@ -113,11 +121,11 @@ void clear_flow_column(HomeWidgets& w, int x) {
 // background, used for the aged (previous-sweep) trace in oscilloscope mode so the
 // fresh sweep edge stands out against it.
 uint16_t flow_bright_color() {
-  return lv_color_to_u16(lv_color_hex(ui::theme::accent()));
+  return lv_color_to_u16(lv_color_hex(flow_trace_hex()));
 }
 uint16_t flow_dim_color() {
-  const lv_color_t a = lv_color_hex(ui::theme::accent());
-  const lv_color_t bg = lv_color_hex(ui::theme::card());
+  const lv_color_t a = lv_color_hex(flow_trace_hex());
+  const lv_color_t bg = lv_color_hex(flow_bg_hex());
   return lv_color_to_u16(lv_color_mix(a, bg, 100));  // ~40% accent over the bg
 }
 
@@ -132,7 +140,7 @@ void fill_flow_below(HomeWidgets& w, int x, float yf, uint16_t trace_color) {
   int start = static_cast<int>(b) + 1;
   if (start < 0) start = 0;
   if (start >= w.flow_h) return;
-  const uint16_t bg = lv_color_to_u16(lv_color_hex(ui::theme::card()));
+  const uint16_t bg = lv_color_to_u16(lv_color_hex(flow_bg_hex()));
   const uint16_t fill = blend565(bg, trace_color, 102);  // ~40% wash
   int gy[2];
   for (int t = 1; t <= 2; ++t) gy[t - 1] = w.flow_h * t / 3;  // gridline rows
@@ -863,8 +871,27 @@ lv_obj_t* build_round_flow_graph(lv_obj_t* parent, int w, int h, HomeWidgets& ou
   lv_obj_t* card = make_flow_graph_card(parent);
   lv_obj_set_flex_grow(card, 0);
   lv_obj_set_size(card, w, h);
+  // Inset from the lens's big corner radius: the Y labels sit further in so
+  // the rounded corners don't clip them.
+  lv_obj_set_style_bg_color(card, lv_color_hex(flow_bg_hex()), 0);
+  lv_obj_set_style_pad_left(card, ui::dp(58), 0);
+  lv_obj_set_style_pad_right(card, ui::dp(40), 0);
+  lv_obj_set_style_pad_top(card, ui::dp(24), 0);
+  lv_obj_set_style_pad_bottom(card, ui::dp(26), 0);
   lv_obj_update_layout(card);  // populate_flow_graph measures the content box
   populate_flow_graph(card, out);
+  // Glass chip for the unit toggle, nudged into the plot past the corner.
+  if (out.flow_unit_btn != nullptr) {
+    lv_obj_set_style_bg_color(out.flow_unit_btn, lv_color_hex(0xFFFFFF), 0);
+    lv_obj_set_style_bg_opa(out.flow_unit_btn, 30, 0);
+    lv_obj_set_style_radius(out.flow_unit_btn, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_border_width(out.flow_unit_btn, 1, 0);
+    lv_obj_set_style_border_color(out.flow_unit_btn, lv_color_hex(0xFFFFFF), 0);
+    lv_obj_set_style_border_opa(out.flow_unit_btn, 80, 0);
+    lv_obj_set_style_pad_ver(out.flow_unit_btn, ui::dp(4), 0);
+    if (out.flow_unit_label != nullptr)
+      lv_obj_set_style_text_font(out.flow_unit_label, ui::font_dp(16), 0);
+  }
   return card;
 }
 
@@ -874,6 +901,7 @@ void build_home_tab(lv_obj_t* parent, const ScreenProfile& screen, bool scale_en
   const bool xl = is_xl(screen);
   out.scale_enabled = scale_enabled;
   out.compact = compact;
+  g_flow_round = is_round(screen);
 
   // HomeWidgets is reused across rebuilds, and build() frees the old widgets. Null
   // every optional pointer up front so the layout branch that runs leaves the rest

@@ -245,10 +245,26 @@ env adds `-DBOARD_P4_SILICON_REV3`), panel table `BOARD_DSI_PANEL_JD9365_RD34`
   draggable lv_arc, -/+ in 0.5 C, Set), the steam capsule the steam sheet
   (on/off + 3 levels) — both App methods on the top layer, writing through
   the same dirty-flag paths as the Settings steppers (`dial_commit`,
-  `steam_choose_*`). Every OTHER tab stays the band layout but is made glass
-  by `ui::glass::glassify_tree` (theme-bg fills -> transparent, card/rail
+  `steam_choose_*`). SETTINGS (`g_round` in settings_tab.cpp) keeps its
+  lv_menu tree and SettingsWidgets wiring but builds into a 520-wide column
+  (y 116..640) of glass pill rows (fixed 66 px — flex only centres controls in
+  a definite height), a round glass back chevron, amber switches/sliders
+  (`round_controls_walk`). STATS on round is its own full-page build
+  (`build_round_stats`): a glass segmented capsule, a RADIAL temperature chart
+  (time = angle over Home's 300 deg sweep, temperature = radius; the lv_chart
+  still holds App's data, its own drawing is off and `round_chart_overlay_cb`
+  paints rings/gaps/set-point/trace/bead/centre reading — no buffer), History
+  as metric bubbles over a glass list (no month filter: history_filter_list is
+  null) with URL and SD stacked, Info as one tall glass card. The Home shot
+  graph is a 600x180 lens (canvas from LVGL's fixed 1 MB pool: 211 KB vs the
+  old 154 KB; rectangular boards' canvases run to ~550 KB) painted crema on
+  dark glass (`g_flow_round` in home_tab.cpp); the shot card's graph takes
+  crema/blue (`g_card_round`). Anything else (modal cards, rows App adds
+  later) is made glass by `ui::glass::glassify_tree` (theme-bg fills -> transparent, card/rail
   fills -> translucent + 1 px white outline; canvases' parents stay opaque),
-  re-run each refresh on the active tab + modal so late-built rows convert.
+  re-run at the END of each refresh on the active tab + modal so rows built
+  that tick convert before they are drawn; it also turns every button into a
+  pill.
   The backdrop is PLAIN BLACK, on the SCREEN behind the tabview on every
   tab; the arcs (`rg_ring`) only on Home (`App::sync_round_backdrop`). (It
   was a generated blurred "crema" image until 2026-10-22 — on the real panel

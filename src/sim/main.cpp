@@ -195,7 +195,11 @@ int main() {
     ok &= r(rd, "renders/round_settings_800x800.png", 1);
     ok &= r(rd, "renders/round_micra_controls_800x800.png", 1, ui::kSectionMicraControls);
     ok &= r(rd, "renders/round_device_display_800x800.png", 1, ui::kSectionDeviceDisplay);
-    ok &= r(rd, "renders/round_stats_800x800.png", 2);
+    ok &= r(rd, "renders/round_micra_bt_800x800.png", 1, ui::kSectionMicraBt);
+    ok &= r(rd, "renders/round_device_wifi_800x800.png", 1, ui::kSectionDeviceWifi);
+    ok &= r(rd, "renders/round_stats_800x800.png", 2, -1, false, 0, ui::kStatsBrew);
+    ok &= r(rd, "renders/round_stats_steam_800x800.png", 2, -1, false, 0, ui::kStatsBoiler);
+    ok &= r(rd, "renders/round_stats_info_800x800.png", 2, -1, false, 0, ui::kStatsInfo);
     ok &= r(rd, "renders/round_token_modal_800x800.png", 0, -1, true);
     ok &= r(rd, "renders/round_clean_lock_800x800.png", 0, -1, false, 0, -1, true);
     ok &= r(rd, "renders/round_screensaver_800x800.png", 0, -1, false, 0, -1, false, -1,
@@ -210,7 +214,8 @@ int main() {
     updates.set_available(false);
     ok &= r(rd, "renders/round_backflush_800x800.png", 1, -1, false, 0, -1, false, -1, 0,
             true);
-    ok &= r(rd, "renders/round_shot_card_800x800.png", 0, -1, false, 0, -1, false, 0);
+    ok &= r(rd, "renders/round_shot_card_800x800.png", 2, -1, false, 0, ui::kStatsHistory,
+            false, 14);
     // The liquid-glass Home (round + no scale): ready, heating, standby, and
     // the Settings tab with the glass dock but no backdrop.
     scale_provisioner.set_saved(false);

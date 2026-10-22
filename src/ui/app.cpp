@@ -1099,8 +1099,22 @@ void App::build(core::IMachine& machine, core::IProvisioner& provisioner,
   // ...except the liquid-glass Home, which is designed for the whole circle
   // and takes the full page (build_round_home).
   if (!round) home = band_body(home);
-  settings = band_body(settings);
-  stats = band_body(stats);
+  if (round) {
+    // Settings: a column narrower and taller than the band — every row is a
+    // pill, and at 520 px wide the pills stay inside the circle from just
+    // under the tray down to the dock (at 800: x 140..660, y 116..640).
+    lv_obj_remove_flag(settings, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_style_pad_all(settings, 0, 0);
+    lv_obj_t* body = lv_obj_create(settings);
+    lv_obj_remove_style_all(body);
+    lv_obj_set_pos(body, (screen.width - ui::dp(520)) / 2, ui::dp(116));
+    lv_obj_set_size(body, ui::dp(520), band.y + band.h - ui::dp(116));  // page = band bottom
+    settings = body;
+  } else {
+    settings = band_body(settings);
+  }
+  // Stats on round glass is built for the whole circle too (the radial chart).
+  if (!round) stats = band_body(stats);
   glass_bodies_[0] = round ? settings : nullptr;
   glass_bodies_[1] = round ? stats : nullptr;
 
@@ -1440,14 +1454,6 @@ void App::update_heating(const core::MachineSnapshot& state) {
 }
 
 void App::refresh() {
-  // Round glass: keep rows built after the tab (scan results, history list,
-  // modal content) glassy. Cheap: only still-opaque fills are touched.
-  if (ui::is_round(screen_) && tabview_ != nullptr) {
-    const uint32_t tab = lv_tabview_get_tab_active(tabview_);
-    if (tab == 1 || tab == 2) ui::glass::glassify_tree(glass_bodies_[tab - 1]);
-    ui::glass::glassify_tree(modal_);
-    ui::glass::glassify_tree(bf_overlay_);
-  }
   if (machine_ != nullptr) {
     const core::MachineSnapshot snap = machine_->snapshot();
     if (battery_ != nullptr) {
@@ -1509,6 +1515,16 @@ void App::refresh() {
   }
   update_result_poll();  // surface a finished update check (notice / "up to date")
   backup_result_poll();  // ...and a finished settings backup/restore
+  // Round glass: keep rows built after the tab (scan results, history list,
+  // modal content) glassy. Last, so rows this tick's updates just added are
+  // converted before they are ever drawn opaque. Cheap: only still-opaque
+  // fills are touched.
+  if (ui::is_round(screen_) && tabview_ != nullptr) {
+    const uint32_t tab = lv_tabview_get_tab_active(tabview_);
+    if (tab == 1 || tab == 2) ui::glass::glassify_tree(glass_bodies_[tab - 1]);
+    ui::glass::glassify_tree(modal_);
+    ui::glass::glassify_tree(bf_overlay_);
+  }
 }
 
 // A press updates the local value AND writes it to the machine right away (the
@@ -3588,7 +3604,8 @@ void App::update_history_view() {
       lv_obj_set_style_text_color(stats_.history_sd_label,
                                   lv_color_hex(ui::theme::muted()), 0);
     }
-    lv_obj_align(stats_.history_sd_label, LV_ALIGN_RIGHT_MID, 0, 0);
+    lv_obj_align(stats_.history_sd_label,
+                 ui::is_round(screen_) ? LV_ALIGN_CENTER : LV_ALIGN_RIGHT_MID, 0, 0);
   }
 
   // Rebuild the month filter + rows only when the data or filter changed —

@@ -335,9 +335,13 @@ void build_round_home(lv_obj_t* page, const ScreenProfile& screen, bool scale_en
 
   // The flow graph in a glass-rimmed window. Its canvas paints a solid
   // background, so the window itself stays opaque (glassify skips it).
-  lv_obj_t* graph = build_round_flow_graph(shot, at(470), at(164), out);
-  lv_obj_align(graph, LV_ALIGN_TOP_MID, 0, at(354));
-  lv_obj_set_style_radius(graph, at(30), 0);
+  // A wide lens across the circle's fattest part: at y 348..528 the chord is
+  // over 700 px, so 600 x 180 keeps every corner well inside the glass. The
+  // canvas comes out of LVGL's fixed pool (211 KB here vs 154 KB at the old
+  // 470 x 164; the rectangular boards' canvases run to ~550 KB).
+  lv_obj_t* graph = build_round_flow_graph(shot, at(600), at(180), out);
+  lv_obj_align(graph, LV_ALIGN_TOP_MID, 0, at(348));
+  lv_obj_set_style_radius(graph, at(56), 0);
   lv_obj_set_style_clip_corner(graph, true, 0);
   lv_obj_set_style_outline_width(graph, ui::dp(2), 0);
   lv_obj_set_style_outline_color(graph, lv_color_hex(0xFFFFFF), 0);
@@ -377,7 +381,7 @@ void update_round_home(HomeWidgets& w, const core::MachineSnapshot& state,
   set_hidden(w.rg_shot_glow, !shot_view);
   if (w.shot_btn != nullptr) {
     const int d = lv_obj_get_width(lv_obj_get_screen(w.shot_btn));
-    const int y = (shot_view ? 538 : 560) * d / 800;
+    const int y = (shot_view ? 544 : 560) * d / 800;
     if (lv_obj_get_style_align(w.shot_btn, LV_PART_MAIN) != LV_ALIGN_TOP_MID ||
         lv_obj_get_style_y(w.shot_btn, LV_PART_MAIN) != y)
       lv_obj_align(w.shot_btn, LV_ALIGN_TOP_MID, 0, y);

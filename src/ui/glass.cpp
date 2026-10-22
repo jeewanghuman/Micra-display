@@ -118,6 +118,10 @@ bool has_canvas_child(lv_obj_t* obj) {
 
 void glassify_one(lv_obj_t* obj, uint32_t bg, uint32_t card, uint32_t rail) {
   if (lv_obj_get_style_bg_opa(obj, LV_PART_MAIN) != LV_OPA_COVER) return;
+  // Buttons become pills — the round UI's one button shape — whatever their
+  // colour (rows App adds later, modal actions and accent buttons included).
+  if (lv_obj_check_type(obj, &lv_button_class))
+    lv_obj_set_style_radius(obj, LV_RADIUS_CIRCLE, 0);
   const uint32_t c = lv_color_to_u32(lv_obj_get_style_bg_color(obj, LV_PART_MAIN)) & 0xFFFFFFu;
   if (c == bg) {  // page / menu backgrounds: let the backdrop through
     lv_obj_set_style_bg_opa(obj, LV_OPA_TRANSP, 0);

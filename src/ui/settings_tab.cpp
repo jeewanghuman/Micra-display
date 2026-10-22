@@ -8,12 +8,33 @@
 
 namespace {
 
+// Round glass (the 3.4C): the same pages and widgets, drawn as liquid-glass
+// pills in a narrow centered column that fits the circle. Set for the duration
+// of build_settings_tab; the row helpers below read it.
+bool g_round = false;
+
+// A clear glass pill: the round UI's row / nav-entry surface.
+void round_pill(lv_obj_t* obj) {
+  lv_obj_set_style_bg_color(obj, lv_color_hex(0xFFFFFF), 0);
+  lv_obj_set_style_bg_opa(obj, 24, 0);
+  lv_obj_set_style_bg_opa(obj, 64, LV_STATE_PRESSED);
+  lv_obj_set_style_radius(obj, LV_RADIUS_CIRCLE, 0);
+  lv_obj_set_style_border_width(obj, 1, 0);
+  lv_obj_set_style_border_color(obj, lv_color_hex(0xFFFFFF), 0);
+  lv_obj_set_style_border_opa(obj, 60, 0);
+  lv_obj_set_style_pad_hor(obj, ui::dp(26), 0);
+}
+
 // A muted group heading inside a menu page ("Connection", "Brew", ...).
 void section_label(lv_obj_t* parent, const char* text, const lv_font_t* font) {
   lv_obj_t* l = lv_label_create(parent);
   lv_label_set_text(l, text);
   lv_obj_set_style_text_color(l, lv_color_hex(ui::theme::muted()), 0);
   lv_obj_set_style_text_font(l, font, 0);
+  if (g_round) {
+    lv_obj_set_style_text_font(l, ui::font_dp(16), 0);
+    lv_obj_set_style_pad_top(l, ui::dp(8), 0);
+  }
 }
 
 // Lay out a menu page as a padded vertical column (the page itself scrolls).
@@ -26,6 +47,15 @@ void page_column(lv_obj_t* page, bool compact) {
   // on each scroll frame — the bulk of the settings-scroll CPU cost.
   lv_obj_set_style_bg_color(page, lv_color_hex(ui::theme::bg()), 0);
   lv_obj_set_style_bg_opa(page, LV_OPA_COVER, 0);
+  if (g_round) {
+    // Glass rows over black: the page is see-through (glassify clears the
+    // bg) and the bar would sit on the circle's edge — no scrollbar.
+    lv_obj_set_style_pad_hor(page, ui::dp(4), 0);
+    lv_obj_set_style_pad_top(page, ui::dp(6), 0);
+    lv_obj_set_style_pad_bottom(page, ui::dp(40), 0);
+    lv_obj_set_style_pad_row(page, ui::dp(10), 0);
+    lv_obj_set_scrollbar_mode(page, LV_SCROLLBAR_MODE_OFF);
+  }
 }
 
 // Connection panel (saved row + Scan + status + results list), shared by Micra
@@ -136,6 +166,15 @@ lv_obj_t* make_setting_row(lv_obj_t* parent, const char* label,
   lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
   lv_obj_set_flex_align(row, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER,
                         LV_FLEX_ALIGN_CENTER);
+  if (g_round) {
+    round_pill(row);
+    lv_obj_set_style_bg_opa(row, 24, LV_STATE_PRESSED);  // a row, not a button
+    // Fixed height (not min-height): flex only centres the controls
+    // vertically inside a definite height.
+    lv_obj_set_height(row, ui::dp(66));
+    lv_obj_set_style_pad_ver(row, 0, 0);
+    lv_obj_set_style_pad_right(row, ui::dp(10), 0);  // controls hug the pill's end
+  }
   lv_obj_t* lbl = lv_label_create(row);
   lv_label_set_text(lbl, label);
   lv_obj_set_style_text_color(lbl, lv_color_hex(ui::theme::text()), 0);
@@ -458,6 +497,7 @@ lv_obj_t* action_row(lv_obj_t* page, const char* label, const char* symbol,
   lv_obj_set_height(cont, btn_h);
   lv_obj_add_flag(cont, LV_OBJ_FLAG_CLICKABLE);
   lv_obj_set_style_opa(cont, LV_OPA_40, LV_STATE_DISABLED);
+  if (g_round) round_pill(cont);
 
   lv_obj_t* lbl = lv_label_create(cont);
   lv_label_set_text(lbl, label);
@@ -481,6 +521,7 @@ void root_entry(lv_obj_t* menu, lv_obj_t* root_page, lv_obj_t* target,
   lv_obj_set_style_radius(cont, ui::dp(8), 0);
   lv_obj_set_style_pad_all(cont, ui::dp(10), 0);
   lv_obj_set_height(cont, btn_h);
+  if (g_round) round_pill(cont);
 
   lv_obj_t* lbl = lv_label_create(cont);
   lv_label_set_text(lbl, label);
@@ -521,6 +562,39 @@ void build_device_backup_rows(lv_obj_t* page, const lv_font_t* text_font,
       action_row(page, "Restore from card", LV_SYMBOL_DOWNLOAD, text_font, btn_h);
 }
 
+// Round: controls in the glass idiom — pill buttons, white-glass switch and
+// slider tracks with an amber "on". Theme-card buttons become clear glass
+// (their fill stays below COVER, so glassify_tree leaves them alone); accent
+// and alert buttons keep their colour, just rounded into pills.
+void round_controls_walk(lv_obj_t* obj) {
+  if (lv_obj_check_type(obj, &lv_switch_class) || lv_obj_check_type(obj, &lv_slider_class)) {
+    lv_obj_set_style_bg_color(obj, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(obj, 46, LV_PART_MAIN);
+    lv_obj_set_style_bg_color(obj, lv_color_hex(0xE8944A), LV_PART_INDICATOR);
+    lv_obj_set_style_bg_color(obj, lv_color_hex(0xE8944A),
+                              static_cast<lv_style_selector_t>(LV_PART_INDICATOR) |
+                                  LV_STATE_CHECKED);
+    lv_obj_set_style_bg_color(obj, lv_color_hex(0xFFFFFF), LV_PART_KNOB);
+    lv_obj_set_style_bg_opa(obj, LV_OPA_COVER, LV_PART_KNOB);
+    return;
+  }
+  if (lv_obj_check_type(obj, &lv_button_class) && lv_obj_get_user_data(obj) == nullptr) {
+    lv_obj_set_style_radius(obj, LV_RADIUS_CIRCLE, 0);
+    const uint32_t c = lv_color_to_u32(lv_obj_get_style_bg_color(obj, LV_PART_MAIN)) & 0xFFFFFFu;
+    if (c == (ui::theme::card() & 0xFFFFFFu)) {
+      lv_obj_set_style_bg_color(obj, lv_color_hex(0xFFFFFF), 0);
+      lv_obj_set_style_bg_opa(obj, 34, 0);
+      lv_obj_set_style_bg_opa(obj, 80, LV_STATE_PRESSED);
+      lv_obj_set_style_border_width(obj, 1, 0);
+      lv_obj_set_style_border_color(obj, lv_color_hex(0xFFFFFF), 0);
+      lv_obj_set_style_border_opa(obj, 90, 0);
+    }
+  }
+  const uint32_t n = lv_obj_get_child_count(obj);
+  for (uint32_t i = 0; i < n; ++i)
+    round_controls_walk(lv_obj_get_child(obj, static_cast<int32_t>(i)));
+}
+
 }  // namespace
 
 namespace ui {
@@ -540,6 +614,7 @@ void build_settings_tab(lv_obj_t* parent, const ScreenProfile& screen,
 
   lv_obj_remove_flag(parent, LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_set_style_pad_all(parent, 0, 0);
+  g_round = is_round(screen);
 
   // Fresh widgets -> stale change-detection is a lie. `out` persists across
   // rebuilds (theme change, scale pair/forget), and if a refresh ran between
@@ -607,10 +682,38 @@ void build_settings_tab(lv_obj_t* parent, const ScreenProfile& screen,
       lv_obj_set_style_image_recolor(ch, lv_color_hex(ui::theme::text()), 0);
       lv_obj_set_style_image_recolor_opa(ch, LV_OPA_COVER, 0);
     }
-    lv_obj_t* back_lbl = lv_label_create(back);
-    lv_label_set_text(back_lbl, "Back");
-    lv_obj_set_style_text_color(back_lbl, lv_color_hex(ui::theme::text()), 0);
-    lv_obj_set_style_text_font(back_lbl, font, 0);
+    if (g_round) {
+      // A round glass chevron; the centered title says where you are.
+      const int sz = ui::dp(54);
+      lv_obj_set_size(back, sz, sz);
+      lv_obj_set_style_pad_all(back, 0, 0);
+      lv_obj_set_style_radius(back, LV_RADIUS_CIRCLE, 0);
+      lv_obj_set_style_bg_color(back, lv_color_hex(0xFFFFFF), 0);
+      lv_obj_set_style_bg_opa(back, 40, 0);
+      lv_obj_set_style_bg_opa(back, 90, LV_STATE_PRESSED);
+      lv_obj_set_style_border_width(back, 1, 0);
+      lv_obj_set_style_border_color(back, lv_color_hex(0xFFFFFF), 0);
+      lv_obj_set_style_border_opa(back, 110, 0);
+      // lv_menu's arrow image is tiny at this size: swap it for the symbol.
+      for (uint32_t i = 0; i < lv_obj_get_child_count(back); ++i)
+        lv_obj_add_flag(lv_obj_get_child(back, static_cast<int32_t>(i)), LV_OBJ_FLAG_HIDDEN);
+      lv_obj_t* chev = lv_label_create(back);
+      lv_label_set_text(chev, LV_SYMBOL_LEFT);
+      lv_obj_set_style_text_color(chev, lv_color_hex(0xFFFFFF), 0);
+      lv_obj_set_style_text_font(chev, ui::font_dp(20), 0);
+    } else {
+      lv_obj_t* back_lbl = lv_label_create(back);
+      lv_label_set_text(back_lbl, "Back");
+      lv_obj_set_style_text_color(back_lbl, lv_color_hex(ui::theme::text()), 0);
+      lv_obj_set_style_text_font(back_lbl, font, 0);
+    }
+  }
+  if (g_round) {
+    if (lv_obj_t* hdr = lv_menu_get_main_header(menu)) {
+      lv_obj_set_style_min_height(hdr, ui::dp(62), 0);
+      lv_obj_set_style_text_font(hdr, ui::font_dp(24), 0);
+      lv_obj_set_style_pad_hor(hdr, ui::dp(10), 0);
+    }
   }
 
   // --- Leaf pages (the actual content) -------------------------------------
@@ -881,6 +984,8 @@ void build_settings_tab(lv_obj_t* parent, const ScreenProfile& screen,
   out.clean_lock_btn = action_row(out.root_page, "Lock display for cleaning",
                                   LV_SYMBOL_TINT, font, btn_h);
 
+  if (g_round) round_controls_walk(menu);
+  g_round = false;
   lv_menu_set_page(menu, out.root_page);
 }
 
