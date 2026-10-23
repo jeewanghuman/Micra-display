@@ -5,6 +5,12 @@
 #include <Preferences.h>
 #include <cmath>
 
+// Optional, git-ignored developer seed (see local_seed.example.h).
+#if __has_include("platform_esp32/local_seed.h")
+#include "platform_esp32/local_seed.h"
+#define APOLLO_HAVE_LOCAL_SEED 1
+#endif
+
 // NVS is initialized by the Arduino-ESP32 core at boot, so we just open the
 // namespace per call (cheap, and avoids holding the handle open).
 namespace {
@@ -113,6 +119,61 @@ void Config::begin() {
     if (!p.isKey("_init")) p.putBool("_init", true);
     p.end();
   }
+  apply_local_seed();
+}
+
+// Developer convenience: credentials from the git-ignored local_seed.h (see
+// local_seed.example.h). Applied when the seed's hash differs from the one
+// stored in "seedhash" — once per edit of the seed, so on-screen changes
+// (Forget, Set up WiFi) stick across reboots and reflashes. "seedhash" is a
+// new key (NVS add-only rule); older builds never read it.
+void Config::apply_local_seed() {
+#ifdef APOLLO_HAVE_LOCAL_SEED
+#ifndef APOLLO_SEED_MICRA_MAC
+#define APOLLO_SEED_MICRA_MAC ""
+#endif
+#ifndef APOLLO_SEED_MICRA_NAME
+#define APOLLO_SEED_MICRA_NAME ""
+#endif
+#ifndef APOLLO_SEED_MICRA_TOKEN
+#define APOLLO_SEED_MICRA_TOKEN ""
+#endif
+#ifndef APOLLO_SEED_WIFI_SSID
+#define APOLLO_SEED_WIFI_SSID ""
+#endif
+#ifndef APOLLO_SEED_WIFI_PASS
+#define APOLLO_SEED_WIFI_PASS ""
+#endif
+  const char* const fields[] = {APOLLO_SEED_MICRA_MAC, APOLLO_SEED_MICRA_NAME,
+                                APOLLO_SEED_MICRA_TOKEN, APOLLO_SEED_WIFI_SSID,
+                                APOLLO_SEED_WIFI_PASS};
+  uint32_t h = 2166136261u;  // FNV-1a over every field, NUL-separated
+  for (const char* f : fields) {
+    for (const char* c = f; ; ++c) {
+      h = (h ^ static_cast<uint8_t>(*c)) * 16777619u;
+      if (*c == '\0') break;
+    }
+  }
+  Preferences p;
+  if (!p.begin(kNamespace, /*readOnly=*/false)) return;
+  const bool fresh = !p.isKey("seedhash") || p.getUInt("seedhash", 0) != h;
+  p.end();
+  if (!fresh) return;
+  if (APOLLO_SEED_MICRA_MAC[0] != '\0') {
+    save(APOLLO_SEED_MICRA_MAC, APOLLO_SEED_MICRA_NAME[0] != '\0'
+                                    ? APOLLO_SEED_MICRA_NAME
+                                    : APOLLO_SEED_MICRA_MAC);
+  }
+  if (APOLLO_SEED_MICRA_TOKEN[0] != '\0') set_token(APOLLO_SEED_MICRA_TOKEN);
+  if (APOLLO_SEED_WIFI_SSID[0] != '\0') {
+    save_wifi(APOLLO_SEED_WIFI_SSID, APOLLO_SEED_WIFI_PASS);
+    set_wifi_enabled(true);
+  }
+  if (p.begin(kNamespace, /*readOnly=*/false)) {
+    p.putUInt("seedhash", h);
+    p.end();
+  }
+#endif
 }
 
 std::string Config::mac() const { return read_key(kMacKey); }
