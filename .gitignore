@@ -20,7 +20,3 @@ tools/webapp/node_modules/
 tools/webapp/dist/
 include/platform_esp32/webapp_dist.h
 
-
-# Per-developer credential seed baked into local builds (see
-# include/platform_esp32/local_seed.example.h). Never commit it.
-include/platform_esp32/local_seed.h

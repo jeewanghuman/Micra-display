@@ -127,11 +127,6 @@ class Config {
   void set_ntp_server(const std::string& host);
   bool ntp_enabled() const;        // sync time from NTP when connected (default true)
   void set_ntp_enabled(bool on);
-
- private:
-  // Writes the git-ignored local_seed.h credentials (if any) once per edit
-  // of the seed. Called from begin().
-  void apply_local_seed();
 };
 
 }  // namespace platform

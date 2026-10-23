@@ -375,16 +375,6 @@ env you're actually testing on. Full sweeps mid-investigation are slow, contend
 for the shared `.pio` dir (see the build-workflow notes about flashing), and
 tell you nothing you don't already know until the fix is finished.
 
-LOCAL CREDENTIAL SEED (dev convenience): copy
-`include/platform_esp32/local_seed.example.h` to `local_seed.h` (git-ignored)
-to bake a Micra MAC/name/token and home WiFi into YOUR builds.
-`Config::apply_local_seed()` (from begin()) writes them once per edit of the
-seed — an FNV hash in the add-only key `seedhash` — so on-screen Forget / WiFi
-changes still stick. Absent file = nothing compiled in. Never commit it, and
-never let it near CI or a release build (the values are plain text in the
-image). Note `make flash-*` (pio upload) does NOT erase NVS — settings already
-survive a normal reflash; the seed is for erased/new boards.
-
 The firmware embeds the History web page as a GENERATED, git-ignored header
 (`include/platform_esp32/webapp_dist.h`). Every device build/flash target
 depends on it, so `make build` rebuilds it from `tools/webapp/` when stale —
