@@ -292,6 +292,22 @@ env adds `-DBOARD_P4_SILICON_REV3`), panel table `BOARD_DSI_PANEL_JD9365_RD34`
   dark panel + POWERON reset loop). Orientation (default MADCTL) and the
   touch mapping (swap XY + mirror Y, as committed) are correct as-is.
 
+## Fork releases (jeewanghuman/Micra-display)
+
+THIS REPO IS A FORK of mlsorensen/Apollo2 whose only product is the round
+3.4C. Its OTA site is `https://jeewanghuman.github.io/Micra-display`
+(`kSiteBase` in update_check.cpp AND install_mode.cpp — keep them equal; the
+update-modal hint in app.cpp names it too). The release workflow's matrix
+builds ONLY `esp32-p4-micra-3-4c` (slug `p4-wifi6-touch-lcd-3.4c`, rev v1.x —
+the owner's unit is v1.3); the web flasher (site/index.html) has one card and
+maps a "(rev3)" banner to no image. Add the `-3-4c-rev3` row + a card only if
+a rev3 unit appears. The upstream "Support matrix" below describes UPSTREAM's
+four boards; here they are not published. Release mechanics are unchanged
+(checklist below): the `release` environment (owner approval) + its
+`RELEASE_TOKEN` secret, Pages serving gh-pages. A unit flashed before
+2026-10-23 still points at upstream and needs one USB flash to switch. Pulling
+upstream changes = merge upstream/main, then release from here.
+
 ## Support matrix (READ BEFORE TOUCHING ANY BOARD LIST)
 
 FOUR boards are released and advertised. Nothing else is, on purpose:
