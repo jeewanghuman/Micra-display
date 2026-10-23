@@ -308,6 +308,15 @@ four boards; here they are not published. Release mechanics are unchanged
 2026-10-23 still points at upstream and needs one USB flash to switch. Pulling
 upstream changes = merge upstream/main, then release from here.
 
+Case: `hardware/3d-prints/esp32-p4-3.4c-shell.scad` (source of truth; the
+.3mf files are exports of it). Round cup + back cover held by 4 radial
+M2.5 screws; the cover carries the standard Apollo mount interface (2 x M4,
+75 mm apart, 3.7 mm pilots — measured from apollo2-magnet-mount.3mf), so the
+existing magnet mount and stand fit unchanged. Waveshare publishes only the
+115 mm outline: `body_depth`, `usb_angle`, `usb_from_front` are UNVERIFIED
+guesses until the owner measures the board. Re-export after changing them:
+`openscad -D 'part="shell"' -o shell.stl ...` (and "cover", "gauge").
+
 ## Support matrix (READ BEFORE TOUCHING ANY BOARD LIST)
 
 FOUR boards are released and advertised. Nothing else is, on purpose:
