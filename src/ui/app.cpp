@@ -317,7 +317,17 @@ void on_reset_stats_cancel(lv_event_t* e) {
 void on_stats_segment(lv_event_t* e) {
   auto* app = static_cast<ui::App*>(lv_event_get_user_data(e));
   auto* btn = static_cast<lv_obj_t*>(lv_event_get_target(e));
-  app->select_stats_section(static_cast<int>(lv_obj_get_index(btn)));
+  // The section is the button's position among its BUTTON siblings: the round
+  // glass capsule also holds its specular-rim child at index 0, so a raw
+  // lv_obj_get_index would select the section to the right of the tapped one.
+  lv_obj_t* row = lv_obj_get_parent(btn);
+  int section = 0;
+  for (uint32_t i = 0; i < lv_obj_get_child_count(row); ++i) {
+    lv_obj_t* c = lv_obj_get_child(row, static_cast<int32_t>(i));
+    if (c == btn) break;
+    if (lv_obj_check_type(c, &lv_button_class)) ++section;
+  }
+  app->select_stats_section(section);
 }
 void on_zoom_in(lv_event_t* e) {
   static_cast<ui::App*>(lv_event_get_user_data(e))->zoom_step(-1);  // shorter window
