@@ -53,6 +53,12 @@ inline bool is_round(const ScreenProfile& screen) { return screen.round; }
 inline float g_ui_scale = 1.0f;
 inline void set_scale(float s) { g_ui_scale = (s > 0.0f) ? s : 1.0f; }
 inline float scale() { return g_ui_scale; }
+// Same for the profile's `round` flag: the glass styling deep inside a tab
+// (settings rows, the shot graph's and the shot card's palettes) reads it
+// instead of each file keeping its own copy. App::build sets it with the scale.
+inline bool g_round_glass = false;
+inline void set_round_glass(bool on) { g_round_glass = on; }
+inline bool round_glass() { return g_round_glass; }
 // Scale a pixel constant ("density-independent px"). Identity at scale 1.0.
 inline int dp(int px) {
   return static_cast<int>(px * g_ui_scale + (px >= 0 ? 0.5f : -0.5f));

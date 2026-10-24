@@ -99,12 +99,10 @@ uint16_t blend565(uint16_t dst, uint16_t src, uint8_t a) {
 // sweep leaves a clean grid behind it. Writes the RGB565 buffer directly
 // (lv_canvas_set_px is far too slow per-pixel).
 // Flow-graph palette. Round glass draws a crema trace on dark glass (the
-// colour of Home's shot ring); every other board uses the theme. Set by
-// build_home_tab before any graph is painted.
-bool g_flow_round = false;
-uint32_t flow_bg_hex() { return g_flow_round ? 0x161616 : ui::theme::card(); }
-uint32_t flow_grid_hex() { return g_flow_round ? 0x343434 : ui::theme::scrollbar(); }
-uint32_t flow_trace_hex() { return g_flow_round ? 0xFFB866 : ui::theme::accent(); }
+// colour of Home's shot ring); every other board uses the theme.
+uint32_t flow_bg_hex() { return ui::round_glass() ? 0x161616 : ui::theme::card(); }
+uint32_t flow_grid_hex() { return ui::round_glass() ? 0x343434 : ui::theme::scrollbar(); }
+uint32_t flow_trace_hex() { return ui::round_glass() ? 0xFFB866 : ui::theme::accent(); }
 
 void clear_flow_column(HomeWidgets& w, int x) {
   const uint16_t bg = lv_color_to_u16(lv_color_hex(flow_bg_hex()));
@@ -345,9 +343,9 @@ void populate_flow_graph(lv_obj_t* card, HomeWidgets& out) {
 
   // Axis labels. Round glass is read from across the counter: the Stats
   // chart's bigger, brighter labels (20 px, white at 175).
-  const lv_font_t* axis_font = ui::font_dp(g_flow_round ? 20 : 14);
+  const lv_font_t* axis_font = ui::font_dp(ui::round_glass() ? 20 : 14);
   auto style_axis_label = [&](lv_obj_t* l) {
-    if (g_flow_round) {
+    if (ui::round_glass()) {
       lv_obj_set_style_text_color(l, lv_color_hex(0xFFFFFF), 0);
       lv_obj_set_style_text_opa(l, 175, 0);
     } else {
@@ -363,7 +361,7 @@ void populate_flow_graph(lv_obj_t* card, HomeWidgets& out) {
   auto make_ylabel = [&](int y) {
     lv_obj_t* l = lv_label_create(card);
     style_axis_label(l);
-    if (g_flow_round) {
+    if (ui::round_glass()) {
       lv_obj_set_width(l, ui::dp(48));
       lv_obj_set_style_text_align(l, LV_TEXT_ALIGN_RIGHT, 0);
       lv_obj_align(l, LV_ALIGN_TOP_LEFT, -ui::dp(56), y - lv_font_get_line_height(axis_font) / 2);
@@ -385,7 +383,7 @@ void populate_flow_graph(lv_obj_t* card, HomeWidgets& out) {
     else lv_label_set_text_fmt(xl, "%ds", secs);
     style_axis_label(xl);
     int x = pw * t / 3;
-    if (g_flow_round) {
+    if (ui::round_glass()) {
       // Fixed-width boxes: the ends hug the plot's edges, the middles centre.
       const int bw = ui::dp(64);
       lv_obj_set_width(xl, bw);
@@ -407,7 +405,7 @@ void populate_flow_graph(lv_obj_t* card, HomeWidgets& out) {
   out.flow_xspan_label = lv_label_create(card);
   lv_label_set_text_fmt(out.flow_xspan_label, "%d s window", out.flow_win_s);
   style_axis_label(out.flow_xspan_label);
-  if (g_flow_round)  // centred on the plot whatever the caption's length
+  if (ui::round_glass())  // centred on the plot whatever the caption's length
     lv_obj_align(out.flow_xspan_label, LV_ALIGN_TOP_MID, 0, ph + ui::dp(4));
   else
     lv_obj_align(out.flow_xspan_label, LV_ALIGN_TOP_LEFT, pw / 2 - ui::dp(44), ph + ui::dp(4));
@@ -931,7 +929,6 @@ void build_home_tab(lv_obj_t* parent, const ScreenProfile& screen, bool scale_en
   const bool xl = is_xl(screen);
   out.scale_enabled = scale_enabled;
   out.compact = compact;
-  g_flow_round = is_round(screen);
 
   // HomeWidgets is reused across rebuilds, and build() frees the old widgets. Null
   // every optional pointer up front so the layout branch that runs leaves the rest
@@ -1384,11 +1381,19 @@ void update_home(HomeWidgets& w, const core::MachineSnapshot& state,
   }
 
   // Battery / power (top-right):
+  //   no battery circuit on the board                    -> hidden (no gap)
   //   USB power (voltage at/above threshold, or no cell) -> USB symbol
   //   on battery                                         -> percent + level icon
   //   nothing known                                      -> blank
   char bb[24];
-  if (battery.usb) {
+  if (w.battery_label != nullptr &&
+      lv_obj_has_flag(w.battery_label, LV_OBJ_FLAG_HIDDEN) == battery.hw) {
+    if (battery.hw) lv_obj_remove_flag(w.battery_label, LV_OBJ_FLAG_HIDDEN);
+    else lv_obj_add_flag(w.battery_label, LV_OBJ_FLAG_HIDDEN);
+  }
+  if (!battery.hw) {
+    // Nothing to show: the label stays hidden (out of the tray's layout).
+  } else if (battery.usb) {
     ui::set_text(w.battery_label, LV_SYMBOL_USB);
     ui::set_text_color(w.battery_label, ui::theme::muted());
   } else if (battery.present) {

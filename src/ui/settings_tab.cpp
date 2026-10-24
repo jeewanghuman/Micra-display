@@ -8,10 +8,8 @@
 
 namespace {
 
-// Round glass (the 3.4C): the same pages and widgets, drawn as liquid-glass
-// pills in a narrow centered column that fits the circle. Set for the duration
-// of build_settings_tab; the row helpers below read it.
-bool g_round = false;
+// Round glass (the 3.4C, ui::round_glass()): the same pages and widgets, drawn
+// as liquid-glass pills in a narrow centered column that fits the circle.
 
 // A clear glass pill: the round UI's row / nav-entry surface.
 void round_pill(lv_obj_t* obj) {
@@ -31,7 +29,7 @@ void section_label(lv_obj_t* parent, const char* text, const lv_font_t* font) {
   lv_label_set_text(l, text);
   lv_obj_set_style_text_color(l, lv_color_hex(ui::theme::muted()), 0);
   lv_obj_set_style_text_font(l, font, 0);
-  if (g_round) {
+  if (ui::round_glass()) {
     lv_obj_set_style_text_font(l, ui::font_dp(16), 0);
     lv_obj_set_style_pad_top(l, ui::dp(8), 0);
   }
@@ -47,7 +45,7 @@ void page_column(lv_obj_t* page, bool compact) {
   // on each scroll frame — the bulk of the settings-scroll CPU cost.
   lv_obj_set_style_bg_color(page, lv_color_hex(ui::theme::bg()), 0);
   lv_obj_set_style_bg_opa(page, LV_OPA_COVER, 0);
-  if (g_round) {
+  if (ui::round_glass()) {
     // Glass rows over black: the page is see-through (glassify clears the
     // bg) and the bar would sit on the circle's edge — no scrollbar.
     lv_obj_set_style_pad_hor(page, ui::dp(4), 0);
@@ -166,7 +164,7 @@ lv_obj_t* make_setting_row(lv_obj_t* parent, const char* label,
   lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
   lv_obj_set_flex_align(row, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER,
                         LV_FLEX_ALIGN_CENTER);
-  if (g_round) {
+  if (ui::round_glass()) {
     round_pill(row);
     lv_obj_set_style_bg_opa(row, 24, LV_STATE_PRESSED);  // a row, not a button
     // Fixed height (not min-height): flex only centres the controls
@@ -311,7 +309,7 @@ void build_device_display_rows(lv_obj_t* page, const lv_font_t* text_font,
 
   // Theme: the colour scheme. Not on round glass — that UI draws its own glass
   // colours over black and App pins one palette there (see App::build).
-  if (!g_round) {
+  if (!ui::round_glass()) {
     lv_obj_t* rt = make_setting_row(page, "Theme", text_font);
     out.theme_btn = ui::make_button(rt);
     lv_obj_set_style_bg_color(out.theme_btn, lv_color_hex(ui::theme::card()), 0);
@@ -423,7 +421,7 @@ void build_device_time_rows(lv_obj_t* page, const lv_font_t* text_font,
   lv_label_set_long_mode(out.time_auto_note, LV_LABEL_LONG_WRAP);
   lv_obj_set_style_text_color(out.time_auto_note, lv_color_hex(ui::theme::muted()), 0);
   lv_obj_set_style_text_font(out.time_auto_note, text_font, 0);
-  if (g_round) {
+  if (ui::round_glass()) {
     lv_obj_set_style_text_align(out.time_auto_note, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_set_style_pad_hor(out.time_auto_note, ui::dp(26), 0);
   }
@@ -541,7 +539,7 @@ lv_obj_t* action_row(lv_obj_t* page, const char* label, const char* symbol,
   lv_obj_set_height(cont, btn_h);
   lv_obj_add_flag(cont, LV_OBJ_FLAG_CLICKABLE);
   lv_obj_set_style_opa(cont, LV_OPA_40, LV_STATE_DISABLED);
-  if (g_round) round_pill(cont);
+  if (ui::round_glass()) round_pill(cont);
 
   lv_obj_t* lbl = lv_label_create(cont);
   lv_label_set_text(lbl, label);
@@ -565,7 +563,7 @@ void root_entry(lv_obj_t* menu, lv_obj_t* root_page, lv_obj_t* target,
   lv_obj_set_style_radius(cont, ui::dp(8), 0);
   lv_obj_set_style_pad_all(cont, ui::dp(10), 0);
   lv_obj_set_height(cont, btn_h);
-  if (g_round) round_pill(cont);
+  if (ui::round_glass()) round_pill(cont);
 
   lv_obj_t* lbl = lv_label_create(cont);
   lv_label_set_text(lbl, label);
@@ -709,7 +707,6 @@ void build_settings_tab(lv_obj_t* parent, const ScreenProfile& screen,
 
   lv_obj_remove_flag(parent, LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_set_style_pad_all(parent, 0, 0);
-  g_round = is_round(screen);
 
   // Fresh widgets -> stale change-detection is a lie. `out` persists across
   // rebuilds (theme change, scale pair/forget), and if a refresh ran between
@@ -732,6 +729,7 @@ void build_settings_tab(lv_obj_t* parent, const ScreenProfile& screen,
   out.brew_open_row = out.steam_open_row = nullptr;
   out.brew_minus = out.brew_plus = out.steam_switch = nullptr;
   out.boiler_minus = out.boiler_plus = out.boiler_sub = nullptr;
+  out.scope_graph_switch = nullptr;
 
   lv_obj_t* menu = lv_menu_create(parent);
   out.menu = menu;
@@ -787,7 +785,7 @@ void build_settings_tab(lv_obj_t* parent, const ScreenProfile& screen,
       lv_obj_set_style_image_recolor(ch, lv_color_hex(ui::theme::text()), 0);
       lv_obj_set_style_image_recolor_opa(ch, LV_OPA_COVER, 0);
     }
-    if (g_round) {
+    if (ui::round_glass()) {
       // A round glass chevron; the centered title says where you are.
       const int sz = ui::dp(54);
       lv_obj_set_size(back, sz, sz);
@@ -813,7 +811,7 @@ void build_settings_tab(lv_obj_t* parent, const ScreenProfile& screen,
       lv_obj_set_style_text_font(back_lbl, font, 0);
     }
   }
-  if (g_round) {
+  if (ui::round_glass()) {
     if (lv_obj_t* hdr = lv_menu_get_main_header(menu)) {
       lv_obj_set_style_min_height(hdr, ui::dp(62), 0);
       lv_obj_set_style_text_font(hdr, ui::font_dp(24), 0);
@@ -913,7 +911,7 @@ void build_settings_tab(lv_obj_t* parent, const ScreenProfile& screen,
     out.backflush_btn = nullptr;
   }
 
-  if (g_round) {
+  if (ui::round_glass()) {
     // Round glass: Home's temperature dial and steam sheet are THE controls
     // for these; Settings keeps a way in (one tap opens the same sheet)
     // rather than a second, different set of steppers.
@@ -970,9 +968,13 @@ void build_settings_tab(lv_obj_t* parent, const ScreenProfile& screen,
     lv_obj_t* rn = make_setting_row(out.scale_graph_page, "Drop negative g/s", font);
     out.drop_neg_flow_switch = lv_switch_create(rn);
     lv_obj_set_size(out.drop_neg_flow_switch, btn_size + ui::dp(8), btn_size / 2 + ui::dp(6));
-    lv_obj_t* rs = make_setting_row(out.scale_graph_page, "Oscilloscope graph", font);
-    out.scope_graph_switch = lv_switch_create(rs);
-    lv_obj_set_size(out.scope_graph_switch, btn_size + ui::dp(8), btn_size / 2 + ui::dp(6));
+    // Oscilloscope vs scroll only styles the idle live sweep, which round Home
+    // never shows (its graph appears for a shot, as the shot plot): no row.
+    if (!ui::round_glass()) {
+      lv_obj_t* rs = make_setting_row(out.scale_graph_page, "Oscilloscope graph", font);
+      out.scope_graph_switch = lv_switch_create(rs);
+      lv_obj_set_size(out.scope_graph_switch, btn_size + ui::dp(8), btn_size / 2 + ui::dp(6));
+    }
     // Shot-graph X-window growth: tap cycles Snap / Smooth / Continuous.
     lv_obj_t* rg = make_setting_row(out.scale_graph_page, "Window growth", font);
     out.xgrow_btn = ui::make_button(rg);
@@ -1081,8 +1083,7 @@ void build_settings_tab(lv_obj_t* parent, const ScreenProfile& screen,
   out.clean_lock_btn = action_row(out.root_page, "Lock display for cleaning",
                                   LV_SYMBOL_TINT, font, btn_h);
 
-  if (g_round) round_controls_walk(menu);
-  g_round = false;
+  if (ui::round_glass()) round_controls_walk(menu);
   lv_menu_set_page(menu, out.root_page);
 }
 

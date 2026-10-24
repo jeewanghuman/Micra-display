@@ -967,7 +967,10 @@ void App::build(core::IMachine& machine, core::IProvisioner& provisioner,
   network_ = &network;
   sound_ = &sound;
   screen_ = screen;
-  ui::set_scale(screen.scale);  // before any widget: ui::dp/font_dp read this
+  // Before any widget: ui::dp/font_dp read the scale, the glass styling the
+  // round flag.
+  ui::set_scale(screen.scale);
+  ui::set_round_glass(screen.round);
   const bool compact = is_compact(screen);
   const bool xl = is_xl(screen);
   const bool round = is_round(screen);
@@ -1326,8 +1329,9 @@ void App::build(core::IMachine& machine, core::IProvisioner& provisioner,
   lv_obj_add_event_cb(settings_.units_switch, on_units_switch, LV_EVENT_VALUE_CHANGED, this);
   lv_obj_add_event_cb(settings_.drop_neg_flow_switch, on_drop_neg_flow_switch,
                       LV_EVENT_VALUE_CHANGED, this);
-  lv_obj_add_event_cb(settings_.scope_graph_switch, on_scope_graph_switch,
-                      LV_EVENT_VALUE_CHANGED, this);
+  if (settings_.scope_graph_switch != nullptr)  // not on round glass
+    lv_obj_add_event_cb(settings_.scope_graph_switch, on_scope_graph_switch,
+                        LV_EVENT_VALUE_CHANGED, this);
   if (settings_.clean_lock_btn != nullptr)
     lv_obj_add_event_cb(settings_.clean_lock_btn, on_clean_lock_clicked, LV_EVENT_CLICKED,
                         this);
@@ -1410,6 +1414,10 @@ void App::build(core::IMachine& machine, core::IProvisioner& provisioner,
   }
   if (stats_.info_log_btn != nullptr)
     lv_obj_add_event_cb(stats_.info_log_btn, on_info_log_row, LV_EVENT_CLICKED, this);
+  // No battery circuit (the 3.4C): the Runtime row would only ever say "USB
+  // power", so it goes.
+  if (!battery_state_.hw && stats_.info_val[1] != nullptr)
+    lv_obj_add_flag(lv_obj_get_parent(stats_.info_val[1]), LV_OBJ_FLAG_HIDDEN);
   // The performance overlay (LVGL FPS/CPU) toggles on a long-press of the
   // Firmware row — a developer aid kept out of Settings.
   if (stats_.info_val[0] != nullptr) {
@@ -1456,7 +1464,8 @@ void App::build(core::IMachine& machine, core::IProvisioner& provisioner,
   if (drop_neg) lv_obj_add_state(settings_.drop_neg_flow_switch, LV_STATE_CHECKED);
   home_.flow_drop_negative = drop_neg;
   const bool scope = display_->scope_graph();
-  if (scope) lv_obj_add_state(settings_.scope_graph_switch, LV_STATE_CHECKED);
+  if (scope && settings_.scope_graph_switch != nullptr)
+    lv_obj_add_state(settings_.scope_graph_switch, LV_STATE_CHECKED);
   home_.flow_scope_mode = scope;
   // Match the saved preference (LVGL auto-shows the overlay at init).
   apply_perf_overlay(display_->perf_overlay(), round);

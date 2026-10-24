@@ -186,6 +186,7 @@ int main() {
   // red, off-glass dimmed) so anything the panel would hide is obvious.
   {
     const ui::ScreenProfile rd{800, 800, 1.0f, true};
+    battery.set_hw(false);  // the 3.4C has no battery circuit
     ok &= r(rd, "renders/round_home_800x800.png");
     machine.set_temps(78.0f, 96.0f);
     ok &= r(rd, "renders/round_home_heating_800x800.png");
@@ -258,6 +259,7 @@ int main() {
     brew.set_shot_ms(27000);
     ok &= r(rd, "renders/round_micra_controls_glass_800x800.png", 1, ui::kSectionMicraControls);
     ok &= r(rd, "renders/round_history_800x800.png", 2, -1, false, 0, ui::kStatsHistory);
+    battery.set_hw(true);
   }
   // Scrolling strip-chart graph (the non-default style; scope is the default).
   disp.set_scope_graph(false);

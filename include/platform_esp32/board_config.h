@@ -908,7 +908,9 @@ constexpr bool kTouchMirrorY = true;
 
 // --- Battery: none. The schematic has no Li-ion charger or BAT_ADC (GPIO20
 //     is a free header pin here); the "RTC" connector J1 only backs the P4's
-//     VBAT/LP domain. -1 => battery.cpp reports USB power. ---
+//     VBAT/LP domain. BOARD_NO_BATTERY => battery.cpp reports external power
+//     with hw = false, so the UI shows no power indicator at all. ---
+#define BOARD_NO_BATTERY
 constexpr int   kBatteryAdc = -1;
 constexpr float kBatteryDivider = 3.0f;
 constexpr float kBatteryFullVolts = 4.10f;

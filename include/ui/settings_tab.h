@@ -122,7 +122,8 @@ struct SettingsWidgets {
   lv_obj_t* smooth_btn = nullptr;
   lv_obj_t* smooth_value = nullptr;
   lv_obj_t* drop_neg_flow_switch = nullptr;  // on = clamp negative g/s on the graph
-  lv_obj_t* scope_graph_switch = nullptr;    // on = oscilloscope sweep, off = scroll
+  lv_obj_t* scope_graph_switch = nullptr;    // on = oscilloscope sweep, off = scroll;
+                                             // nullptr on round glass (no live sweep)
   // Shot-graph X-window growth cycle button (Snap / Smooth / Continuous)
   lv_obj_t* xgrow_btn = nullptr;
   lv_obj_t* xgrow_value = nullptr;

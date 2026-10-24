@@ -13,10 +13,9 @@ namespace {
 
 // Round glass: the graph's two series take Home's colours — crema for the
 // weight (the shot ring), the steam blue for the flow — instead of the theme
-// accent / ok pair. Set by build_shot_card; the draw callback reads it.
-bool g_card_round = false;
-uint32_t weight_hex() { return g_card_round ? 0xFFB866 : theme::accent(); }
-uint32_t flow_hex() { return g_card_round ? 0xA9D2FF : theme::ok(); }
+// accent / ok pair.
+uint32_t weight_hex() { return round_glass() ? 0xFFB866 : theme::accent(); }
+uint32_t flow_hex() { return round_glass() ? 0xA9D2FF : theme::ok(); }
 
 // One stat column for the hero row: value over an uppercase micro-caption.
 // Every column uses the SAME value font and grows equally, so the five values
@@ -339,7 +338,6 @@ lv_obj_t* build_shot_card(lv_obj_t* parent, const core::ShotRecord& rec,
                           lv_obj_t** out_delete_btn) {
   const bool compact = is_compact(screen);
   const bool xl = is_xl(screen);
-  g_card_round = is_round(screen);
   // One value size for every stat (a shared baseline, not a size-per-stat
   // jumble); captions and header share the small face.
   const lv_font_t* value_font = ui::font_dp(compact ? 16 : xl ? 36 : 28);
@@ -459,7 +457,7 @@ lv_obj_t* build_shot_card(lv_obj_t* parent, const core::ShotRecord& rec,
   lv_obj_set_style_bg_opa(graph, LV_OPA_COVER, 0);
   lv_obj_set_style_radius(graph, ui::dp(8), 0);
   lv_obj_set_style_pad_all(graph, ui::dp(6), 0);
-  if (g_card_round) {
+  if (round_glass()) {
     // A glass card whose big corners clear the circle (the modal fills the
     // band, whose corners sit exactly on the edge), the graph on clear black.
     lv_obj_set_style_bg_color(card, lv_color_hex(0x161616), 0);
