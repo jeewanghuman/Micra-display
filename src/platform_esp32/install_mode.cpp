@@ -26,7 +26,7 @@ namespace {
 
 // This fork publishes its own releases (the round 3.4C build) — see the
 // "Fork releases" note in CLAUDE.md. Upstream Apollo2 has no 3.4C image.
-constexpr char kSiteBase[] = "https://jeewanghuman.github.io/Micra-display";
+constexpr char kSiteBase[] = "https://jeewanghuman.github.io/Tondo";
 
 lv_obj_t* g_title = nullptr;
 lv_obj_t* g_bar = nullptr;
@@ -91,7 +91,7 @@ void build_ui() {
   lv_obj_set_style_bg_color(scr, lv_color_hex(0x0E1116), 0);
 
   g_title = lv_label_create(scr);
-  lv_label_set_text(g_title, "Updating Apollo");
+  lv_label_set_text(g_title, "Updating Tondo");
   lv_obj_set_style_text_color(g_title, lv_color_hex(0xFFFFFF), 0);
   lv_obj_set_style_text_font(g_title, &lv_font_montserrat_28, 0);
   lv_obj_align(g_title, LV_ALIGN_TOP_MID, 0, H / 4);

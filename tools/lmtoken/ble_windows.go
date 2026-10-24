@@ -175,7 +175,7 @@ func ProvisionOverBLE(serial, addr, seed string, timeout time.Duration, progress
 	dev, err := winAdapter.Connect(a, bluetooth.ConnectionParams{})
 	if err != nil {
 		return "", fmt.Errorf("connecting to the machine over Bluetooth "+
-			"(is another device — e.g. your Apollo remote or phone — connected to it?): %w", err)
+			"(is another device — e.g. your Tondo remote or phone — connected to it?): %w", err)
 	}
 	defer dev.Disconnect()
 

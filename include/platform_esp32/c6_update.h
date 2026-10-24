@@ -10,7 +10,7 @@
 // OTA). The matching image (esp32c6-v<host>.bin) is EMBEDDED in the app, so we
 // can reflash the C6 with no internet: the transfer is host->slave TX over
 // SDIO, which works even while the stale slave's RX path is broken. Every
-// Apollo flash upgrades the C6 on first boot, for free.
+// Tondo flash upgrades the C6 on first boot, for free.
 //
 // Hosted boards only (guarded by CONFIG_ESP_HOSTED_ENABLE_BT_NIMBLE); a no-op
 // returning false everywhere else.

@@ -11,7 +11,7 @@
 //
 // FORMAT (v1), one header block then one line per key:
 //
-//   # Apollo settings backup
+//   # Tondo settings backup (older files say "Apollo"; format= decides)
 //   format=1
 //   version=0.14.0
 //   board=p4-wifi6-touch-lcd-5

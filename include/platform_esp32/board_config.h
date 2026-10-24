@@ -15,7 +15,7 @@
 // slug appears EXACTLY ONCE in the binary (it is the self-updater's URL — two
 // copies fail the build, as adding a second user of it did).
 //
-// Fork note: this fork (jeewanghuman/Micra-display) releases only the 3.4C
+// Fork note: this fork (jeewanghuman/Tondo) releases only the 3.4C
 // block. The "RELEASED" comments on the other blocks are upstream's, kept
 // as-is so upstream merges stay clean (see CLAUDE.md "Fork releases").
 
@@ -844,7 +844,7 @@ constexpr char kName[] = "Waveshare ESP32-P4-WIFI6-Touch-LCD-3.4C (rev3)";
 #else
 constexpr char kName[] = "Waveshare ESP32-P4-WIFI6-Touch-LCD-3.4C";
 #endif
-// RELEASED IN THIS FORK (jeewanghuman/Micra-display): the rev v1.x image is
+// RELEASED IN THIS FORK (jeewanghuman/Tondo): the rev v1.x image is
 // the fork's only firmware-release.yml matrix row and web-flasher card, so
 // it self-updates from the fork's site (see CLAUDE.md "Fork releases"). The
 // -rev3 slug is not published: a rev3 unit's install would 404 and roll back

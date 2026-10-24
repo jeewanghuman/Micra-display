@@ -8,7 +8,7 @@
 // Shot-history port. When a shot finishes (reaches review), the UI assembles a
 // ShotRecord — headline stats plus the sampled weight/flow series — and hands
 // it to this port. The device implementation persists to an SD card under
-// /Apollo2 as plain CSVs: a take-away database readable anywhere (the web
+// /Tondo as plain CSVs: a take-away database readable anywhere (the web
 // app and the on-device viewer both re-render graphs from the data — nothing
 // is pre-rendered). The host fake serves canned records to the sim. Boards
 // without storage use NullShotStore and the History UI shows guidance instead.
@@ -137,7 +137,7 @@ class IShotStore {
   // Stats-reset marker (unix; 0 = never reset). Non-destructive: headline
   // stats count only shots at/after the marker, the recorded history is
   // untouched. Stores persist it WITH the data (it describes the data), e.g.
-  // /Apollo2/stats_since.txt on SD — delete that file to undo a reset.
+  // /Tondo/stats_since.txt on SD — delete that file to undo a reset.
   virtual int64_t stats_since() const { return 0; }
   virtual void set_stats_since(int64_t) {}
 

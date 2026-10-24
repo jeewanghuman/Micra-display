@@ -250,7 +250,7 @@ bool settings_backup_write(const char* path, bool include_wifi, bool include_tok
     return false;
   }
 
-  std::fprintf(f, "# Apollo settings backup\nformat=%d\nversion=%s\nboard=%s\n",
+  std::fprintf(f, "# Tondo settings backup\nformat=%d\nversion=%s\nboard=%s\n",
                kFormat, fw::kVersion, board::kUpdateSlug);
   std::fprintf(f, "saved=%lld\nwifi=%d\ntoken=%d\n",
                static_cast<long long>(time(nullptr)), include_wifi ? 1 : 0,
@@ -317,7 +317,7 @@ bool settings_backup_read(const char* path, core::BackupInfo* out) {
 bool settings_backup_restore(const char* path, int* out_count, std::string* err) {
   core::BackupInfo info;
   if (!settings_backup_read(path, &info)) {
-    if (err) *err = "That file isn't an Apollo settings backup.";
+    if (err) *err = "That file isn't a Tondo settings backup.";
     return false;
   }
   if (info.newer_firmware) {

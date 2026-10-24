@@ -73,7 +73,7 @@ class WebUi {
   TokenSetup* setup_ = nullptr;
   core::IShotStore* shots_ = nullptr;
   core::IClock* clock_ = nullptr;
-  const char* name_ = "Apollo 2";
+  const char* name_ = "Tondo";
   bool bound_ = false;  // listening socket open (needs the network stack)
   std::function<WebTheme()> theme_;
 };

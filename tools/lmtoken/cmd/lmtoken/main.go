@@ -222,7 +222,7 @@ func provision(sess *lmtoken.Session, t lmtoken.Thing, force bool) (string, erro
 		fmt.Fprintf(os.Stderr, "\nNo Bluetooth token is saved for %s.\n", t.SerialNumber)
 	} else {
 		fmt.Fprintf(os.Stderr, "\n-force: this replaces the current token for %s (your app re-syncs; "+
-			"any Apollo remote needs the new one).\n", t.SerialNumber)
+			"any Tondo remote needs the new one).\n", t.SerialNumber)
 	}
 	if !confirm("Set one up now? It needs Bluetooth and your machine in pairing mode") {
 		return "", fmt.Errorf("cancelled")
@@ -235,7 +235,7 @@ Put your machine in pairing mode:
   3. Turn the machine ON.
   4. Wait about 5 seconds.
   5. Push the paddle back to the RIGHT.
-(If you wired an Apollo remote to the paddle, keep it powered ON and in Manual
+(If you wired a Tondo remote to the paddle, keep it powered ON and in Manual
  mode, but Disconnect it from the machine — Settings > Micra > Disconnect — so it
  doesn't hold the machine's single Bluetooth connection.)`)
 

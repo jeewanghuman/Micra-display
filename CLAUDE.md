@@ -1,6 +1,9 @@
 # Claude Code project notes
 
-Firmware for a La Marzocco Micra BLE remote on Waveshare ESP32 touch boards.
+**Tondo** — firmware for a La Marzocco Micra BLE remote on Waveshare's round
+ESP32-P4 3.4C (this fork); upstream is Apollo 2 (mlsorensen/Apollo2), which
+targets rectangular Waveshare ESP32 touch boards. See "Fork releases" for
+the name and what kept "Apollo".
 Read README.md "Developer documentation" first — the architecture section is
 accurate and the layering rules there are hard rules:
 
@@ -35,7 +38,7 @@ Two separate parts: a CHECK/notify port (`update_check.*`) and an INSTALL that
 runs in a dedicated early-boot mode (`install_mode.*`). Full rationale +
 measurements: the `ota-p4-solution` memory. The short version of WHY install is
 its own boot mode: a bulk download over the hosted-radio SDIO link needs a
-~64 KB CONTIGUOUS internal-DMA buffer, and Apollo's graph-optimized DSI display
+~64 KB CONTIGUOUS internal-DMA buffer, and the app's graph-optimized DSI display
 (use_dma2d + async double-buffer) fragments that pool to ~16 KB → the download
 asserts `sdio_rx_get_buffer`; and flash writes disable the cache, stalling the
 DSI's PSRAM framebuffer scan → the panel strobes. Both go away when the full
@@ -115,8 +118,8 @@ display isn't up.
 
 Settings live in NVS, which does NOT travel with the SD card the shot history
 is on — swap hardware and every shot survives while every preference is lost.
-`Settings > Apollo > Backup` copies the whole `micra` namespace to
-`/Apollo2/settings.txt` and back. Shape of it:
+`Settings > Tondo > Backup` copies the whole `micra` namespace to
+`/Tondo/settings.txt` and back. Shape of it:
 
 - Port `core::ISettingsBackup` (info/request_backup/request_restore/state).
   The DEVICE `ShotStore` implements it as a second interface: the writer task
@@ -328,10 +331,21 @@ env adds `-DBOARD_P4_SILICON_REV3`), panel table `BOARD_DSI_PANEL_JD9365_RD34`
   the UI drops the tray power indicator and the Stats > Info Runtime row
   (the sim poses this for every round render via FakeBattery::set_hw).
 
-## Fork releases (jeewanghuman/Micra-display)
+## Fork releases (jeewanghuman/Tondo)
 
 THIS REPO IS A FORK of mlsorensen/Apollo2 whose only product is the round
-3.4C. Its OTA site is `https://jeewanghuman.github.io/Micra-display`
+3.4C, named TONDO (renamed from "Apollo 2" on 2026-10-24; the repo was
+`Micra-display` until then). Everything user-facing says Tondo: the Settings
+section, Stats > Info header, modal text, the History web page, the flasher,
+release notes and docs. Kept on purpose: the credit to Apollo 2 (README,
+flasher, MANUAL's backup notes), upstream's CHANGELOG history, the "Apollo"
+idle-screen ARTWORK (a picture of Apollo, like "Lion"), and upstream's
+hardware/paddle-bridge ("Apollo Link" board, prebuilt gerbers). The SD
+folder is `/Tondo` (core::kShotDirName); ShotStore::try_mount's
+adopt_legacy_dir() renames a card's `/Apollo2` to `/Tondo` once, only when
+`/Tondo` doesn't exist (core::kLegacyShotDirName). Backups say "# Tondo
+settings backup" — restore keys on `format=`, so Apollo-era files still load.
+Its OTA site is `https://jeewanghuman.github.io/Tondo`
 (`kSiteBase` in update_check.cpp AND install_mode.cpp — keep them equal; the
 update-modal hint in app.cpp names it too). The release workflow's matrix
 builds ONLY `esp32-p4-micra-3-4c` (slug `p4-wifi6-touch-lcd-3.4c`, rev v1.x —
@@ -352,8 +366,8 @@ blocks' RELEASED markers are upstream's, left as-is for clean merges.
 
 Case: `hardware/3d-prints/esp32-p4-3.4c-shell.scad` (source of truth; the
 .3mf files are exports of it). Round cup + back cover held by 4 radial
-M2.5 screws; the cover carries the standard Apollo mount interface (2 x M4,
-75 mm apart, 3.7 mm pilots — measured from apollo2-magnet-mount.3mf), so the
+M2.5 screws; the cover carries Apollo 2's mount interface (2 x M4,
+75 mm apart, 3.7 mm pilots — measured from tondo-magnet-mount.3mf), so the
 existing magnet mount and stand fit unchanged. Waveshare publishes only the
 115 mm outline: `body_depth`, `usb_angle`, `usb_from_front` are UNVERIFIED
 guesses until the owner measures the board. Re-export after changing them:

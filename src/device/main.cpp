@@ -394,7 +394,7 @@ void setup() {
   // AP sessions; on the home network it serves the shot-history app + API.
   // The theme callback reads the ACTIVE palette per request, so the web page
   // always matches whatever the screen is showing.
-  g_web_ui.begin(g_token_setup, g_shots, g_clock, "Apollo 2", [] {
+  g_web_ui.begin(g_token_setup, g_shots, g_clock, "Tondo", [] {
     return platform::WebTheme{
         ui::theme::bg(),   ui::theme::rail(),  ui::theme::card(),
         ui::theme::text(), ui::theme::muted(), ui::theme::accent(),
@@ -523,7 +523,7 @@ void poll_serial_id() {
         // Future-proofing for P4 boards shipping in both revision generations:
         // when per-silicon images exist, the web flasher's Detect can pick the
         // right one from this. Appended field — existing parsers substring-match.
-        core::logf("APOLLO2 BOARD=\"%s\" FW=%s REV=%u\n", board::kName, fw::kVersion,
+        core::logf("TONDO BOARD=\"%s\" FW=%s REV=%u\n", board::kName, fw::kVersion,
                    static_cast<unsigned>(efuse_hal_chip_revision()));
       } else if (n == 7 && std::strcmp(buf, "memfail") == 0) {
         platform::crash_record::self_test();  // dev: exercise the flight recorder

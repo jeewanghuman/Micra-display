@@ -1,4 +1,4 @@
-# Apollo 2 web app
+# Tondo web app
 
 The shot-history page the device serves at `http://<device-ip>/` — a
 single-file React + Material UI app, gzipped and embedded in the firmware

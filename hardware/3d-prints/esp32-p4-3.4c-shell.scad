@@ -7,9 +7,9 @@
 //           lip never covers the picture or the touch area).
 //   COVER - a plug that closes the back, held by 4 radial M2.5 screws through
 //           the shell wall. Its flat back carries the SAME mounting interface
-//           as every other Apollo shell: 2 x M4 holes, 75 mm apart, so the
-//           existing apollo2-magnet-mount.3mf (Micra top corner) and
-//           apollo2-stand.3mf (counter-top) bolt straight on with 2 x M4x8.
+//           as Apollo 2's shells: 2 x M4 holes, 75 mm apart, so the
+//           tondo-magnet-mount.3mf (Micra top corner) and tondo-stand.3mf
+//           (counter-top) bolt straight on with 2 x M4x8.
 //
 // A "chin" slot at the bottom of the wall clears the USB-C plug(s) and lets
 // the paddle cable out.
@@ -41,8 +41,8 @@ plug_t = 7.0;  // cover thickness (depth it sits inside the shell)
 plug_fit = 0.3;  // diametral clearance cover-in-shell
 back_pocket = 3.0; // cover recess for the board's backside parts (0 = flat)
 
-/* [Mounting - same as the other Apollo shells] */
-mount_spacing = 75;   // apollo2-magnet-mount / -stand hole spacing
+/* [Mounting - same as Apollo 2's shells] */
+mount_spacing = 75;   // tondo-magnet-mount / -stand hole spacing
 m4_pilot   = 3.7;     // printed pilot for an M4 screw threading into plastic
 m4_depth   = 6.5;
 m25_clear  = 2.9;     // M2.5 clearance in the shell wall

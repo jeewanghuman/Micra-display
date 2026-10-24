@@ -16,7 +16,7 @@
 
 namespace platform {
 
-// SD-card shot history. Layout under /Apollo2 (see core/shot_csv.h): an
+// SD-card shot history. Layout under /Tondo (see core/shot_csv.h): an
 // index CSV parsed into RAM at mount plus per-shot samples CSVs — a plain
 // take-away database readable anywhere (graphs are re-rendered from the data
 // by every viewer; nothing is pre-rendered).
@@ -49,7 +49,7 @@ class ShotStore : public core::IShotStore, public core::ISettingsBackup {
   // -space queries aren't safe alongside a concurrent write, so the UI
   // thread only ever reads this cache.
   core::StorageInfo storage() const override;
-  // Stats-reset marker: lives on the card (/Apollo2/stats_since.txt) so it
+  // Stats-reset marker: lives on the card (/Tondo/stats_since.txt) so it
   // travels with the data; cached here, written by the writer task.
   int64_t stats_since() const override;
   void set_stats_since(int64_t t) override;

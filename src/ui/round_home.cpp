@@ -1,5 +1,5 @@
 // Liquid-glass Home for round glass (the 3.4C, 800x800), following the
-// "Apollo Round — Liquid Glass" mockups:
+// The round "Liquid Glass" mockups:
 //
 //   Idle  — brew (amber) and steam (blue) as arcs hugging the bezel, the brew
 //           temperature as large thin numerals with a status line above,

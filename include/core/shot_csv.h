@@ -9,8 +9,8 @@
 // The on-disk shot-history format, shared by every store implementation so
 // the device (Arduino File) and the host (stdio) can't drift apart:
 //
-//   /Apollo2/shots.csv          index, one row per shot (kShotIndexHeader)
-//   /Apollo2/shots/NNNNNN.csv   per-shot samples (kShotSamplesHeader)
+//   /Tondo/shots.csv          index, one row per shot (kShotIndexHeader)
+//   /Tondo/shots/NNNNNN.csv   per-shot samples (kShotSamplesHeader)
 //
 // Everything is plain CSV so the card can be pulled and analyzed on any
 // computer. The index's iso8601 column is LOCAL time (what the user saw);
@@ -30,7 +30,11 @@
 
 namespace core {
 
-constexpr const char* kShotDirName = "Apollo2";
+constexpr const char* kShotDirName = "Tondo";
+// The folder's name before the project became Tondo (it was Apollo 2). The
+// device moves an existing /Apollo2 to /Tondo once, on mount, so a card's
+// history and settings backup come along (see ShotStore::try_mount).
+constexpr const char* kLegacyShotDirName = "Apollo2";
 constexpr const char* kShotIndexHeader =
     "id,iso8601_local,unix,duration_ms,target_g,final_g,avg_gps,mode,wired\n";
 constexpr const char* kShotSamplesHeader = "t_ms,weight_g,flow_gps\n";

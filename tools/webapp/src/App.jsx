@@ -1,4 +1,4 @@
-// Apollo 2 shot-history web app. Served by the device itself (one embedded,
+// Tondo shot-history web app. Served by the device itself (one embedded,
 // gzipped file) and styled from the DEVICE'S ACTIVE THEME: /api/summary
 // carries the palette the screen is currently using, and the MUI theme is
 // built from it, so the page always matches the device.
@@ -308,7 +308,7 @@ export default function App() {
               sx={{ borderBottom: 1, borderColor: 'divider' }}>
         <Toolbar sx={{ gap: 1 }}>
           <Typography noWrap variant="h6" sx={{ flexGrow: 1, minWidth: 0 }}>
-            {summary?.name || 'Apollo 2'}
+            {summary?.name || 'Tondo'}
             <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>
               {' — Shot History'}
             </Box>
@@ -454,7 +454,7 @@ export default function App() {
       <Dialog open={logOpen} onClose={() => setLogOpen(false)} maxWidth="md" fullWidth>
         <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between' }}>
           <span>Diagnostic log</span>
-          <Link variant="body2" href="/log" download="apollo2-log.txt"
+          <Link variant="body2" href="/log" download="tondo-log.txt"
                 sx={{ alignSelf: 'center' }}>
             Download
           </Link>

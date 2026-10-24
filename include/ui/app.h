@@ -51,7 +51,7 @@ class App {
   // random. A defaulted parameter CHANGED an existing caller's behaviour
   // instead of breaking the build; requiring it makes the compiler catch this.
   // Pass nullptr explicitly if a caller genuinely has no update source.
-  // `backup` is not defaulted for the same reason: null hides Apollo > Backup,
+  // `backup` is not defaulted for the same reason: null hides Tondo > Backup,
   // which is right on the boards without a card slot and a silent regression
   // everywhere else.
 
@@ -142,7 +142,7 @@ class App {
     install_handler_ = std::move(h);
   }
   void request_install();                // modal "Install now"
-  // Settings > Apollo > Backup. Both directions confirm first: the backup modal
+  // Settings > Tondo > Backup. Both directions confirm first: the backup modal
   // spells out that the card ends up holding the pairing token in plain text
   // (and, unless the switch is turned off, the WiFi password); the restore modal
   // spells out that the file REPLACES every setting and the device restarts.

@@ -1049,7 +1049,7 @@ void build_settings_tab(lv_obj_t* parent, const ScreenProfile& screen,
   // --- Chooser pages: short nav lists under each root entry -----------------
   out.micra_page = lv_menu_page_create(menu, "Micra");
   out.scale_page = lv_menu_page_create(menu, "Scale");
-  out.device_page = lv_menu_page_create(menu, "Apollo");
+  out.device_page = lv_menu_page_create(menu, "Tondo");
   page_column(out.micra_page, compact);
   page_column(out.scale_page, compact);
   page_column(out.device_page, compact);
@@ -1073,7 +1073,7 @@ void build_settings_tab(lv_obj_t* parent, const ScreenProfile& screen,
   page_column(out.root_page, compact);
   root_entry(menu, out.root_page, out.micra_page, "Micra", font, btn_h);
   root_entry(menu, out.root_page, out.scale_page, "Scale", font, btn_h);
-  root_entry(menu, out.root_page, out.device_page, "Apollo", font, btn_h);
+  root_entry(menu, out.root_page, out.device_page, "Tondo", font, btn_h);
 
   // Root-level action row (not a drill-in). Same card styling as the entries,
   // an action glyph instead of a chevron.

@@ -2359,7 +2359,7 @@ void App::saver_anim_tick() {
 }
 
 // ---- Clock idle screen (round glass) ----------------------------------------
-// The "Apollo Round — Liquid Glass" Idle mockup: on black, faint brew/steam
+// The round "Liquid Glass" Idle mockup: on black, faint brew/steam
 // bezel tracks, the weekday and a large thin clock, and a glass orb with the
 // brew temperature and machine state that drifts slowly round an ellipse
 // below the clock. Like the artworks it is its OWN screen (the UI costs
@@ -2564,8 +2564,8 @@ void App::open_update_modal() {
   lv_obj_set_style_text_font(hint, ui::font_dp(12), 0);
   lv_label_set_text(hint,
                     "Or install from a computer at "
-                    "jeewanghuman.github.io/Micra-display - settings are kept. "
-                    "Turn these notices off under Settings > Apollo > WiFi.");
+                    "jeewanghuman.github.io/Tondo - settings are kept. "
+                    "Turn these notices off under Settings > Tondo > WiFi.");
 
   // Install now downloads the image and reboots into it (both BLE links are
   // parked for the download); Remind me later re-offers next check; Skip won't
@@ -2591,7 +2591,7 @@ void App::request_install() {
   // the hosted radio needs). Hand off to device main, which reboots into the
   // early-boot install mode. Show a brief "restarting" note first.
   lv_obj_t* card = open_modal("Installing update",
-      "Apollo will restart to install. The screen goes dark for about "
+      "Tondo will restart to install. The screen goes dark for about "
       "20 seconds - don't power off. It restarts on its own when done.");
   (void)card;
   lv_refr_now(nullptr);  // paint the notice before the handler reboots us
@@ -2636,7 +2636,7 @@ void App::manual_update_check() {
   // on a check that can't reach anything.
   if (network_ == nullptr || network_->status() != core::NetState::Connected) {
     lv_obj_t* card = open_modal("No WiFi",
-        "Connect to WiFi first (Settings > Apollo > WiFi), then check for "
+        "Connect to WiFi first (Settings > Tondo > WiFi), then check for "
         "updates.");
     modal_button(modal_button_row(card), "OK", ui::theme::rail(),
                  on_update_later, this);
@@ -3854,7 +3854,7 @@ void App::capture_shot_record(const core::BrewSnapshot& bsnap,
   // The History list notices count() changed on its next visible refresh.
 }
 
-// --- Settings > Apollo > Backup ---------------------------------------------
+// --- Settings > Tondo > Backup ----------------------------------------------
 // Settings live in NVS, which does not travel with the card the shot history is
 // on: swap the hardware and every shot survives while every preference is lost.
 // These two buttons copy the settings to the card and back. Both confirm, and
@@ -3880,7 +3880,7 @@ void App::open_backup_modal() {
   lv_obj_t* card = open_modal(
       "Back up settings?",
       compact ? "Written to the card as plain text - keep the card safe."
-              : "Every setting is written to the card as Apollo2/settings.txt, "
+              : "Every setting is written to the card as Tondo/settings.txt, "
                 "in plain text. Anyone with the card can read what it holds.");
 
   // The switches sit IN the confirmation, not on the page behind it: the choice
@@ -4008,7 +4008,7 @@ void App::open_restore_modal() {
     char body[192];
     std::snprintf(body, sizeof(body),
                   "This backup was written by firmware %s, which is newer than "
-                  "the firmware on this Apollo. Update first, then restore.",
+                  "the firmware on this Tondo. Update first, then restore.",
                   info.version.c_str());
     lv_obj_t* card = open_modal("Backup is too new", body);
     modal_button(modal_button_row(card), "OK", ui::theme::rail(), on_backup_cancel, this);
@@ -4026,9 +4026,9 @@ void App::open_restore_modal() {
                                            "token - set both up after the restart.";
   char body[384];
   std::snprintf(body, sizeof(body),
-                "Replaces every setting on this Apollo with the backup from "
+                "Replaces every setting on this Tondo with the backup from "
                 "%s (firmware %s).\nAnything the backup doesn't cover returns "
-                "to its default.%s\n\nApollo restarts when it's done.",
+                "to its default.%s\n\nTondo restarts when it's done.",
                 stamp, info.version.c_str(), missing);
   lv_obj_t* card = open_modal("Restore settings?", body);
   lv_obj_t* brow = modal_button_row(card);
@@ -4068,7 +4068,7 @@ void App::backup_result_poll() {
     // No button: the restart IS the acknowledgement, and a settings-restored
     // device must not keep running with the old values in RAM. It waits
     // kRestoreHoldMs first so the notice can actually be read.
-    open_modal("Settings restored", "Apollo is restarting...");
+    open_modal("Settings restored", "Tondo is restarting...");
     if (reboot_timer_ == nullptr) {
       reboot_timer_ = lv_timer_create(on_restore_hold_done, kRestoreHoldMs, this);
       lv_timer_set_repeat_count(reboot_timer_, 1);
@@ -4078,7 +4078,7 @@ void App::backup_result_poll() {
   char body[192];
   std::snprintf(body, sizeof(body),
                 "%s%sCard contains settings specific to this Micra, and can "
-                "be moved to another Apollo device to restore settings.",
+                "be moved to another Tondo to restore settings.",
                 detail.c_str(), detail.empty() ? "" : ".\n");
   lv_obj_t* card = open_modal("Settings backed up", body);
   modal_button(modal_button_row(card), "OK", ui::theme::rail(), on_backup_cancel, this);
@@ -4090,7 +4090,7 @@ void App::open_reset_stats_modal() {
   lv_obj_t* card = open_modal(
       "Reset stats?",
       "The headline stats restart from now. Recorded shots stay on the SD "
-      "card untouched.\n(Undo: delete Apollo2/stats_since.txt on a computer.)");
+      "card untouched.\n(Undo: delete Tondo/stats_since.txt on a computer.)");
   lv_obj_t* row = lv_obj_create(card);
   lv_obj_remove_style_all(row);
   lv_obj_set_size(row, LV_SIZE_CONTENT, LV_SIZE_CONTENT);

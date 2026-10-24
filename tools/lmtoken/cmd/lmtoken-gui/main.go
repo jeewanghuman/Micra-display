@@ -237,7 +237,7 @@ func showProvision(a fyne.App, w fyne.Window, sess *lmtoken.Session, dl *debugLo
 		"  3. Turn the machine ON.\n" +
 		"  4. Wait about 5 seconds.\n" +
 		"  5. Push the paddle back RIGHT.\n\n" +
-		"If you wired an Apollo remote to the paddle, keep it powered ON and in Manual mode, but " +
+		"If you wired a Tondo remote to the paddle, keep it powered ON and in Manual mode, but " +
 		"Disconnect it from the machine (Settings > Micra > Disconnect) so it doesn't hold the " +
 		"machine's single Bluetooth connection. Then press Start.")
 	instr.Wrapping = fyne.TextWrapWord
@@ -248,7 +248,7 @@ func showProvision(a fyne.App, w fyne.Window, sess *lmtoken.Session, dl *debugLo
 	items := []fyne.CanvasObject{heading, instr}
 	if t.BleAuthToken != "" {
 		warn := widget.NewLabel("This replaces the current token — your app re-syncs automatically, " +
-			"but any Apollo remote will need the new one.")
+			"but any Tondo remote will need the new one.")
 		warn.Wrapping = fyne.TextWrapWord
 		warn.Importance = widget.WarningImportance
 		items = append(items, warn)

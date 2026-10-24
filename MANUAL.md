@@ -1,4 +1,4 @@
-# Apollo 2 user manual — round display
+# Tondo user manual
 
 Everything the firmware can do on the round **Waveshare ESP32‑P4‑WIFI6‑Touch‑LCD‑3.4C**,
 screen by screen and setting by setting. For flashing and first‑time pairing,
@@ -16,7 +16,7 @@ row of three buttons at the bottom switches between **Home**, **Settings** and
 - [Settings → Micra](#settings-micra) — Bluetooth · Controls · Cleaning
 - [Settings → Scale](#settings-scale) — Bluetooth · Shot settings (→ Graph) ·
   Device settings · Per‑scale nuances
-- [Settings → Apollo](#settings-device) — Display · Sound · Time & date · WiFi ·
+- [Settings → Tondo](#settings-device) — Display · Sound · Time & date · WiFi ·
   Backup · Root page
 - [Stats](#stats-section) — Brew/Steam history · History · Info
 - [Brew‑by‑weight quick reference](#bbw-reference)
@@ -54,7 +54,7 @@ Settings
 │  ├─ Shot settings   — Target · Review hold · Detect lead-in
 │  │  └─ Graph        — Smoothing · Drop negative g/s · Window growth
 │  └─ Device settings — the scale's own settings (Beep · Auto-off/sleep · Unit …)
-├─ Apollo
+├─ Tondo
 │  ├─ Display     — Brightness · Screen timeout
 │  │               · Idle screen (Lion/Apollo/Alternate/Dim/Off/Clock) · Fahrenheit
 │  ├─ Sound       — Chime melody · Chime volume · Button sounds
@@ -104,8 +104,8 @@ machine is disconnected, and the steam arc is empty while steam is off.
   `Heating` is inferred from the live boiler temperatures vs their set‑points.
   A boiler within **2 °C** of its set‑point counts as ready, because the
   machine's own thermostat works to about that tolerance — a steam boiler set
-  to 128 °C routinely settles at 127 °C and stops heating there. Apollo can
-  also chime when it turns `Ready` — see [Settings → Apollo → Sound](#sound).
+  to 128 °C routinely settles at 127 °C and stops heating there. Tondo can
+  also chime when it turns `Ready` — see [Settings → Tondo → Sound](#sound).
 - ② **Brew temperature** — the live coffee‑boiler temperature. **Tap it** to
   open the [temperature dial](#dial) and change the set‑point.
 - ③ **Steam** — the live steam‑boiler temperature (or `Steam off`). **Tap it**
@@ -193,7 +193,7 @@ target. It switches back once the review ends.
   up for review.
 - ② **Weight** — the shot's weight. During review it freezes at the net shot
   weight, so lifting the cup doesn't wipe the number you care about.
-- ③ **Timer** and **target** — the shot timer runs from Apollo's own clock
+- ③ **Timer** and **target** — the shot timer runs from Tondo's own clock
   whenever the firmware is the shot authority (Auto shot or Shot detect, and
   every wired shot); in Manual mode without a wire it falls back to the scale's
   built‑in timer. The target is the brew‑by‑weight stop target (**Settings →
@@ -257,7 +257,7 @@ target. It switches back once the review ends.
 
 - ① **Wired paddle** *(default off)* — tell the firmware the paddle harness is
   physically wired (see the [wiring guide](docs/WIRING.md)). This enables the
-  **Auto shot** mode, the **Flush** button and the auto‑flush. Off, Apollo
+  **Auto shot** mode, the **Flush** button and the auto‑flush. Off, Tondo
   behaves like an unwired remote (Shot detect / Manual only). Flipping it
   mid‑shot cancels the shot.
 - ② **Brew temperature** — the coffee boiler's set‑point; tap to open the
@@ -387,7 +387,7 @@ Themis's ① **Beep** and ② **Auto‑off** shown above):
 - **Varia Aku** — none (no adjustable settings in its protocol; weight and
   battery only).
 
-**Unit** only changes what the *scale's own display* shows — Apollo always
+**Unit** only changes what the *scale's own display* shows — Tondo always
 works and displays in grams (an oz‑mode Acaia streams ounces over Bluetooth;
 the firmware converts them back, so brew‑by‑weight targets stay correct).
 Changed values may take a moment to be confirmed by the scale; if a change
@@ -409,18 +409,18 @@ machine is already warming up when you arrive.
 
 - **Acaia Lunar** — stays running for as long as Bluetooth is connected (it
   won't auto‑sleep on you mid‑connection). Recommended routine: just **power
-  the scale off** when you're done and **power it on** in the morning — Apollo
+  the scale off** when you're done and **power it on** in the morning — Tondo
   reconnects to it automatically.
 - **Acaia Umbra** — can be used exactly like the Lunar, but it also has a real
-  sleep mode that Apollo can wake it from. Recommended routine: tap
+  sleep mode that Tondo can wake it from. Recommended routine: tap
   **Disconnect** under **Settings → Scale → Bluetooth** when you're done (the
   Umbra won't sleep *while connected*, so disconnecting is what lets it doze),
   and tap **Connect** there in the morning, which wakes the Umbra over
   Bluetooth. The Umbra's battery lasts about a **week** in sleep mode — and
   once it's flat, Connect naturally can't wake it, so put it on a charger if
   it's been sitting.
-- **Bookoo Themis** — has a sleep mode, but it genuinely powers down: Apollo
-  **cannot** wake it with Connect. Treat it like the Lunar: leave Apollo
+- **Bookoo Themis** — has a sleep mode, but it genuinely powers down: Tondo
+  **cannot** wake it with Connect. Treat it like the Lunar: leave Tondo
   connecting, **turn the scale on** in the morning and you're good; when
   you're done, just walk away — the scale sleeps on its own from inactivity.
 
@@ -428,7 +428,7 @@ machine is already warming up when you arrive.
 
 <a id="settings-device"></a>
 
-## Settings → Apollo
+## Settings → Tondo
 
 Short sub‑pages — **Display**, **Sound**, **Time & date**, **WiFi** and
 **Backup** — so each page fits on the round screen with little to no
@@ -462,8 +462,8 @@ scrolling.
   are still stored in Celsius.
 
 The round display has one colour scheme, made for its glass look, so there is
-no **Theme** row. (A settings backup from another Apollo keeps its theme
-choice — it applies again if restored onto a rectangular board.)
+no **Theme** row. (A theme chosen on Apollo 2 survives a restored backup,
+unused here.)
 
 <a id="sound"></a>
 
@@ -556,13 +556,13 @@ history is always reachable.
   also check any time from **Stats → Info → Check** — and if it can't reach
   the server it says "Couldn't check" rather than "up to date".
 
-  **Installing** — after **Install now**, Apollo restarts into a minimal update
+  **Installing** — after **Install now**, Tondo restarts into a minimal update
   screen: a progress bar while it downloads the new firmware, then a short
   **"screen goes dark for about 20 seconds — don't power off"** phase while it
   writes, then it restarts on the new version. Your settings, the paired
   machine, and shot history are kept, and a firmware that fails to boot rolls
   back to the old one automatically. The
-  [web flasher](https://jeewanghuman.github.io/Micra-display/) remains the
+  [web flasher](https://jeewanghuman.github.io/Tondo/) remains the
   fallback for recovery and for the very first flash.
 
 - ⑥ **Beta updates** *(default off; shown only while checks are on)* — also
@@ -576,14 +576,14 @@ history is always reachable.
   back on its own — the device stays on that build until a stable release is
   newer than it (`0.15.0` supersedes `0.15.0-beta.2`), which is usually days.
   To go back sooner, reflash the stable release from the
-  [web flasher](https://jeewanghuman.github.io/Micra-display/); your settings
+  [web flasher](https://jeewanghuman.github.io/Tondo/); your settings
   and history are kept.
 
 ### Backup
 
 ![Backup settings](docs/img/manual/device-backup.png)
 
-Your settings live inside Apollo, not on the memory card — so moving the card
+Your settings live inside Tondo, not on the memory card — so moving the card
 to another one brings every shot across and none of your preferences. This page
 copies the settings onto that same card, so a replacement can pick them up.
 
@@ -591,7 +591,7 @@ copies the settings onto that same card, so a replacement can pick them up.
   the firmware and board it was taken on, and whether it carries your WiFi
   network and pairing token. Otherwise `No card inserted` or `No settings
   backup on this card`.
-- ② **Back up to card** — writes every setting to `/Apollo2/settings.txt`,
+- ② **Back up to card** — writes every setting to `/Tondo/settings.txt`,
   beside your shots. It is plain text, readable on any computer:
 
   <p align="center">
@@ -604,16 +604,18 @@ copies the settings onto that same card, so a replacement can pick them up.
   turning one off means setting that up by hand later, which is the trade worth
   making if the card won't stay with the machine. Everything else (chime,
   target weight, flush settings, timezone, and the rest) always travels.
-- ③ **Restore from card** — replaces every setting on this Apollo with the
+- ③ **Restore from card** — replaces every setting on this Tondo with the
   backup, then restarts to apply it. Anything the backup doesn't carry — a
   setting added in a later firmware, or a credential you left out — goes back
   to its default. Greyed out when the card holds no backup.
 
 A few things worth knowing:
 
-- **Moving between boards is the point.** A backup taken on any Apollo — round
-  or rectangular — restores onto any other; nothing in it is board-specific.
-- **A backup from newer firmware is refused** — update this Apollo first, then
+- **Moving between devices is the point.** A backup taken on one Tondo
+  restores onto another, and so does one taken on Apollo 2 (the firmware Tondo
+  grew from); nothing in it is board-specific. Apollo 2 can't read Tondo's
+  backups.
+- **A backup from newer firmware is refused** — update this Tondo first, then
   restore. Older backups are always fine.
 - **Nothing happens on its own.** No automatic backup, no automatic restore;
   swapping cards between machines never changes a setting by itself.
@@ -624,7 +626,7 @@ A few things worth knowing:
 
 ![Settings root page](docs/img/manual/settings-root.png)
 
-The rows ①–③ open the **Micra**, **Scale**, and **Apollo** pages above; one
+The rows ①–③ open the **Micra**, **Scale**, and **Tondo** pages above; one
 action lives directly on the root:
 
 - ④ **Lock display for cleaning** — disables touch for 30 seconds so you can
@@ -685,11 +687,14 @@ action lives directly on the root:
     fills up, new shots stop being saved and History says so.
   - **What's recorded and when**: recorded shots are viewable immediately —
     no clock needed. Recording NEW shots additionally needs a real date/time
-    (NTP, or Settings → Apollo) — until the clock is set the footer warns
-    that shots aren't being saved. Records live on the card under `/Apollo2`
+    (NTP, or Settings → Tondo) — until the clock is set the footer warns
+    that shots aren't being saved. Records live on the card under `/Tondo`
     — an index CSV plus one samples CSV per shot — so the whole history can
     be read on any computer (graphs are drawn from the data by the device
     and the web page; nothing is pre‑rendered — the CSVs are the database).
+    A card used with Apollo 2 keeps its history in `/Apollo2`: the first
+    time Tondo reads the card it renames that folder to `/Tondo`, so the
+    shots and any settings backup carry over.
   - **Delete a shot**: open its card and tap the red trash button, then
     confirm. The shot's files are removed from the card and the headline
     stats recalculate without it — handy for throwing out dial‑in or
@@ -697,7 +702,7 @@ action lives directly on the root:
   - **Reset stats**: tap any headline bubble. Non‑destructive — the three
     headline numbers restart from now (the Total bubble shows "Since ⟨date⟩")
     while every recorded shot stays on the card. Undo by deleting
-    `Apollo2/stats_since.txt` on a computer.
+    `Tondo/stats_since.txt` on a computer.
   - **Browse from your phone or computer**: with WiFi connected, open
     `http://⟨device IP⟩/` (the address is in the footer and on **Stats →
     Info**). The device serves its own web page — the same stats, with month

@@ -77,6 +77,25 @@ const char* shot_file_path(uint32_t id, const char* ext) {
   return g_path;
 }
 
+// A card from before the rename keeps everything under /Apollo2: move that
+// folder into place once (a FAT rename — nothing is copied), but only while
+// there's no /Tondo yet, so two histories are never merged or overwritten.
+// Out of line so its ~170 B of locals don't widen try_mount()'s frame, whose
+// stack peak is the SD driver's mount underneath it.
+__attribute__((noinline)) void adopt_legacy_dir() {
+  char legacy[64];
+  std::snprintf(legacy, sizeof(legacy), "%s/%s", kMount, core::kLegacyShotDirName);
+  struct stat st;
+  if (stat(dir_path(), &st) == 0) return;  // /Tondo exists: nothing to adopt
+  if (stat(legacy, &st) != 0 || !S_ISDIR(st.st_mode)) return;
+  if (rename(legacy, dir_path()) == 0)
+    core::logf("ShotStore: moved /%s to /%s\n", core::kLegacyShotDirName,
+               core::kShotDirName);
+  else
+    core::logf("ShotStore: couldn't move /%s to /%s (errno %d)\n",
+               core::kLegacyShotDirName, core::kShotDirName, errno);
+}
+
 // Per-board slot config. P4: slot 0 is IOMUX, so no pins are specified
 // (the BSP's config verbatim). 4.3C: pins routed through the GPIO matrix,
 // one data line.
@@ -361,6 +380,7 @@ bool ShotStore::try_mount() {
     return false;
   }
 
+  adopt_legacy_dir();
   mkdir(dir_path(), 0775);
   mkdir(shots_dir_path(), 0775);
 

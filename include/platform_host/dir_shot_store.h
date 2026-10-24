@@ -14,7 +14,7 @@ namespace host {
 // used for renders (FakeShotStore is), just for format validation.
 class DirShotStore : public core::IShotStore {
  public:
-  explicit DirShotStore(std::string root);  // e.g. "sim_sd" -> sim_sd/Apollo2
+  explicit DirShotStore(std::string root);  // e.g. "sim_sd" -> sim_sd/Tondo
 
   bool available() const override { return true; }
   void save(const core::ShotRecord& record) override;
@@ -28,7 +28,7 @@ class DirShotStore : public core::IShotStore {
   void set_stats_since(int64_t t) override;  // persists stats_since.txt
 
  private:
-  std::string dir_;                       // <root>/Apollo2
+  std::string dir_;                       // <root>/Tondo
   int64_t stats_since_ = 0;
   std::vector<core::ShotSummary> index_;  // newest first
   uint32_t next_id_ = 1;

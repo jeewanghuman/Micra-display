@@ -428,7 +428,7 @@ int main() {
   ok &= r({800, 480}, "renders/device_time_auto_800x480.png", 1, ui::kSectionDeviceTime);
   network.set_ntp_seconds_since_sync(-1);
 
-  // Settings > Apollo > Backup: the page in its three card states, then the two
+  // Settings > Tondo > Backup: the page in its three card states, then the two
   // confirmations (the whole point of the flow is what those two say).
   backup.pose_empty_card();
   ok &= r({800, 480}, "renders/device_backup_empty_800x480.png", 1, ui::kSectionDeviceBackup);
@@ -585,7 +585,7 @@ int main() {
           ui::kSectionDeviceDisplay, false, 2);
 
   // Exercise the on-disk store format end-to-end: push one canned record
-  // through DirShotStore -> sim_sd/Apollo2 — the exact CSV files the device
+  // through DirShotStore -> sim_sd/Tondo — the exact CSV files the device
   // writes, inspectable on the laptop.
   {
     core::ShotRecord rec;

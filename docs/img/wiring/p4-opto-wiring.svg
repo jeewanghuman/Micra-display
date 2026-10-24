@@ -1,18 +1,18 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="700" viewBox="0 0 1200 700" font-family="Helvetica, Arial, sans-serif">
   <rect x="0" y="0" width="1200" height="700" fill="#ffffff"/>
-  <text x="600" y="58" text-anchor="middle" font-size="28" font-weight="bold" fill="#222222">Apollo P4 &#8594; opto module &#8594; Micra (drive + paddle sense)</text>
+  <text x="600" y="58" text-anchor="middle" font-size="28" font-weight="bold" fill="#222222">Tondo (3.4C) &#8594; opto module &#8594; Micra (drive + paddle sense)</text>
 
-  <!-- Apollo P4 box: pins listed in PHYSICAL header order (GND, 52, 51 adjacent) -->
+  <!-- Tondo box: pins in the 3.4C header's PHYSICAL order (pins 7, 9, 11 in a row) -->
   <rect x="50" y="130" width="200" height="300" rx="16" fill="#2456C4"/>
-  <text x="150" y="195" text-anchor="middle" font-size="34" font-weight="bold" fill="#ffffff">Apollo</text>
-  <text x="150" y="232" text-anchor="middle" font-size="22" fill="#ffffff">P4 GPIO header</text>
-  <text x="238" y="287" text-anchor="end" font-size="20" font-weight="bold" fill="#ffffff">GND</text>
-  <text x="238" y="337" text-anchor="end" font-size="20" font-weight="bold" fill="#ffffff">GPIO 52</text>
-  <text x="238" y="392" text-anchor="end" font-size="20" font-weight="bold" fill="#ffffff">GPIO 51</text>
+  <text x="150" y="195" text-anchor="middle" font-size="34" font-weight="bold" fill="#ffffff">Tondo</text>
+  <text x="150" y="232" text-anchor="middle" font-size="22" fill="#ffffff">40-pin header</text>
+  <text x="238" y="287" text-anchor="end" font-size="20" font-weight="bold" fill="#ffffff">GPIO 52 (7)</text>
+  <text x="238" y="337" text-anchor="end" font-size="20" font-weight="bold" fill="#ffffff">GND (9)</text>
+  <text x="238" y="392" text-anchor="end" font-size="20" font-weight="bold" fill="#ffffff">GPIO 51 (11)</text>
   <circle cx="250" cy="280" r="6" fill="#ffffff"/>
   <circle cx="250" cy="330" r="6" fill="#ffffff"/>
   <circle cx="250" cy="385" r="6" fill="#ffffff"/>
-  <text x="150" y="460" text-anchor="middle" font-size="18" fill="#555555">GND &#183; 52 &#183; 51 sit side by side on the</text>
+  <text x="150" y="460" text-anchor="middle" font-size="18" fill="#555555">Pins 7 &#183; 9 &#183; 11 sit in a row on the</text>
   <text x="150" y="483" text-anchor="middle" font-size="18" fill="#555555">header &#8212; a 3-pin screw-terminal</text>
   <text x="150" y="506" text-anchor="middle" font-size="18" fill="#555555">block clips straight on</text>
 
@@ -51,16 +51,14 @@
   <circle cx="950" cy="353" r="6" fill="#ffffff"/>
   <circle cx="950" cy="398" r="6" fill="#ffffff"/>
 
-  <!-- Drive wires: Apollo -> module input. Wire colors match the real cable:
+  <!-- Drive wires: Tondo -> module input. Wire colors match the real cable:
        black = GND, red = GPIO 52 (drive), white = GPIO 51 (sense). -->
   <!-- GND pin -> module input GND, with a junction feeding the paddle branch -->
-  <line x1="250" y1="280" x2="480" y2="320" stroke="#222222" stroke-width="5" stroke-linecap="round"/>
-  <circle cx="460" cy="317" r="7" fill="#222222"/>
-  <polyline points="460,317 460,368 700,368 700,530" fill="none" stroke="#222222" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
-  <!-- GPIO 52 -> IO, hopping OVER the GND wire (not connected to it) -->
-  <line x1="250" y1="330" x2="301.9" y2="298.4" stroke="#D63E3E" stroke-width="5" stroke-linecap="round"/>
-  <path d="M 301.9 298.4 A 14 14 0 0 1 325.8 283.8" fill="none" stroke="#D63E3E" stroke-width="5" stroke-linecap="round"/>
-  <line x1="325.8" y1="283.8" x2="480" y2="190" stroke="#D63E3E" stroke-width="5" stroke-linecap="round"/>
+  <line x1="250" y1="330" x2="480" y2="320" stroke="#222222" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="460" cy="321" r="7" fill="#222222"/>
+  <polyline points="460,321 460,368 700,368 700,530" fill="none" stroke="#222222" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- GPIO 52 (top pin) -> IO -->
+  <line x1="250" y1="280" x2="480" y2="190" stroke="#D63E3E" stroke-width="5" stroke-linecap="round"/>
 
   <!-- Module output -> Micra (isolated dry contact) -->
   <line x1="760" y1="265" x2="950" y2="353" stroke="#777777" stroke-width="8" stroke-linecap="round"/>
@@ -75,7 +73,7 @@
   <circle cx="677" cy="530" r="8" fill="#ffffff" stroke="#444444" stroke-width="4"/>
   <line x1="549" y1="527" x2="662" y2="490" stroke="#444444" stroke-width="5" stroke-linecap="round"/>
   <text x="610" y="575" text-anchor="middle" font-size="20" font-weight="bold" fill="#333333">Micra paddle switch</text>
-  <text x="610" y="600" text-anchor="middle" font-size="18" fill="#555555">(now connects only to Apollo, never the Micra)</text>
+  <text x="610" y="600" text-anchor="middle" font-size="18" fill="#555555">(now connects only to Tondo, never the Micra)</text>
 
   <!-- caption -->
   <text x="600" y="660" text-anchor="middle" font-size="20" fill="#444444">GPIO 52 high &#8594; module LED on &#8594; isolated OUT/GND contact closes &#8594; the Micra sees the paddle ON.</text>

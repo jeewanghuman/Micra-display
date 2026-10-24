@@ -687,7 +687,7 @@ void build_round_stats(lv_obj_t* parent, const ScreenProfile& screen, StatsWidge
   lv_obj_set_scroll_dir(out.info_box, LV_DIR_VER);
   lv_obj_set_scrollbar_mode(out.info_box, LV_SCROLLBAR_MODE_OFF);
   const lv_font_t* ifont = ui::font_dp(16);
-  make_info_header(out.info_box, "Apollo", ifont);
+  make_info_header(out.info_box, "Tondo", ifont);
   out.info_val[0] = make_info_row(out.info_box, "Firmware", ifont, true);
   {
     lv_obj_t* row = lv_obj_get_parent(out.info_val[0]);
@@ -987,9 +987,9 @@ void build_stats_tab(lv_obj_t* parent, const ScreenProfile& screen, StatsWidgets
 
   // Two groups: this remote, then the machine. info_val indices stay aligned with
   // update_stats_view's vals[] (0 our FW, 1 Runtime, 2 Uptime, 3 IP, 4..8 Micra
-  // DIS fields). The "Apollo" header disambiguates (same rename rationale as
+  // DIS fields). The "Tondo" header disambiguates (same rename rationale as
   // Settings), so the firmware row is just "Firmware".
-  make_info_header(out.info_box, "Apollo", font);
+  make_info_header(out.info_box, "Tondo", font);
   out.info_val[0] = make_info_row(out.info_box, "Firmware", font, compact);
   // The manual update check lives with the firmware version it would change.
   // App attaches the callback and hides the row when no update source exists.

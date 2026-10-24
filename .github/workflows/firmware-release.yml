@@ -64,7 +64,7 @@ jobs:
           # board = user-facing name (Waveshare product, lowercased) used in
           # the artifact filename; env = the PlatformIO environment.
           - { env: esp32-p4-micra-3-4c,  board: p4-wifi6-touch-lcd-3.4c, chip: ESP32-P4 }
-          # THIS FORK (jeewanghuman/Micra-display) publishes ONLY the round
+          # THIS FORK (jeewanghuman/Tondo) publishes ONLY the round
           # 3.4C, rev v1.x silicon (the owner's unit is rev v1.3). Upstream
           # Apollo2's four released boards are built and published there, not
           # here. A rev3 3.4C would add a second row:
@@ -116,9 +116,9 @@ jobs:
         run: |
           mkdir -p out
           cp .pio/build/${{ matrix.env }}/firmware.factory.bin \
-             "out/apollo2-${{ matrix.board }}-${RELEASE_TAG}.bin"
+             "out/tondo-${{ matrix.board }}-${RELEASE_TAG}.bin"
           # chip family for the web-flasher manifest generation
-          echo "${{ matrix.chip }}" > "out/apollo2-${{ matrix.board }}-${RELEASE_TAG}.bin.chip"
+          echo "${{ matrix.chip }}" > "out/tondo-${{ matrix.board }}-${RELEASE_TAG}.bin.chip"
           # The web flasher gets the SAME image split around the nvs partition,
           # so flashing keeps the paired machine, Wi-Fi and settings instead of
           # padding over them (see tools/stage_flash_parts.py). The single .bin
@@ -163,7 +163,7 @@ jobs:
           # release-build coredump is undecodable.
           mkdir -p out/elf
           cp .pio/build/${{ matrix.env }}/firmware.elf \
-             "out/elf/apollo2-${{ matrix.board }}-${RELEASE_TAG}.elf"
+             "out/elf/tondo-${{ matrix.board }}-${RELEASE_TAG}.elf"
           # Sidecar: this build's ELF-SHA fingerprint, read from the app
           # descriptor embedded in firmware.bin (magic 0xABCD5432 @0x20, sha
           # @0xB0). A dump downloaded from a device is named
@@ -173,7 +173,7 @@ jobs:
           import struct
           b = open(".pio/build/${{ matrix.env }}/firmware.bin", "rb").read()
           assert struct.unpack("<I", b[0x20:0x24])[0] == 0xABCD5432, "no app descriptor"
-          with open("out/elf/apollo2-${{ matrix.board }}-${RELEASE_TAG}.elf.appsha", "w") as f:
+          with open("out/elf/tondo-${{ matrix.board }}-${RELEASE_TAG}.elf.appsha", "w") as f:
               f.write(b[0xB0:0xD0].hex() + "\n")
           EOF
 
@@ -206,7 +206,7 @@ jobs:
       - name: Bundle debug symbols
         run: |
           tar -C dist/elf -czf \
-              "dist/apollo2-debug-symbols-${RELEASE_TAG}.tar.gz" .
+              "dist/tondo-debug-symbols-${RELEASE_TAG}.tar.gz" .
 
       # Body = this version's CHANGELOG.md section + the constant install
       # instructions. The notes live in the repo (not in this file) so that
@@ -243,7 +243,7 @@ jobs:
             *-beta.*)
               cat >> dist/NOTES.md <<'EOF'
 
-          > **Pre-release.** Devices only see this if **Settings > Apollo > WiFi >
+          > **Pre-release.** Devices only see this if **Settings > Tondo > WiFi >
           > Beta updates** is on, or if it is flashed deliberately from the web
           > flasher with "Include pre-releases" ticked.
           EOF
@@ -253,11 +253,11 @@ jobs:
 
           ---
 
-          Apollo 2 firmware ${RELEASE_TAG} — one flashable image per supported
+          Tondo firmware ${RELEASE_TAG} — one flashable image per supported
           Waveshare board (bootloader + partitions + app combined; flash at
           offset 0).
 
-          **Easiest install: the [web flasher](https://jeewanghuman.github.io/Micra-display/)** —
+          **Easiest install: the [web flasher](https://jeewanghuman.github.io/Tondo/)** —
           plug the board in and flash from Chrome, no tools needed.
 
           The flasher upgrades in place: your paired machine, Wi-Fi and
@@ -266,10 +266,10 @@ jobs:
           Command-line alternative — note the attached \`.bin\` is a **full
           image**, so flashing it this way DOES clear saved settings:
           \`\`\`
-          esptool.py write_flash 0 apollo2-<board>-${RELEASE_TAG}.bin
+          esptool.py write_flash 0 tondo-<board>-${RELEASE_TAG}.bin
           \`\`\`
 
-          (\`apollo2-debug-symbols-${RELEASE_TAG}.tar.gz\` is for developers:
+          (\`tondo-debug-symbols-${RELEASE_TAG}.tar.gz\` is for developers:
           the .elf files inside decode crash dumps downloaded from a device's
           \`/coredump\` page.)
           EOF
@@ -289,7 +289,7 @@ jobs:
           files: |
             dist/*.bin
             dist/SHA256SUMS.txt
-            dist/apollo2-debug-symbols-*.tar.gz
+            dist/tondo-debug-symbols-*.tar.gz
           body_path: dist/NOTES.md
 
   # Each release deploys into its own version directory (vX.Y.Z/firmware +
@@ -345,14 +345,14 @@ jobs:
           for path in glob.glob("fw/*.bin"):
               name = os.path.basename(path)
               chip = open(path + ".chip").read().strip()
-              # apollo2-<board>-vX.Y.Z.bin -> board
-              board = name[len("apollo2-"):name.rindex("-v")]
+              # tondo-<board>-vX.Y.Z.bin -> board
+              board = name[len("tondo-"):name.rindex("-v")]
               # Flash the nvs-preserving parts, not the merged image: writing
               # the latter at offset 0 pads over the settings partition, which
               # made every web flash look like a factory reset.
               parts = json.load(open(f"fw/parts/{board}/parts.json"))
               manifest = {
-                  "name": f"Apollo 2 ({board})",
+                  "name": f"Tondo ({board})",
                   "version": tag.lstrip("v"),
                   "new_install_prompt_erase": True,
                   "builds": [{
@@ -405,7 +405,7 @@ jobs:
           # "include pre-releases" box is how you get one on purpose).
           default = stable[0] if stable else ordered[0]
           with open("public/version.js", "w") as f:
-              f.write(f'window.APOLLO2_VERSION = "{default}";\n')
+              f.write(f'window.TONDO_VERSION = "{default}";\n')
           EOF
 
       - name: Deploy to GitHub Pages (gh-pages branch)

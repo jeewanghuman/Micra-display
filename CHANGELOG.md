@@ -7,6 +7,15 @@ for someone reading the diff. These notes are also shown ON THE DEVICE, whose
 fonts are ASCII-only: stick to characters `sanitize_notes()` (src/ui/app.cpp)
 maps — plain ASCII plus `— – → … × ' "` — or they render as empty boxes.
 
+## Unreleased
+
+- **New name: Tondo.** The firmware is now called Tondo: Settings → Tondo,
+  Stats → Info and the web flasher all say so. It is still built on Apollo 2.
+- **Card folder renamed.** The first time Tondo reads the SD card it renames
+  the Apollo2 folder to Tondo, so shot history and settings backups carry over.
+- **New address.** Updates and the web flasher move to
+  jeewanghuman.github.io/Tondo.
+
 ## v1.0.0
 
 - **Round display support.** Runs on the Waveshare ESP32-P4 3.4C round touch

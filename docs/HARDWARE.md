@@ -12,7 +12,7 @@ README's [Hardware](../README.md#supported-hardware) section.
 |---|---|
 | **Display** | 3.4" round IPS, 800×800, MIPI‑DSI, behind 115 mm round glass. Capacitive touch (GT9271). Dimmable backlight. |
 | **Processor** | ESP32‑P4 with 32 MB flash and 32 MB PSRAM. |
-| **Radio** | Wi‑Fi 6 and Bluetooth LE through an on‑board ESP32‑C6. Apollo keeps the C6's firmware matched to its own, so the first boot after flashing may restart once while it brings the C6 up to date. |
+| **Radio** | Wi‑Fi 6 and Bluetooth LE through an on‑board ESP32‑C6. Tondo keeps the C6's firmware matched to its own, so the first boot after flashing may restart once while it brings the C6 up to date. |
 | **Audio** | ES8311 codec and a speaker amplifier — the warm‑up chime and button clicks. |
 | **Storage** | microSD slot (use a FAT32 card) — shot history and settings backup. |
 | **Header** | 40‑pin, laid out like a Raspberry Pi's. The paddle wiring uses three of its pins — see the [wiring guide](WIRING.md). |
@@ -36,16 +36,16 @@ the right image is flashed.
 ## Power and the clock
 
 The board runs from **USB‑C power**; a phone charger and a cable are all it
-needs. There is no battery circuit, so Apollo shows no battery indicator.
+needs. There is no battery circuit, so Tondo shows no battery indicator.
 
-There's no clock chip either. With **Wi‑Fi + NTP** (Settings → Apollo → WiFi)
-the clock sets itself on every boot. Without Wi‑Fi, Apollo restores the time
+There's no clock chip either. With **Wi‑Fi + NTP** (Settings → Tondo → WiFi)
+the clock sets itself on every boot. Without Wi‑Fi, Tondo restores the time
 it last saved (it saves hourly) when it powers up — late by however long the
-power was off — so set it under **Settings → Apollo → Time & date** after a
+power was off — so set it under **Settings → Tondo → Time & date** after a
 long power‑off. Shot history needs a real date to record new shots.
 
 The connector Waveshare labels **RTC** backs the processor's low‑power domain;
-Apollo doesn't rely on it.
+Tondo doesn't rely on it.
 
 ## Scales
 

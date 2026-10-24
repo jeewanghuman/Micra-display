@@ -1,9 +1,9 @@
 # Wiring the paddle (Auto shot)
 
 This is the **optional** hardware step that unlocks **Auto shot** (the
-firmware stops the shot at your target weight) and **auto‑flush**. Apollo sits
+firmware stops the shot at your target weight) and **auto‑flush**. Tondo sits
 *in the middle* of the Micra's paddle circuit: the physical paddle switch now
-feeds Apollo's sense input, and Apollo's isolated output stands in for the
+feeds Tondo's sense input, and Tondo's isolated output stands in for the
 paddle on the Micra's controller. Nothing else about the machine changes, and
 **Shot detect** works fine without any of this.
 
@@ -15,20 +15,20 @@ it), but you will have the machine open — **unplug the Micra first**.
 > entirely at your own risk.
 
 > **Note:** while this wiring is in place, the paddle works **only through
-> Apollo** — with the controller off, unplugged, or missing, flipping the
+> Tondo** — with the controller off, unplugged, or missing, flipping the
 > paddle does nothing. Because the tap is made with pluggable connectors,
 > undoing it is easy: open the top and temporarily reconnect the paddle's
-> original connectors to run the machine without Apollo.
+> original connectors to run the machine without Tondo.
 
 ## Parts
 
-- A **3‑conductor cable** to run between Apollo and the machine — for example
+- A **3‑conductor cable** to run between Tondo and the machine — for example
   [this one](https://a.co/d/07cSW1AY), but any 3‑conductor cable works.
 - **Bullet connectors** (or your favorite splice) for the in‑machine pigtail,
   so everything stays pluggable and reversible.
 - A single‑channel **PC817‑style opto‑isolator module**, e.g.
   [this one](https://a.co/d/03qHqcyM) — anything similar works. It keeps
-  Apollo electrically separate from the machine's controller.
+  Tondo electrically separate from the machine's controller.
 - A [2.54 mm screw‑terminal block](https://a.co/d/0eVdsD4h) that clips onto
   the board's 40‑pin header makes the board‑side connection clean and
   solder‑free.
@@ -52,7 +52,7 @@ Two connectors can be temporarily unplugged for easier access to the loom
 ![Temporarily disconnect these for access](img/wiring/micra-top-disconnect.jpg)
 
 Prepare your cable with bullet connectors, run it into the machine, unplug the
-paddle connectors, and wire Apollo in the middle as described below. What
+paddle connectors, and wire Tondo in the middle as described below. What
 you're looking at:
 
 - The **thin wires** go to the Micra's controller: **white = +5 V**,
@@ -88,18 +88,18 @@ idea:
 The cable leaves the round case through the slot at its bottom edge. From
 there, the opto module provides the isolation:
 
-![Apollo P4 → opto module → Micra wiring](img/wiring/p4-opto-wiring.svg)
+![Tondo → opto module → Micra wiring](img/wiring/p4-opto-wiring.svg)
 
 In detail:
 
-- **Drive (Apollo → Micra):** Apollo **GPIO 52** → opto module input **IO**,
-  and Apollo **GND** → the module's input **GND**. On the output side leave
+- **Drive (Tondo → Micra):** Tondo **GPIO 52** → opto module input **IO**,
+  and Tondo **GND** → the module's input **GND**. On the output side leave
   **VCC unconnected** ("VCC suspended") so OUT/GND form an isolated dry
   contact: module **OUT** → Micra **white**, module output **GND** → Micra
-  **black**. When Apollo raises GPIO 52, the contact closes — exactly like the
+  **black**. When Tondo raises GPIO 52, the contact closes — exactly like the
   paddle.
-- **Sense (paddle → Apollo):** one paddle‑switch wire → Apollo **GPIO 51**,
-  the other → Apollo **GND**. The physical paddle now touches only Apollo,
+- **Sense (paddle → Tondo):** one paddle‑switch wire → Tondo **GPIO 51**,
+  the other → Tondo **GND**. The physical paddle now touches only Tondo,
   never the Micra. Suggested: a 1 kΩ resistor in line with this wire at the
   terminal block — it protects the input by limiting current from static or
   stray voltage on the wire, and has no effect on normal operation.
@@ -123,7 +123,7 @@ A finished cable (upstream's P4 build) with the opto module spliced in near
 the machine end
 (shown before wrapping the module in heat‑shrink — do wrap it, so nothing can
 short out inside the machine). Of the cable's conductors, **red + black feed
-the opto module's input** — that pair carries Apollo's drive and becomes the
+the opto module's input** — that pair carries Tondo's drive and becomes the
 Micra's paddle signal on the isolated side — while **white + the second
 black** run to the physical paddle switch:
 
@@ -141,10 +141,10 @@ neoprene sheet between the module and the nearest hot surface does the job.
 ## Bench‑test before installing
 
 The whole cable can be validated before it ever touches the machine. Connect
-it to Apollo, power up, and turn on **Settings → Micra → Controls → Wired
-paddle**. Apollo relays the paddle regardless of anything else, so:
+it to Tondo, power up, and turn on **Settings → Micra → Controls → Wired
+paddle**. Tondo relays the paddle regardless of anything else, so:
 
-1. **Touch the two paddle‑sense wires together** — to Apollo that's the
+1. **Touch the two paddle‑sense wires together** — to Tondo that's the
    paddle flipping ON. The opto module's **red LED lights** while they're
    touching.
 2. **Meter the Micra side**: with a multimeter in continuity mode across the

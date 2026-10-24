@@ -1,14 +1,10 @@
-# Apollo 2 — round edition
+# Tondo
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/img/apollo-logo-dark.png">
-  <img align="left" width="96" src="docs/img/apollo-logo.png"
-       alt="Apollo, laurel-crowned, sipping an espresso">
-</picture>
-
-Firmware that turns Waveshare's **round 3.4" ESP32‑P4 touch display** into a
-local controller for a **La Marzocco Micra** espresso machine — over
-Bluetooth, with no cloud dependency for day‑to‑day use.
+**Tondo** is firmware that turns Waveshare's **round 3.4" ESP32‑P4 touch
+display** into a local controller for a **La Marzocco Micra** espresso
+machine — over Bluetooth, with no cloud dependency for day‑to‑day use. (A
+*tondo* is Italian for something round, and the name of the round paintings of
+Renaissance Florence — La Marzocco's home town.)
 
 Set your brew temperature on a dial, flip the steam boiler, put the machine on
 standby, watch both boilers come up to temperature around the edge of the
@@ -16,7 +12,7 @@ glass, and (with a supported Bluetooth scale) run a live shot timer, flow graph
 and brew‑by‑weight — all from a dedicated little screen next to the machine
 instead of a phone app.
 
-This is a fork of **[Apollo 2](https://github.com/mlsorensen/Apollo2)** by
+Tondo is a fork of **[Apollo 2](https://github.com/mlsorensen/Apollo2)** by
 Marcus, adapted to the round
 **[ESP32‑P4‑WIFI6‑Touch‑LCD‑3.4C](https://www.waveshare.com/esp32-p4-wifi6-touch-lcd-3.4c.htm)**
 with an interface designed for the circle. Everything Apollo 2 does works
@@ -79,7 +75,7 @@ UI just shows that part as offline.
 
 > [!IMPORTANT]
 > **Before buying any hardware, confirm you can get your machine's Bluetooth
-> token.** Apollo authenticates to the Micra with a token issued by the La
+> token.** Tondo authenticates to the Micra with a token issued by the La
 > Marzocco cloud. Grab it first with the **[LM Token](tools/lmtoken/)** app — sign
 > in with your La Marzocco account and copy the token. If it comes back blank, the
 > same tool can provision one over Bluetooth. Checking now avoids a nasty surprise
@@ -97,16 +93,16 @@ the [wiring guide](docs/WIRING.md).
 
 ### 2. Flash the firmware
 
-**No-toolchain option:** the [web flasher](https://jeewanghuman.github.io/Micra-display/)
+**No-toolchain option:** the [web flasher](https://jeewanghuman.github.io/Tondo/)
 flashes the board straight from Chrome, Edge, or Firefox over USB — click
 Install. Upgrading this way keeps your paired machine, Wi‑Fi and settings
 (unless you choose "Erase device"). Prebuilt images also live on the
-[Releases](https://github.com/jeewanghuman/Micra-display/releases) page — those
+[Releases](https://github.com/jeewanghuman/Tondo/releases) page — those
 are full images, so flashing one with `esptool` *does* clear saved settings.
 
-After the first flash Apollo updates itself over WiFi: it checks for new
+After the first flash Tondo updates itself over WiFi: it checks for new
 firmware, shows what changed, and installs on a tap. Tick **Include
-pre-releases** on the flasher (or turn on **Settings → Apollo → WiFi → Beta
+pre-releases** on the flasher (or turn on **Settings → Tondo → WiFi → Beta
 updates** on the device) to run beta builds instead — testing welcome, and a
 build that won't boot rolls back on its own.
 
@@ -160,8 +156,8 @@ Where to get the token:
 
 On the same setup page you can enter your home Wi‑Fi name and password. The
 device then joins your network, gets an IP, and syncs the clock over NTP. Pick
-your city under **Settings → Apollo → Time & date → Timezone**. Auto‑sync can be
-turned off under **Settings → Apollo → WiFi → Auto time (NTP)**.
+your city under **Settings → Tondo → Time & date → Timezone**. Auto‑sync can be
+turned off under **Settings → Tondo → WiFi → Auto time (NTP)**.
 
 Because the setup page is always reachable from **Set up WiFi**, you can never be
 locked out if your network changes.
@@ -176,7 +172,7 @@ The three buttons at the bottom of the circle switch between the tabs:
   **Tare** and the shot‑mode pill — **Auto shot** (wired paddle) / **Shot
   detect** / **Manual** — and switches to a shot view with a progress ring and
   flow graph while a shot runs.
-- **Settings** groups everything under Micra, Scale, and Apollo (display,
+- **Settings** groups everything under Micra, Scale, and Tondo (display,
   sound, time, Wi‑Fi, backup).
 - **Stats** shows brew and steam temperature history, the shot **History**
   log, and device info.
@@ -230,12 +226,12 @@ Print files live in [`hardware/3d-prints/`](hardware/3d-prints/):
 
 | File | What it is |
 |------|------------|
-| [`esp32-p4-3.4c-shell.scad`](hardware/3d-prints/esp32-p4-3.4c-shell.scad) | The round **case** for the 3.4C, as an editable [OpenSCAD](https://openscad.org/) model: a cup the board drops into from behind, and a back cover held by 4 screws. The cover carries the standard Apollo mounting holes, so the stand and magnet mount below fit it unchanged. |
+| [`esp32-p4-3.4c-shell.scad`](hardware/3d-prints/esp32-p4-3.4c-shell.scad) | The round **case** for the 3.4C, as an editable [OpenSCAD](https://openscad.org/) model: a cup the board drops into from behind, and a back cover held by 4 screws. The cover has the same two mounting holes as Apollo 2's stand and magnet mount, so they fit it unchanged. |
 | [`esp32-p4-3.4c-shell.3mf`](hardware/3d-prints/esp32-p4-3.4c-shell.3mf) | The case exported ready to print. |
 | [`esp32-p4-3.4c-fit-gauge.3mf`](hardware/3d-prints/esp32-p4-3.4c-fit-gauge.3mf) | A 4 mm slice of the case front — print it first (about 10 minutes) to check how the glass fits. |
-| [`apollo2-stand.3mf`](hardware/3d-prints/apollo2-stand.3mf) | Counter‑top **stand**. |
-| [`apollo2-magnet-mount.3mf`](hardware/3d-prints/apollo2-magnet-mount.3mf) | Optional **magnet mount** — attaches the display to the Micra's top corner instead of the counter. |
-| [`apollo2-wiring-gasket.3mf`](hardware/3d-prints/apollo2-wiring-gasket.3mf) | Optional **wiring gasket** — spaces the Micra's cover so the wiring can run underneath it. |
+| [`tondo-stand.3mf`](hardware/3d-prints/tondo-stand.3mf) | Counter‑top **stand** (designed for Apollo 2). |
+| [`tondo-magnet-mount.3mf`](hardware/3d-prints/tondo-magnet-mount.3mf) | Optional **magnet mount** (designed for Apollo 2) — attaches the display to the Micra's top corner instead of the counter. |
+| [`tondo-wiring-gasket.3mf`](hardware/3d-prints/tondo-wiring-gasket.3mf) | Optional **wiring gasket** (designed for Apollo 2) — spaces the Micra's cover so the wiring can run underneath it. |
 
 > [!NOTE]
 > **Measure before you print the case.** Waveshare publishes only the board's
