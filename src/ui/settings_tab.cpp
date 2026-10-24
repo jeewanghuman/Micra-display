@@ -1020,6 +1020,12 @@ void build_settings_tab(lv_obj_t* parent, const ScreenProfile& screen,
       lv_obj_set_style_pad_hor(out.scale_dev_btns[i], ui::dp(14), 0);
       lv_obj_set_style_bg_color(out.scale_dev_btns[i], lv_color_hex(ui::theme::card()), 0);
       lv_obj_set_style_opa(out.scale_dev_btns[i], LV_OPA_40, LV_STATE_DISABLED);
+      // Read-only rows (App sets USER_1, e.g. the Lunar's Mode): bare text, no
+      // chip. A state, so App never rewrites the chip's own fill — on round
+      // glass that is a translucent pill, which a forced opaque fill turned
+      // solid white behind white text.
+      lv_obj_set_style_bg_opa(out.scale_dev_btns[i], LV_OPA_TRANSP, LV_STATE_USER_1);
+      lv_obj_set_style_border_opa(out.scale_dev_btns[i], LV_OPA_TRANSP, LV_STATE_USER_1);
       out.scale_dev_values[i] = lv_label_create(out.scale_dev_btns[i]);
       lv_obj_set_style_text_color(out.scale_dev_values[i], lv_color_hex(ui::theme::text()), 0);
       lv_obj_set_style_text_font(out.scale_dev_values[i], font, 0);

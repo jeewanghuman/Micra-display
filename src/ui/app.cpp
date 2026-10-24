@@ -4628,13 +4628,14 @@ void App::update_scale_view() {
                    (v >= 0 && v < d.option_count) ? d.option_labels[v] : "--");
       // Read-only rows (e.g. the Lunar's Mode) drop the button chrome
       // entirely — bare right-aligned text reads as information, while the
-      // card-background chip is the affordance for "tap to change".
+      // card-background chip is the affordance for "tap to change". USER_1
+      // carries that look (built in settings_tab).
       if (d.read_only) {
-        lv_obj_set_style_bg_opa(settings_.scale_dev_btns[i], LV_OPA_TRANSP, 0);
+        lv_obj_add_state(settings_.scale_dev_btns[i], LV_STATE_USER_1);
         lv_obj_remove_state(settings_.scale_dev_btns[i], LV_STATE_DISABLED);
         lv_obj_remove_flag(settings_.scale_dev_btns[i], LV_OBJ_FLAG_CLICKABLE);
       } else {
-        lv_obj_set_style_bg_opa(settings_.scale_dev_btns[i], LV_OPA_COVER, 0);
+        lv_obj_remove_state(settings_.scale_dev_btns[i], LV_STATE_USER_1);
         lv_obj_add_flag(settings_.scale_dev_btns[i], LV_OBJ_FLAG_CLICKABLE);
         if (connected && !shot)
           lv_obj_remove_state(settings_.scale_dev_btns[i], LV_STATE_DISABLED);

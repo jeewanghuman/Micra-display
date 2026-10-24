@@ -364,7 +364,7 @@ void round_shot_progress(HomeWidgets& w, float shown_g, float target_g) {
 
 void update_round_home(HomeWidgets& w, const core::MachineSnapshot& state,
                        const core::ScaleSnapshot& scale, const core::BrewSnapshot& brew,
-                       bool fahrenheit, bool heating) {
+                       bool fahrenheit) {
   if (!w.round_glass) return;
   const bool connected = state.link == core::Link::Connected;
   const bool on = state.power == core::Power::On;

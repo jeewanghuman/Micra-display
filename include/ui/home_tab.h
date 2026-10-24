@@ -307,7 +307,7 @@ void build_round_home(lv_obj_t* page, const ScreenProfile& screen, bool scale_en
                       HomeWidgets& out);
 void update_round_home(HomeWidgets& w, const core::MachineSnapshot& state,
                        const core::ScaleSnapshot& scale, const core::BrewSnapshot& brew,
-                       bool fahrenheit, bool heating);
+                       bool fahrenheit);
 // The shot ring, fed at the scale's notify rate from App::pump_scale_chart
 // (update_round_home's 2 Hz alone would step visibly). No-op off round glass.
 void round_shot_progress(HomeWidgets& w, float shown_g, float target_g);
