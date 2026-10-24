@@ -323,7 +323,9 @@ void build_round_home(lv_obj_t* page, const ScreenProfile& screen, bool scale_en
   lv_obj_set_size(sub, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
   lv_obj_set_flex_flow(sub, LV_FLEX_FLOW_ROW);
   lv_obj_set_style_pad_column(sub, at(18), 0);
-  lv_obj_align(sub, LV_ALIGN_TOP_MID, 0, at(304));
+  // Below the numerals' descender (the "g" reaches y ~316): with a short
+  // weight ("6.2 g") the g sits over this line's right half.
+  lv_obj_align(sub, LV_ALIGN_TOP_MID, 0, at(324));
   out.shot_timer_label = lv_label_create(sub);
   out.rg_shot_target = lv_label_create(sub);
   for (lv_obj_t* l : {out.shot_timer_label, out.rg_shot_target}) {
@@ -335,12 +337,12 @@ void build_round_home(lv_obj_t* page, const ScreenProfile& screen, bool scale_en
 
   // The flow graph in a glass-rimmed window. Its canvas paints a solid
   // background, so the window itself stays opaque (glassify skips it).
-  // A wide lens across the circle's fattest part: at y 348..528 the chord is
+  // A wide lens across the circle's fattest part: at y 362..542 the chord is
   // over 700 px, so 600 x 180 keeps every corner well inside the glass. The
   // canvas (its content box, 496 x 124 x 2 B = 120 KB) comes out of LVGL's
   // fixed pool; the rectangular boards' run from 170 KB to ~680 KB.
   lv_obj_t* graph = build_round_flow_graph(shot, at(600), at(180), out);
-  lv_obj_align(graph, LV_ALIGN_TOP_MID, 0, at(348));
+  lv_obj_align(graph, LV_ALIGN_TOP_MID, 0, at(362));
   lv_obj_set_style_radius(graph, at(56), 0);
   lv_obj_set_style_clip_corner(graph, true, 0);
   lv_obj_set_style_outline_width(graph, ui::dp(2), 0);
@@ -381,7 +383,7 @@ void update_round_home(HomeWidgets& w, const core::MachineSnapshot& state,
   set_hidden(w.rg_shot_glow, !shot_view);
   if (w.shot_btn != nullptr) {
     const int d = lv_obj_get_width(lv_obj_get_screen(w.shot_btn));
-    const int y = (shot_view ? 544 : 560) * d / 800;
+    const int y = (shot_view ? 558 : 560) * d / 800;
     if (lv_obj_get_style_align(w.shot_btn, LV_PART_MAIN) != LV_ALIGN_TOP_MID ||
         lv_obj_get_style_y(w.shot_btn, LV_PART_MAIN) != y)
       lv_obj_align(w.shot_btn, LV_ALIGN_TOP_MID, 0, y);
