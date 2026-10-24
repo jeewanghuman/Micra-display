@@ -45,6 +45,16 @@ struct StatsWidgets {
   uint32_t window_s = 1800;  // current time window (drives the bottom time scale)
   float target = 0.0f / 0.0f;  // set-point reference line (NaN = none)
   bool fahrenheit = false;     // convert the drawn Y temperature labels
+  // The chart stores degrees x value_scale. 1 everywhere except round glass,
+  // whose axis fits the data tightly enough that whole-degree steps would show
+  // (10 = tenths). App multiplies by it when it feeds the chart.
+  int value_scale = 1;
+  // Round glass only (nullptr elsewhere): the latest reading + set point above
+  // the chart, and the window size between the zoom buttons. Filled by
+  // stats_round_refresh().
+  lv_obj_t* now_value = nullptr;
+  lv_obj_t* now_caption = nullptr;
+  lv_obj_t* window_label = nullptr;
 
   // Info view: a key/value table (values filled from the device-info service).
   lv_obj_t* info_box = nullptr;
@@ -80,6 +90,10 @@ void build_stats_tab(lv_obj_t* parent, const ScreenProfile& screen, StatsWidgets
 
 // Show one section: graph (Brew/Boiler), history, or info; highlight its button.
 void stats_select_section(StatsWidgets& w, int section);
+
+// Round glass: refresh the chart page's header (latest reading, set point) and
+// the window label from what App just fed the chart. No-op on other screens.
+void stats_round_refresh(StatsWidgets& w);
 
 // History list helpers (App drives them from IShotStore data). A row shows
 // "when" plus the shot-type tag (left; see ui::format_shot_mode_tag) and,

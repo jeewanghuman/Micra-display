@@ -1145,7 +1145,8 @@ void App::build(core::IMachine& machine, core::IProvisioner& provisioner,
   } else {
     settings = band_body(settings);
   }
-  // Stats on round glass is built for the whole circle too (the radial chart).
+  // Stats on round glass is built for the whole circle too (the chart window
+  // is wider than the band).
   if (!round) stats = band_body(stats);
   glass_bodies_[0] = round ? settings : nullptr;
   glass_bodies_[1] = round ? stats : nullptr;
@@ -4359,7 +4360,11 @@ void App::update_stats_view() {
   stats_.y_min = 20;
   stats_.y_max = (stats_.active == kStatsBoiler) ? 140 : 100;
   stats_.fahrenheit = display_->use_fahrenheit();  // chart stays C; labels convert
-  lv_chart_set_range(stats_.chart, LV_CHART_AXIS_PRIMARY_Y, stats_.y_min, stats_.y_max);
+  // The chart holds degrees x value_scale (tenths on round glass, whose axis
+  // fits the data closely; whole degrees elsewhere).
+  const int vscale = stats_.value_scale > 0 ? stats_.value_scale : 1;
+  lv_chart_set_range(stats_.chart, LV_CHART_AXIS_PRIMARY_Y, stats_.y_min * vscale,
+                     stats_.y_max * vscale);
 
   // Set-point reference line: the current target for this boiler (none when
   // disconnected, or for the steam boiler while steam is off).
@@ -4390,7 +4395,7 @@ void App::update_stats_view() {
       lv_chart_set_value_by_id(stats_.chart, stats_.series, i, LV_CHART_POINT_NONE);
     } else {
       lv_chart_set_value_by_id(stats_.chart, stats_.series, i,
-                               static_cast<int32_t>(std::lroundf(data[i])));
+                               static_cast<int32_t>(std::lroundf(data[i] * vscale)));
       any = true;
     }
   }
@@ -4400,6 +4405,7 @@ void App::update_stats_view() {
   }
   lv_chart_refresh(stats_.chart);
   lv_obj_invalidate(stats_.chart);  // redraw the overlay (axes, set-point, gaps)
+  ui::stats_round_refresh(stats_);  // round glass: latest reading + window label
 }
 
 void App::update_settings_view() {

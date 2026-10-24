@@ -337,8 +337,8 @@ void build_round_home(lv_obj_t* page, const ScreenProfile& screen, bool scale_en
   // background, so the window itself stays opaque (glassify skips it).
   // A wide lens across the circle's fattest part: at y 348..528 the chord is
   // over 700 px, so 600 x 180 keeps every corner well inside the glass. The
-  // canvas comes out of LVGL's fixed pool (211 KB here vs 154 KB at the old
-  // 470 x 164; the rectangular boards' canvases run to ~550 KB).
+  // canvas (its content box, 496 x 124 x 2 B = 120 KB) comes out of LVGL's
+  // fixed pool; the rectangular boards' run from 170 KB to ~680 KB.
   lv_obj_t* graph = build_round_flow_graph(shot, at(600), at(180), out);
   lv_obj_align(graph, LV_ALIGN_TOP_MID, 0, at(348));
   lv_obj_set_style_radius(graph, at(56), 0);

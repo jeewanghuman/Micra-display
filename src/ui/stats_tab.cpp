@@ -212,96 +212,162 @@ lv_obj_t* make_metric_card(lv_obj_t* parent, const char* caption,
 
 
 // --- Round glass (the 3.4C) -------------------------------------------------
-// The temperature history drawn for the circle: time is the ANGLE (a 300 deg
-// sweep from 7 o'clock, clockwise over the top to 5 o'clock = now — the same
-// sweep as Home's bezel arcs), temperature is the RADIUS (y_min on the inner
-// ring, y_max on the outer). The lv_chart still holds the data — App feeds it
-// exactly as on the rectangular boards — but its own drawing is switched off
-// and this callback paints everything, so it costs no buffer.
-constexpr int kRoundChartSize = 460;   // the chart object (square)
-constexpr int kRoundRingIn = 112;      // y_min radius
-constexpr int kRoundRingOut = 204;     // y_max radius
-constexpr int kRoundSweepStart = 120;  // degrees, LVGL convention (0 = 3 o'clock)
-constexpr int kRoundSweep = 300;
+// Brew/Steam history as an ordinary chart — time left to right, temperature
+// up — fitted to the circle instead of wrapped around it: a wide glass window
+// across the circle's fattest part (its big corners keep every edge on the
+// glass), the latest reading large above it and the time window below. (The
+// first round design plotted time as angle and temperature as radius; on the
+// panel it was hard to read.) The lv_chart still holds App's data — in TENTHS
+// of a degree here (value_scale), so a tight axis doesn't show whole-degree
+// steps — but its own drawing is off: round_chart_draw_cb paints the grid,
+// set point, trace and labels, and fits the temperature axis to the data so a
+// settled boiler's small wobble is visible instead of a flat line on 20-140.
+constexpr int kRoundChartW = 660;  // the glass window (the chart object)
+constexpr int kRoundChartH = 300;
+constexpr int kPlotL = 74;  // insets from the window's edge to the plot: the
+constexpr int kPlotR = 30;  // left one holds the temperature labels, the
+constexpr int kPlotT = 30;  // bottom one the time labels; all clear the
+constexpr int kPlotB = 48;  // window's rounded corners
 
 uint32_t round_trace_color(const StatsWidgets& w) {
   return w.active == kStatsBoiler ? 0xA9D2FF : 0xF2A24A;  // Home's steam / brew
 }
 
-lv_point_t polar(int32_t cx, int32_t cy, float r, float deg) {
-  const float a = deg * 3.14159265f / 180.0f;
-  return {static_cast<int32_t>(cx + r * std::cos(a) + 0.5f),
-          static_cast<int32_t>(cy + r * std::sin(a) + 0.5f)};
+// A readable temperature axis around [lo, hi] (display units): whole-number
+// gridlines 1/2/5/10/20/25/50 apart, at most 5 intervals, never narrower than
+// min_span so sensor noise can't fill the plot.
+struct Axis {
+  float lo, hi, step;
+};
+Axis nice_axis(float lo, float hi, float min_span) {
+  if (hi - lo < min_span) {
+    const float mid = (lo + hi) / 2;
+    lo = mid - min_span / 2;
+    hi = mid + min_span / 2;
+  }
+  const float pad = (hi - lo) * 0.08f;
+  lo -= pad;
+  hi += pad;
+  static const float kSteps[] = {1, 2, 5, 10, 20, 25, 50, 100};
+  float step = kSteps[0];
+  for (float st : kSteps) {
+    step = st;
+    if ((hi - lo) / st <= 5.0f) break;
+  }
+  return {std::floor(lo / step) * step, std::ceil(hi / step) * step, step};
 }
 
-void draw_ring(lv_layer_t* layer, int32_t cx, int32_t cy, int32_t r, int32_t width,
-               float a0, float a1, uint32_t color, lv_opa_t opa, bool rounded) {
-  lv_draw_arc_dsc_t d;
-  lv_draw_arc_dsc_init(&d);
-  d.center.x = cx;
-  d.center.y = cy;
-  d.radius = static_cast<uint16_t>(r);
-  d.width = width;
-  // Normalize: the sweep runs 120 -> 420 deg; the arc drawer wants 0..360.
-  while (a0 >= 360) a0 -= 360;
-  while (a1 >= 360) a1 -= 360;
-  d.start_angle = a0;
-  d.end_angle = a1;
-  d.color = lv_color_hex(color);
+void draw_text(lv_layer_t* layer, const char* text, const lv_font_t* font, lv_opa_t opa,
+               lv_text_align_t align, int32_t x1, int32_t x2, int32_t y_center) {
+  lv_draw_label_dsc_t d;
+  lv_draw_label_dsc_init(&d);
+  d.color = lv_color_hex(0xFFFFFF);
   d.opa = opa;
-  d.rounded = rounded ? 1 : 0;
-  lv_draw_arc(layer, &d);
-}
-
-void draw_text(lv_layer_t* layer, const char* text, const lv_font_t* font,
-               uint32_t color, lv_opa_t opa, int32_t x, int32_t y, int32_t half_w) {
-  lv_draw_label_dsc_t lbl;
-  lv_draw_label_dsc_init(&lbl);
-  lbl.color = lv_color_hex(color);
-  lbl.opa = opa;
-  lbl.font = font;
-  lbl.align = LV_TEXT_ALIGN_CENTER;
-  lbl.text = text;
-  lbl.text_local = 1;
+  d.font = font;
+  d.align = align;
+  d.text = text;
+  d.text_local = 1;
   const int32_t h = lv_font_get_line_height(font);
-  lv_area_t a = {x - half_w, y - h / 2, x + half_w, y + h - h / 2};
-  lv_draw_label(layer, &lbl, &a);
+  lv_area_t a = {x1, y_center - h / 2, x2, y_center - h / 2 + h};
+  lv_draw_label(layer, &d, &a);
 }
 
-void round_chart_overlay_cb(lv_event_t* e) {
+void draw_seg(lv_layer_t* layer, int32_t x1, int32_t y1, int32_t x2, int32_t y2,
+              int32_t width, lv_opa_t opa, uint32_t color, int32_t dash = 0) {
+  lv_draw_line_dsc_t d;
+  lv_draw_line_dsc_init(&d);
+  d.color = lv_color_hex(color);
+  d.width = width;
+  d.opa = opa;
+  d.p1.x = x1;
+  d.p1.y = y1;
+  d.p2.x = x2;
+  d.p2.y = y2;
+  if (dash > 0) {
+    d.dash_width = dash;
+    d.dash_gap = dash * 3 / 4;
+  }
+  lv_draw_line(layer, &d);
+}
+
+void round_chart_draw_cb(lv_event_t* e) {
   auto* w = static_cast<StatsWidgets*>(lv_event_get_user_data(e));
   if (w->series == nullptr) return;
   auto* chart = static_cast<lv_obj_t*>(lv_event_get_target(e));
   lv_layer_t* layer = lv_event_get_layer(e);
   lv_area_t obj;
   lv_obj_get_coords(chart, &obj);
-  const int32_t cx = (obj.x1 + obj.x2 + 1) / 2;
-  const int32_t cy = (obj.y1 + obj.y2 + 1) / 2;
-  const int32_t r_in = ui::dp(kRoundRingIn);
-  const int32_t r_out = ui::dp(kRoundRingOut);
-  const float band = static_cast<float>(r_out - r_in);
-  const float range = static_cast<float>(w->y_max > w->y_min ? w->y_max - w->y_min : 1);
-  const float a_end = kRoundSweepStart + kRoundSweep;
-  const uint32_t trace = round_trace_color(*w);
+  const lv_area_t plot = {obj.x1 + ui::dp(kPlotL), obj.y1 + ui::dp(kPlotT),
+                          obj.x2 - ui::dp(kPlotR), obj.y2 - ui::dp(kPlotB)};
+  const int32_t pw = plot.x2 - plot.x1;
+  const int32_t ph = plot.y2 - plot.y1;
   const uint32_t cnt = lv_chart_get_point_count(chart);
   const int32_t* ys = lv_chart_get_series_y_array(chart, w->series);
-  auto radius_of = [&](float v) {
-    float t = (v - w->y_min) / range;
-    t = t < 0 ? 0 : t > 1 ? 1 : t;
-    return r_in + t * band;
-  };
-  auto angle_of = [&](float i) {
-    return kRoundSweepStart + kRoundSweep * (cnt > 1 ? i / (cnt - 1) : 0.0f);
+  const float scale = static_cast<float>(w->value_scale > 0 ? w->value_scale : 1);
+  const bool f = w->fahrenheit;
+  const uint32_t trace = round_trace_color(*w);
+  const lv_font_t* axis_font = ui::font_dp(20);
+  const lv_font_t* small = ui::font_dp(16);
+  constexpr uint32_t kWhite = 0xFFFFFF;
+  char buf[24];
+  auto x_of = [&](float i) {
+    return plot.x1 + static_cast<int32_t>(cnt > 1 ? pw * i / (cnt - 1) : 0.0f);
   };
 
-  // The glass band the trace lives in, then four faint temperature rings.
-  draw_ring(layer, cx, cy, r_out, r_out - r_in, kRoundSweepStart, a_end, 0xFFFFFF, 16,
-            false);
-  for (int t = 0; t <= 4; ++t)
-    draw_ring(layer, cx, cy, r_in + static_cast<int32_t>(band * t / 4), 1,
-              kRoundSweepStart, a_end, 0xFFFFFF, t == 0 || t == 4 ? 70 : 34, false);
+  // Time: the thirds as faint verticals, labelled under the plot. Drawn even
+  // with no data, so an empty chart still says what it would show.
+  for (int t = 0; t <= 3; ++t) {
+    const int32_t x = plot.x1 + pw * t / 3;
+    if (t == 1 || t == 2) draw_seg(layer, x, plot.y1, x, plot.y2, 1, 26, kWhite);
+    if (t == 3) {
+      std::snprintf(buf, sizeof(buf), "now");
+    } else {
+      char ago[8];
+      fmt_ago(ago, sizeof(ago), w->window_s * static_cast<uint32_t>(3 - t) / 3);
+      std::snprintf(buf, sizeof(buf), "-%s", ago);
+    }
+    const int32_t yc = plot.y2 + ui::dp(kPlotB) / 2;
+    if (t == 0) draw_text(layer, buf, axis_font, 175, LV_TEXT_ALIGN_LEFT, plot.x1, x + ui::dp(90), yc);
+    else if (t == 3) draw_text(layer, buf, axis_font, 175, LV_TEXT_ALIGN_RIGHT, x - ui::dp(90), plot.x2, yc);
+    else draw_text(layer, buf, axis_font, 175, LV_TEXT_ALIGN_CENTER, x - ui::dp(60), x + ui::dp(60), yc);
+  }
 
-  // No-data runs (before recording / BLE gaps): a darker wedge of the band.
+  // The axis fits what's actually there: every reading in the window plus the
+  // set point, so the set-point line is always on the plot.
+  const bool have_target = w->target == w->target;  // NaN != NaN
+  const float target = have_target ? ui::temp_disp(w->target, f) : 0.0f;
+  float lo = 1e9f, hi = -1e9f;
+  int last = -1;
+  for (uint32_t i = 0; i < cnt; ++i) {
+    if (ys[i] == LV_CHART_POINT_NONE) continue;
+    const float v = ui::temp_disp(ys[i] / scale, f);
+    lo = v < lo ? v : lo;
+    hi = v > hi ? v : hi;
+    last = static_cast<int>(i);
+  }
+  // Nothing recorded yet: just the time scale and "No data yet" (the header
+  // still names the set point; a lone set line would cross the message).
+  if (last < 0) return;
+  if (have_target) {
+    lo = target < lo ? target : lo;
+    hi = target > hi ? target : hi;
+  }
+  const Axis ax = nice_axis(lo, hi, f ? 14.0f : 8.0f);
+  auto y_of = [&](float v) {
+    return plot.y2 - static_cast<int32_t>((v - ax.lo) * ph / (ax.hi - ax.lo) + 0.5f);
+  };
+
+  // Temperature gridlines, labelled in the left inset.
+  for (float v = ax.lo; v <= ax.hi + ax.step * 0.01f; v += ax.step) {
+    const int32_t y = y_of(v);
+    draw_seg(layer, plot.x1, y, plot.x2, y, 1, v == ax.lo ? 60 : 34, kWhite);
+    std::snprintf(buf, sizeof(buf), "%d°", static_cast<int>(std::lround(v)));
+    draw_text(layer, buf, axis_font, 175, LV_TEXT_ALIGN_RIGHT, obj.x1 + ui::dp(6),
+              plot.x1 - ui::dp(12), y);
+  }
+
+  // No-data runs (before recording / Bluetooth gaps): a darker band, named
+  // when it's wide enough to hold the words.
   for (uint32_t i = 0; i < cnt;) {
     if (ys[i] != LV_CHART_POINT_NONE) {
       ++i;
@@ -309,97 +375,67 @@ void round_chart_overlay_cb(lv_event_t* e) {
     }
     uint32_t j = i;
     while (j < cnt && ys[j] == LV_CHART_POINT_NONE) ++j;
-    const float a0 = angle_of(i > 0 ? i - 0.5f : 0.0f);
-    const float a1 = angle_of(j < cnt ? j - 0.5f : cnt - 1.0f);
-    if (a1 > a0)
-      draw_ring(layer, cx, cy, r_out - 1, r_out - r_in - 2, a0, a1, 0x000000, 120, false);
+    lv_area_t a = plot;
+    a.x1 = i == 0 ? plot.x1 : x_of(i - 0.5f);
+    a.x2 = j >= cnt ? plot.x2 : x_of(j - 0.5f);
+    lv_draw_rect_dsc_t band;
+    lv_draw_rect_dsc_init(&band);
+    band.bg_color = lv_color_hex(0x000000);
+    band.bg_opa = 110;
+    lv_draw_rect(layer, &band, &a);
+    if (a.x2 - a.x1 >= ui::dp(110))
+      draw_text(layer, "no data", small, 120, LV_TEXT_ALIGN_CENTER, a.x1, a.x2,
+                (plot.y1 + plot.y2) / 2);
     i = j;
   }
 
-  // Set-point: a white ring at the target's radius.
-  if (w->target == w->target && w->target >= w->y_min && w->target <= w->y_max)
-    draw_ring(layer, cx, cy, static_cast<int32_t>(radius_of(w->target)) + 1, ui::dp(2),
-              kRoundSweepStart, a_end, 0xFFFFFF, 150, false);
+  // Set point: a dashed white line, tagged at its right end (above it, or
+  // below when it hugs the top of the plot).
+  if (have_target) {
+    const int32_t y = y_of(target);
+    draw_seg(layer, plot.x1, y, plot.x2, y, ui::dp(2), 170, kWhite, ui::dp(10));
+    std::snprintf(buf, sizeof(buf), "set %.1f°", static_cast<double>(target));
+    const int32_t lh = lv_font_get_line_height(small);
+    const int32_t yc = (y - lh - ui::dp(4) > plot.y1) ? y - lh / 2 - ui::dp(4)
+                                                      : y + lh / 2 + ui::dp(4);
+    draw_text(layer, buf, small, 200, LV_TEXT_ALIGN_RIGHT, plot.x2 - ui::dp(200),
+              plot.x2 - ui::dp(4), yc);
+  }
 
-  // The trace: a soft glow pass, then the line, segment by segment (skipping
-  // gaps). The last real point gets a bead — "now".
+  // The trace: a soft glow, then the line, segment by segment over the gaps.
   lv_draw_line_dsc_t line;
   lv_draw_line_dsc_init(&line);
   line.color = lv_color_hex(trace);
-  line.round_start = 1;
-  line.round_end = 1;
-  int last = -1;
   for (int pass = 0; pass < 2; ++pass) {
-    // Glow without round caps: overlapping caps at the joints would double
-    // the opacity and read as a string of beads.
+    // No round caps on the glow: overlapping caps at the joints would double
+    // its opacity and read as a string of beads.
     line.width = ui::dp(pass == 0 ? 12 : 4);
-    line.opa = pass == 0 ? 50 : LV_OPA_COVER;
+    line.opa = pass == 0 ? 45 : LV_OPA_COVER;
     line.round_start = line.round_end = pass == 0 ? 0 : 1;
     for (uint32_t i = 1; i < cnt; ++i) {
       if (ys[i - 1] == LV_CHART_POINT_NONE || ys[i] == LV_CHART_POINT_NONE) continue;
-      const lv_point_t a = polar(cx, cy, radius_of(ys[i - 1]), angle_of(i - 1.0f));
-      const lv_point_t b = polar(cx, cy, radius_of(ys[i]), angle_of(static_cast<float>(i)));
-      line.p1.x = a.x;
-      line.p1.y = a.y;
-      line.p2.x = b.x;
-      line.p2.y = b.y;
+      line.p1.x = x_of(i - 1.0f);
+      line.p1.y = y_of(ui::temp_disp(ys[i - 1] / scale, f));
+      line.p2.x = x_of(static_cast<float>(i));
+      line.p2.y = y_of(ui::temp_disp(ys[i] / scale, f));
       lv_draw_line(layer, &line);
     }
   }
-  for (int i = static_cast<int>(cnt) - 1; i >= 0; --i) {
-    if (ys[i] != LV_CHART_POINT_NONE) {
-      last = i;
-      break;
-    }
-  }
+  // "Now": a bead on the newest reading.
   if (last >= 0) {
-    const lv_point_t p = polar(cx, cy, radius_of(ys[last]), angle_of(static_cast<float>(last)));
+    const int32_t bx = x_of(static_cast<float>(last));
+    const int32_t by = y_of(ui::temp_disp(ys[last] / scale, f));
     lv_draw_rect_dsc_t bead;
     lv_draw_rect_dsc_init(&bead);
     bead.radius = LV_RADIUS_CIRCLE;
     bead.bg_color = lv_color_hex(0xFFFFFF);
     bead.shadow_color = lv_color_hex(trace);
-    bead.shadow_width = ui::dp(16);
+    bead.shadow_width = ui::dp(14);
     bead.shadow_opa = 200;
     const int32_t br = ui::dp(7);
-    lv_area_t a = {p.x - br, p.y - br, p.x + br, p.y + br};
+    lv_area_t a = {bx - br, by - br, bx + br, by + br};
     lv_draw_rect(layer, &bead, &a);
   }
-
-  // Temperature labels down the 7 o'clock end, just inside the gap.
-  const lv_font_t* small = ui::font_dp(14);
-  char buf[16];
-  for (int t = 0; t <= 4; t += 2) {
-    const float c = static_cast<float>(w->y_min) + range * t / 4;
-    const float v = ui::temp_disp(c, w->fahrenheit);
-    std::snprintf(buf, sizeof(buf), "%d°", static_cast<int>(v + 0.5f));
-    const lv_point_t p = polar(cx, cy, radius_of(c), kRoundSweepStart - 9);
-    draw_text(layer, buf, small, 0xFFFFFF, 150, p.x, p.y, ui::dp(30));
-  }
-  // Time marks: the window's start under the 7 o'clock end, the midpoint over
-  // the top, "now" under the 5 o'clock end.
-  const int32_t lr = r_out + ui::dp(16);
-  char ago[8];
-  fmt_ago(ago, sizeof(ago), w->window_s);
-  std::snprintf(buf, sizeof(buf), "-%s", ago);
-  lv_point_t p = polar(cx, cy, lr + ui::dp(6), kRoundSweepStart + 12);
-  draw_text(layer, buf, small, 0xFFFFFF, 150, p.x, p.y, ui::dp(34));
-  fmt_ago(ago, sizeof(ago), w->window_s / 2);
-  std::snprintf(buf, sizeof(buf), "-%s", ago);
-  p = polar(cx, cy, lr - ui::dp(2), 270);
-  draw_text(layer, buf, small, 0xFFFFFF, 150, p.x, p.y, ui::dp(34));
-  p = polar(cx, cy, lr + ui::dp(6), a_end - 12);
-  draw_text(layer, "now", small, 0xFFFFFF, 150, p.x, p.y, ui::dp(34));
-
-  // Center: the latest reading, what it is, and the window.
-  if (last >= 0) {
-    std::snprintf(buf, sizeof(buf), "%.1f°", ui::temp_disp(static_cast<float>(ys[last]),
-                                                          w->fahrenheit));
-    draw_text(layer, buf, ui::font_dp(40), 0xFFFFFF, LV_OPA_COVER, cx, cy - ui::dp(34),
-              ui::dp(100));
-  }
-  draw_text(layer, w->active == kStatsBoiler ? "Steam boiler" : "Brew boiler",
-            ui::font_dp(16), trace, LV_OPA_COVER, cx, cy + ui::dp(2), ui::dp(100));
 }
 
 // A glass list/info container inside the circle: a large-radius panel that
@@ -451,35 +487,77 @@ void build_round_stats(lv_obj_t* parent, const ScreenProfile& screen, StatsWidge
     lv_obj_center(l);
   }
 
-  // --- Radial temperature chart --------------------------------------------
-  const int cs = ui::dp(kRoundChartSize);
-  out.graph_box = round_glass_box(parent, 0, 0, cs, cs);
-  lv_obj_align(out.graph_box, LV_ALIGN_TOP_MID, 0, ui::dp(186));
+  // --- Temperature chart: reading, glass window, window control ------------
+  // Geometry from the 800 panel: the window spans x 70..730, y 282..582,
+  // where the circle is widest, and its 44 px corners keep it on the glass.
+  out.value_scale = 10;  // tenths (see the painter's comment above)
+  out.graph_box = round_glass_box(parent, 0, ui::dp(186), 0, ui::dp(460));
+  lv_obj_set_width(out.graph_box, lv_pct(100));  // the page is the full screen width
   lv_obj_remove_flag(out.graph_box, LV_OBJ_FLAG_SCROLLABLE);
+
+  out.now_value = lv_label_create(out.graph_box);
+  lv_label_set_text(out.now_value, "--");
+  lv_obj_set_style_text_color(out.now_value, lv_color_hex(0xFFFFFF), 0);
+  lv_obj_set_style_text_font(out.now_value, ui::font_dp(48), 0);
+  lv_obj_align(out.now_value, LV_ALIGN_TOP_MID, 0, 0);
+
+  out.now_caption = lv_label_create(out.graph_box);
+  lv_label_set_text(out.now_caption, "");
+  lv_obj_set_style_text_color(out.now_caption, lv_color_hex(0xFFFFFF), 0);
+  lv_obj_set_style_text_opa(out.now_caption, 165, 0);
+  lv_obj_set_style_text_font(out.now_caption, font, 0);
+  lv_obj_align(out.now_caption, LV_ALIGN_TOP_MID, 0, ui::dp(58));
 
   out.chart = lv_chart_create(out.graph_box);
   lv_obj_remove_style_all(out.chart);
-  lv_obj_set_size(out.chart, lv_pct(100), lv_pct(100));
+  lv_obj_set_size(out.chart, ui::dp(kRoundChartW), ui::dp(kRoundChartH));
+  lv_obj_align(out.chart, LV_ALIGN_TOP_MID, 0, ui::dp(96));
+  round_glass_fill(out.chart, ui::dp(44));
+  lv_obj_set_style_bg_opa(out.chart, 16, 0);
   lv_obj_remove_flag(out.chart, LV_OBJ_FLAG_SCROLLABLE);
   lv_chart_set_type(out.chart, LV_CHART_TYPE_LINE);
   lv_chart_set_point_count(out.chart, kStatsPoints);
   lv_chart_set_div_line_count(out.chart, 0, 0);
-  // The chart's own line/points are switched off: the overlay draws the polar
-  // trace from the same series data.
+  // The chart's own line and points are off: round_chart_draw_cb draws the
+  // trace (and everything else) from the same series data.
   lv_obj_set_style_line_opa(out.chart, LV_OPA_TRANSP, LV_PART_ITEMS);
   lv_obj_set_style_width(out.chart, 0, LV_PART_INDICATOR);
   lv_obj_set_style_height(out.chart, 0, LV_PART_INDICATOR);
   out.series = lv_chart_add_series(out.chart, lv_color_hex(0xF2A24A), LV_CHART_AXIS_PRIMARY_Y);
-  lv_obj_add_event_cb(out.chart, round_chart_overlay_cb, LV_EVENT_DRAW_MAIN_END, &out);
+  lv_obj_add_event_cb(out.chart, round_chart_draw_cb, LV_EVENT_DRAW_MAIN_END, &out);
 
-  // Zoom -/+ inside the inner ring, under the reading.
-  const int zsz = ui::dp(46);
-  out.zoom_out = ui::glass::make_button(out.chart, LV_RADIUS_CIRCLE, ui::glass::Tone::kClear);
+  out.empty_label = lv_label_create(out.chart);
+  lv_label_set_text(out.empty_label, "No data yet");
+  lv_obj_set_style_text_color(out.empty_label, lv_color_hex(0xFFFFFF), 0);
+  lv_obj_set_style_text_opa(out.empty_label, 160, 0);
+  lv_obj_set_style_text_font(out.empty_label, font, 0);
+  // Centred on the plot (not the window: the label insets differ per side).
+  lv_obj_align(out.empty_label, LV_ALIGN_CENTER, ui::dp(kPlotL - kPlotR) / 2,
+               ui::dp(kPlotT - kPlotB) / 2);
+  lv_obj_add_flag(out.empty_label, LV_OBJ_FLAG_HIDDEN);
+
+  // Window control under the chart: [-]  30 min  [+]. "-" zooms OUT (a
+  // longer window), as on the other screens.
+  lv_obj_t* zoom = ui::glass::make_panel(out.graph_box, LV_RADIUS_CIRCLE,
+                                         ui::glass::Tone::kClear);
+  lv_obj_set_size(zoom, ui::dp(250), ui::dp(50));
+  lv_obj_align(zoom, LV_ALIGN_TOP_MID, 0, ui::dp(408));
+  lv_obj_set_style_shadow_width(zoom, 0, 0);
+  lv_obj_set_style_pad_all(zoom, ui::dp(4), 0);
+  lv_obj_set_flex_flow(zoom, LV_FLEX_FLOW_ROW);
+  lv_obj_set_flex_align(zoom, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER,
+                        LV_FLEX_ALIGN_CENTER);
+  const int zsz = ui::dp(42);
+  out.zoom_out = ui::glass::make_button(zoom, LV_RADIUS_CIRCLE, ui::glass::Tone::kClear);
   lv_obj_set_size(out.zoom_out, zsz, zsz);
-  lv_obj_align(out.zoom_out, LV_ALIGN_CENTER, -ui::dp(32), ui::dp(52));
-  out.zoom_in = ui::glass::make_button(out.chart, LV_RADIUS_CIRCLE, ui::glass::Tone::kClear);
+  lv_obj_set_style_shadow_width(out.zoom_out, 0, 0);
+  out.window_label = lv_label_create(zoom);
+  lv_label_set_text(out.window_label, "");
+  lv_obj_set_style_text_color(out.window_label, lv_color_hex(0xFFFFFF), 0);
+  lv_obj_set_style_text_font(out.window_label, font, 0);
+  out.zoom_in = ui::glass::make_button(zoom, LV_RADIUS_CIRCLE, ui::glass::Tone::kClear);
   lv_obj_set_size(out.zoom_in, zsz, zsz);
-  lv_obj_align(out.zoom_in, LV_ALIGN_CENTER, ui::dp(32), ui::dp(52));
+  lv_obj_set_style_shadow_width(out.zoom_in, 0, 0);
   const char* zl[2] = {LV_SYMBOL_MINUS, LV_SYMBOL_PLUS};
   lv_obj_t* zb[2] = {out.zoom_out, out.zoom_in};
   for (int i = 0; i < 2; ++i) {
@@ -488,14 +566,6 @@ void build_round_stats(lv_obj_t* parent, const ScreenProfile& screen, StatsWidge
     lv_obj_set_style_text_font(l, ui::font_dp(20), 0);
     lv_obj_center(l);
   }
-
-  out.empty_label = lv_label_create(out.chart);
-  lv_label_set_text(out.empty_label, "No data yet");
-  lv_obj_set_style_text_color(out.empty_label, lv_color_hex(0xFFFFFF), 0);
-  lv_obj_set_style_text_opa(out.empty_label, 160, 0);
-  lv_obj_set_style_text_font(out.empty_label, font, 0);
-  lv_obj_align(out.empty_label, LV_ALIGN_CENTER, 0, -ui::dp(34));
-  lv_obj_add_flag(out.empty_label, LV_OBJ_FLAG_HIDDEN);
 
   // --- History: three metric bubbles + a glass list -------------------------
   // Geometry from the 800 panel: everything sits between y 190 and 616 and
@@ -982,6 +1052,41 @@ void stats_select_section(StatsWidgets& w, int section) {
     } else {
       lv_obj_set_style_bg_color(w.seg[i], lv_color_hex(ui::theme::card()), 0);
     }
+  }
+}
+
+void stats_round_refresh(StatsWidgets& w) {
+  if (w.now_value == nullptr || w.chart == nullptr || w.series == nullptr) return;
+  const float scale = static_cast<float>(w.value_scale > 0 ? w.value_scale : 1);
+  const uint32_t cnt = lv_chart_get_point_count(w.chart);
+  const int32_t* ys = lv_chart_get_series_y_array(w.chart, w.series);
+  int last = -1;
+  for (int i = static_cast<int>(cnt) - 1; i >= 0; --i) {
+    if (ys[i] != LV_CHART_POINT_NONE) {
+      last = i;
+      break;
+    }
+  }
+  char b[48];
+  if (last >= 0)
+    std::snprintf(b, sizeof(b), "%.1f°",
+                  static_cast<double>(ui::temp_disp(ys[last] / scale, w.fahrenheit)));
+  else
+    std::snprintf(b, sizeof(b), "--");
+  ui::set_text(w.now_value, b);
+  const char* name = w.active == kStatsBoiler ? "Steam boiler" : "Brew boiler";
+  if (w.target == w.target)  // NaN = no set point (offline / steam off)
+    std::snprintf(b, sizeof(b), "%s \xE2\x80\xA2 set %.1f°", name,
+                  static_cast<double>(ui::temp_disp(w.target, w.fahrenheit)));
+  else
+    std::snprintf(b, sizeof(b), "%s", name);
+  ui::set_text(w.now_caption, b);
+  if (w.window_label != nullptr) {
+    if (w.window_s < 3600)
+      std::snprintf(b, sizeof(b), "%u min", static_cast<unsigned>(w.window_s / 60));
+    else
+      std::snprintf(b, sizeof(b), "%u h", static_cast<unsigned>(w.window_s / 3600));
+    ui::set_text(w.window_label, b);
   }
 }
 

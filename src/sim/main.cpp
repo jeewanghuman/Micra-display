@@ -207,6 +207,9 @@ int main() {
     network.set_ntp_seconds_since_sync(-1);
     ok &= r(rd, "renders/round_stats_800x800.png", 2, -1, false, 0, ui::kStatsBrew);
     ok &= r(rd, "renders/round_stats_steam_800x800.png", 2, -1, false, 0, ui::kStatsBoiler);
+    disp.set_use_fahrenheit(true);  // the axis picks round numbers in the user's unit
+    ok &= r(rd, "renders/round_stats_f_800x800.png", 2, -1, false, 0, ui::kStatsBrew);
+    disp.set_use_fahrenheit(false);
     ok &= r(rd, "renders/round_stats_info_800x800.png", 2, -1, false, 0, ui::kStatsInfo);
     ok &= r(rd, "renders/round_token_modal_800x800.png", 0, -1, true);
     ok &= r(rd, "renders/round_clean_lock_800x800.png", 0, -1, false, 0, -1, true);

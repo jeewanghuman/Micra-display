@@ -20,6 +20,9 @@ maps — plain ASCII plus `— – → … × ' "` — or they render as empty b
   settings open the same dial and sheet as Home.
 - **Performance overlay** is now a long-press on the Firmware row in
   Stats → Info.
+- **Easier-to-read round graphs.** Stats shows brew and steam history as a
+  plain chart with the latest reading on top, an axis that zooms to the
+  data, and the set point marked. The shot graph's labels are bigger.
 
 ## v0.14.2
 

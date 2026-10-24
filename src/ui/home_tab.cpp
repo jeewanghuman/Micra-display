@@ -343,13 +343,33 @@ void populate_flow_graph(lv_obj_t* card, HomeWidgets& out) {
   out.flow_unit_btn = btn;
   out.flow_unit_label = blab;
 
+  // Axis labels. Round glass is read from across the counter: the Stats
+  // chart's bigger, brighter labels (20 px, white at 175).
+  const lv_font_t* axis_font = ui::font_dp(g_flow_round ? 20 : 14);
+  auto style_axis_label = [&](lv_obj_t* l) {
+    if (g_flow_round) {
+      lv_obj_set_style_text_color(l, lv_color_hex(0xFFFFFF), 0);
+      lv_obj_set_style_text_opa(l, 175, 0);
+    } else {
+      lv_obj_set_style_text_color(l, lv_color_hex(ui::theme::muted()), 0);
+    }
+    lv_obj_set_style_text_font(l, axis_font, 0);
+  };
+
   // Four Y labels (0, max/3, 2max/3, max) in the left margin, aligned to the plot
   // rows. The top three are dynamic (updated on rescale); the bottom "0" is static.
+  // Round: a fixed column right-aligned against the plot, so "10" and "100"
+  // end at the same x.
   auto make_ylabel = [&](int y) {
     lv_obj_t* l = lv_label_create(card);
-    lv_obj_set_style_text_color(l, lv_color_hex(ui::theme::muted()), 0);
-    lv_obj_set_style_text_font(l, ui::font_dp(14), 0);
-    lv_obj_align(l, LV_ALIGN_TOP_LEFT, ui::dp(-26), y - ui::dp(8));
+    style_axis_label(l);
+    if (g_flow_round) {
+      lv_obj_set_width(l, ui::dp(48));
+      lv_obj_set_style_text_align(l, LV_TEXT_ALIGN_RIGHT, 0);
+      lv_obj_align(l, LV_ALIGN_TOP_LEFT, -ui::dp(56), y - lv_font_get_line_height(axis_font) / 2);
+    } else {
+      lv_obj_align(l, LV_ALIGN_TOP_LEFT, ui::dp(-26), y - ui::dp(8));
+    }
     return l;
   };
   for (int t = 0; t < 3; ++t) out.flow_ylabels[t] = make_ylabel(ph * t / 3);  // max..max/3
@@ -363,11 +383,21 @@ void populate_flow_graph(lv_obj_t* card, HomeWidgets& out) {
     const int secs = out.flow_win_s * (3 - t) / 3;
     if (secs == 0) lv_label_set_text(xl, "now");
     else lv_label_set_text_fmt(xl, "%ds", secs);
-    lv_obj_set_style_text_color(xl, lv_color_hex(ui::theme::muted()), 0);
-    lv_obj_set_style_text_font(xl, ui::font_dp(14), 0);
+    style_axis_label(xl);
     int x = pw * t / 3;
-    if (t == 3) x -= ui::dp(24);
-    else if (t > 0) x -= ui::dp(12);
+    if (g_flow_round) {
+      // Fixed-width boxes: the ends hug the plot's edges, the middles centre.
+      const int bw = ui::dp(64);
+      lv_obj_set_width(xl, bw);
+      lv_obj_set_style_text_align(xl, t == 0   ? LV_TEXT_ALIGN_LEFT
+                                      : t == 3 ? LV_TEXT_ALIGN_RIGHT
+                                               : LV_TEXT_ALIGN_CENTER, 0);
+      x = t == 0 ? 0 : t == 3 ? pw - bw : x - bw / 2;
+    } else if (t == 3) {
+      x -= ui::dp(24);
+    } else if (t > 0) {
+      x -= ui::dp(12);
+    }
     lv_obj_align(xl, LV_ALIGN_TOP_LEFT, x, ph + ui::dp(4));
     out.flow_xlabels[t] = xl;
   }
@@ -376,9 +406,11 @@ void populate_flow_graph(lv_obj_t* card, HomeWidgets& out) {
   // to age there — the sweep gap marks "now"). Hidden until scope mode is active.
   out.flow_xspan_label = lv_label_create(card);
   lv_label_set_text_fmt(out.flow_xspan_label, "%d s window", out.flow_win_s);
-  lv_obj_set_style_text_color(out.flow_xspan_label, lv_color_hex(ui::theme::muted()), 0);
-  lv_obj_set_style_text_font(out.flow_xspan_label, ui::font_dp(14), 0);
-  lv_obj_align(out.flow_xspan_label, LV_ALIGN_TOP_LEFT, pw / 2 - ui::dp(44), ph + ui::dp(4));
+  style_axis_label(out.flow_xspan_label);
+  if (g_flow_round)  // centred on the plot whatever the caption's length
+    lv_obj_align(out.flow_xspan_label, LV_ALIGN_TOP_MID, 0, ph + ui::dp(4));
+  else
+    lv_obj_align(out.flow_xspan_label, LV_ALIGN_TOP_LEFT, pw / 2 - ui::dp(44), ph + ui::dp(4));
   lv_obj_add_flag(out.flow_xspan_label, LV_OBJ_FLAG_HIDDEN);
 
 #ifndef ESP_PLATFORM
@@ -872,12 +904,12 @@ lv_obj_t* build_round_flow_graph(lv_obj_t* parent, int w, int h, HomeWidgets& ou
   lv_obj_set_flex_grow(card, 0);
   lv_obj_set_size(card, w, h);
   // Inset from the lens's big corner radius: the Y labels sit further in so
-  // the rounded corners don't clip them.
+  // the rounded corners don't clip them, and the margins fit 20 px labels.
   lv_obj_set_style_bg_color(card, lv_color_hex(flow_bg_hex()), 0);
-  lv_obj_set_style_pad_left(card, ui::dp(58), 0);
+  lv_obj_set_style_pad_left(card, ui::dp(64), 0);
   lv_obj_set_style_pad_right(card, ui::dp(40), 0);
-  lv_obj_set_style_pad_top(card, ui::dp(24), 0);
-  lv_obj_set_style_pad_bottom(card, ui::dp(26), 0);
+  lv_obj_set_style_pad_top(card, ui::dp(26), 0);
+  lv_obj_set_style_pad_bottom(card, ui::dp(30), 0);
   lv_obj_update_layout(card);  // populate_flow_graph measures the content box
   populate_flow_graph(card, out);
   // Glass chip for the unit toggle, nudged into the plot past the corner.
@@ -889,8 +921,6 @@ lv_obj_t* build_round_flow_graph(lv_obj_t* parent, int w, int h, HomeWidgets& ou
     lv_obj_set_style_border_color(out.flow_unit_btn, lv_color_hex(0xFFFFFF), 0);
     lv_obj_set_style_border_opa(out.flow_unit_btn, 80, 0);
     lv_obj_set_style_pad_ver(out.flow_unit_btn, ui::dp(4), 0);
-    if (out.flow_unit_label != nullptr)
-      lv_obj_set_style_text_font(out.flow_unit_label, ui::font_dp(16), 0);
   }
   return card;
 }

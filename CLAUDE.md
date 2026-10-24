@@ -256,16 +256,24 @@ env adds `-DBOARD_P4_SILICON_REV3`), panel table `BOARD_DSI_PANEL_JD9365_RD34`
   steam-switch pointers in SettingsWidgets are nullptr, so App null-guards
   them. LVGL's perf-overlay label (bottom-right = off the glass) is moved to
   the top centre on round (`apply_perf_overlay`). STATS on round is its own full-page build
-  (`build_round_stats`): a glass segmented capsule, a RADIAL temperature chart
-  (time = angle over Home's 300 deg sweep, temperature = radius; the lv_chart
-  still holds App's data, its own drawing is off and `round_chart_overlay_cb`
-  paints rings/gaps/set-point/trace/bead/centre reading — no buffer), History
-  as metric bubbles over a glass list (no month filter: history_filter_list is
-  null) with URL and SD stacked, Info as one tall glass card. The Home shot
-  graph is a 600x180 lens (canvas from LVGL's fixed 1 MB pool: 211 KB vs the
-  old 154 KB; rectangular boards' canvases run to ~550 KB) painted crema on
-  dark glass (`g_flow_round` in home_tab.cpp); the shot card's graph takes
-  crema/blue (`g_card_round`). Anything else (modal cards, rows App adds
+  (`build_round_stats`): a glass segmented capsule; Brew/Steam as the latest
+  reading (48 px) + "Brew boiler • set 93.0°", an ordinary time-across /
+  temperature-up chart in a 660x300 glass window over the circle's widest
+  part, and a `[-] 30 min [+]` capsule (`stats_round_refresh` fills the
+  labels). The lv_chart still holds App's data but in TENTHS on round
+  (`StatsWidgets::value_scale`, App multiplies when it feeds it); its own
+  drawing is off and `round_chart_draw_cb` paints everything — no buffer —
+  fitting the axis to the readings + set point (`nice_axis`: 1/2/5/10...
+  steps, min span 8 C / 14 F, works in F), 20 px labels, dashed set line,
+  no-data bands, glow trace + bead. (It was a RADIAL chart — time = angle,
+  temperature = radius — until 2026-10-24: hard to read on the panel.)
+  History as metric bubbles over a glass list (no month filter:
+  history_filter_list is null) with URL and SD stacked, Info as one tall
+  glass card. The Home shot graph is a 600x180 lens with 20 px axis labels;
+  its canvas (LVGL's pool, the content box x 2 B) is 496x124 = 120 KB, vs
+  170 KB at 800x480 and up to ~680 KB on the big rectangular panels (sim,
+  2026-10-24). Painted crema on dark glass (`g_flow_round` in home_tab.cpp);
+  the shot card's graph takes crema/blue (`g_card_round`). Anything else (modal cards, rows App adds
   later) is made glass by `ui::glass::glassify_tree` (theme-bg fills -> transparent, card/rail
   fills -> translucent + 1 px white outline; canvases' parents stay opaque),
   re-run at the END of each refresh on the active tab + modal so rows built
