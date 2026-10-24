@@ -14,14 +14,18 @@ accurate and the layering rules there are hard rules:
   check UI work).
 - DOCS SYNC RULE: when features, settings, screens, or boards change, update
   in the same change: MANUAL.md prose + its "Where everything lives" tree +
-  TOCs, docs/HARDWARE.md,
-  README.md, and the screenshots. NOTE the user-facing docs cover only the
-  RELEASED boards (see "Support matrix" below) — a change to an internal-only
-  board updates CLAUDE.md and the code, and must NOT add that board to
-  README/HARDWARE/site — refresh the affected docs/img/*.png from
-  renders/ and re-run `make docs-img` (tools/annotate_docs.py +
-  docs/img/manual/manifest.json; re-measure callout boxes if the layout
-  moved — the script warns when a render's size changes).
+  TOCs, docs/HARDWARE.md, docs/WIRING.md, README.md, and the screenshots.
+  IN THIS FORK the user-facing docs describe the ROUND 3.4C only — its one
+  released board (see "Fork releases"); upstream's boards are not documented
+  here. Every screenshot is a round render: the sim also writes a clean copy
+  of each round frame to renders/glass/, and `make docs-img`
+  (tools/annotate_docs.py + docs/img/manual/manifest.json, `"round": true`
+  entries) cuts it to the circle, scales it to 600 px and draws the
+  callouts; the README's docs/img/*.png come from the same manifest
+  (`"out": "../x.png"`). Callout boxes are in 800x800 render pixels —
+  re-measure them if the layout moved (the script warns when a render's size
+  changes). The Stats > Info shot carries the uptime, so it changes on every
+  run; commit it only when the page itself changed.
 - Board differences live in `include/platform_esp32/board_config.h` blocks +
   feature macros; driver code never hardcodes pins.
 
@@ -188,7 +192,8 @@ existing buffer) over adding memory. Applies to fixes as much as features.
    the last), and the workflow warns if `## Unreleased` is still there at
    release time.
 3. `make build-release` green (or `make build-all` for a platform change).
-4. Commit, push main, then `gh workflow run firmware-release.yml -f tag=vX.Y.Z`
+4. Commit, push the default branch (`master` in this fork — upstream's is
+   `main`), then `gh workflow run firmware-release.yml -f tag=vX.Y.Z`
    (CI creates the tag + Release; never build release binaries locally).
 5. **Approve the deploy.** The build runs unattended, then the `release` and
    `pages` jobs wait in the `release` environment for the owner's click
@@ -213,8 +218,12 @@ run the workflow at `vX.Y.Z`. Devices on the beta see the release as newer
 
 ## Git conventions
 
-- Commit as `marcus@turboio.com` (repo-local config). Do NOT add
-  "Co-Authored-By: Claude" or other AI-signature trailers.
+- Commit as the fork's owner, `jeewanghuman` — copy the name and address
+  from this fork's own commits (`git log --author=jeewanghuman -1`).
+  Upstream's `marcus@turboio.com` belongs to mlsorensen/Apollo2, and the
+  repo-local identity in a cloud session is a placeholder, so pass the
+  identity explicitly (`git -c user.name=... -c user.email=... commit`).
+  Do NOT add "Co-Authored-By: Claude" or other AI-signature trailers.
 
 ## Round glass (P4-WIFI6-Touch-LCD-3.4C, 800x800)
 
@@ -245,12 +254,18 @@ env adds `-DBOARD_P4_SILICON_REV3`), panel table `BOARD_DSI_PANEL_JD9365_RD34`
   draggable lv_arc, -/+ in 0.5 C, Set), the steam capsule the steam sheet
   (on/off + 3 levels) — both App methods on the top layer, writing through
   the same dirty-flag paths as the Settings steppers (`dial_commit`,
-  `steam_choose_*`). SETTINGS (`g_round` in settings_tab.cpp) keeps its
+  `steam_choose_*`). SETTINGS (`ui::round_glass()` in settings_tab.cpp) keeps its
   lv_menu tree and SettingsWidgets wiring but builds into a 520-wide column
   (y 116..640) of glass pill rows (fixed 66 px — flex only centres controls in
   a definite height), a round glass back chevron, amber switches/sliders
   (`round_controls_walk`). No Theme row on round: App pins the Midnight
   palette there (`kRoundThemeIndex`; the stored theme is left untouched).
+  No "Oscilloscope graph" row either: it only styles the idle live sweep,
+  and round Home shows a graph only during a shot, as the shot plot
+  (`scope_graph_switch` is nullptr; App null-guards it). Scale > Device
+  settings chips: read-only rows use LV_STATE_USER_1 (styled at build) —
+  App must never rewrite a chip's bg_opa, or the round translucent pill
+  goes solid white behind white text (fixed 2026-10-24).
   Micra > Controls shows brew/steam as single rows that OPEN the Home dial /
   steam sheet (`brew_open_row`/`steam_open_row`) — on round the stepper +
   steam-switch pointers in SettingsWidgets are nullptr, so App null-guards
@@ -272,8 +287,10 @@ env adds `-DBOARD_P4_SILICON_REV3`), panel table `BOARD_DSI_PANEL_JD9365_RD34`
   glass card. The Home shot graph is a 600x180 lens with 20 px axis labels;
   its canvas (LVGL's pool, the content box x 2 B) is 496x124 = 120 KB, vs
   170 KB at 800x480 and up to ~680 KB on the big rectangular panels (sim,
-  2026-10-24). Painted crema on dark glass (`g_flow_round` in home_tab.cpp);
-  the shot card's graph takes crema/blue (`g_card_round`). Anything else (modal cards, rows App adds
+  2026-10-24). Painted crema on dark glass (home_tab.cpp's flow palette);
+  the shot card's graph takes crema/blue (shot_card.cpp). All three read
+  `ui::round_glass()` (screen.h; App::build sets it beside the UI scale) —
+  the one round flag for helpers that don't have the ScreenProfile. Anything else (modal cards, rows App adds
   later) is made glass by `ui::glass::glassify_tree` (theme-bg fills -> transparent, card/rail
   fills -> translucent + 1 px white outline; canvases' parents stay opaque),
   re-run at the END of each refresh on the active tab + modal so rows built
@@ -305,6 +322,11 @@ env adds `-DBOARD_P4_SILICON_REV3`), panel table `BOARD_DSI_PANEL_JD9365_RD34`
   up, UI visible. Backlight is ACTIVE-LOW like the 4.3 (normal polarity =
   dark panel + POWERON reset loop). Orientation (default MADCTL) and the
   touch mapping (swap XY + mirror Y, as committed) are correct as-is.
+  Not yet confirmed on the unit: paddle pins (J8 7/9/11 = GPIO52/GND/51 per
+  the schematic), audio, SD. No battery circuit: the block defines
+  `BOARD_NO_BATTERY`, battery.cpp reports `BatteryState::hw = false`, and
+  the UI drops the tray power indicator and the Stats > Info Runtime row
+  (the sim poses this for every round render via FakeBattery::set_hw).
 
 ## Fork releases (jeewanghuman/Micra-display)
 
@@ -320,7 +342,13 @@ four boards; here they are not published. Release mechanics are unchanged
 (checklist below): the `release` environment (owner approval) + its
 `RELEASE_TOKEN` secret, Pages serving gh-pages. A unit flashed before
 2026-10-23 still points at upstream and needs one USB flash to switch. Pulling
-upstream changes = merge upstream/main, then release from here.
+upstream changes = merge upstream/main, then release from here. The fork's
+default branch is `master`, and releases are run from it: round work lands on
+a branch and is merged into master before a release. `make build-release`
+here = the 3.4C + sim. The user-facing docs (README, MANUAL,
+docs/HARDWARE.md, docs/WIRING.md) describe the 3.4C only (DOCS SYNC RULE).
+In platformio.ini / board_config.h the 3.4C is marked RELEASED; the other
+blocks' RELEASED markers are upstream's, left as-is for clean merges.
 
 Case: `hardware/3d-prints/esp32-p4-3.4c-shell.scad` (source of truth; the
 .3mf files are exports of it). Round cup + back cover held by 4 radial
@@ -332,6 +360,11 @@ guesses until the owner measures the board. Re-export after changing them:
 `openscad -D 'part="shell"' -o shell.stl ...` (and "cover", "gauge").
 
 ## Support matrix (READ BEFORE TOUCHING ANY BOARD LIST)
+
+UPSTREAM's matrix. In this fork only the round 3.4C is released (see "Fork
+releases"); this section is kept as the record of upstream's boards and for
+merging upstream changes. Read "INTERNAL-ONLY" for the 3.4C below as
+upstream's status, not this fork's.
 
 FOUR boards are released and advertised. Nothing else is, on purpose:
 
@@ -399,13 +432,15 @@ markers in platformio.ini + board_config.h.
 ## Boards / build
 
 Board targets are `<chip>-<panel>` after the Waveshare product names.
-Released: `build-p4-5`, `build-s3-4-3c`, `build-p4-x-8`. Internal-only:
-`make build` (default, the 2-inch S3), `build-s3-7b`, `build-s3-4-3b`,
-`build-p4-4-3`, `build-p4-x-7`, `build-p4-x-10-1`. Matching `flash-*` targets
+Released in this fork: `build-p4-3-4c` (`build-p4-3-4c-rev3` for rev3
+silicon, unpublished). Upstream's released targets (`build-p4-5`,
+`build-p4-4-3`, `build-s3-4-3c`, `build-p4-x-8`) and its internal-only ones
+(`make build` = the 2-inch S3, `build-s3-7b`, `build-s3-4-3b`, `build-p4-x-7`,
+`build-p4-x-10-1`) all still build. Matching `flash-*` targets
 auto-detect the port and can probe a running board's serial banner (pre-rename
 names like `build-p4`/`flash-7b` remain as aliases). Two sweeps:
-`make build-release` (the three released envs + sim — run this before pushing a
-platform change or cutting a release) and `make build-all` (every env + sim).
+`make build-release` (the 3.4C + sim — run this before pushing a platform
+change or cutting a release) and `make build-all` (every env + sim).
 
 WHEN to run full builds: `make build-all` must pass before you PUSH or cut a
 RELEASE of a platform change — not on every edit. During debug/development stay

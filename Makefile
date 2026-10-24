@@ -3,20 +3,23 @@
 # Board targets are named <chip>-<panel>, mirroring the Waveshare product names
 # (ESP32-S3-Touch-LCD-4.3C -> s3-4-3c, ESP32-P4-WIFI6-Touch-LCD-4.3 -> p4-4-3).
 #
-# FOUR boards are RELEASED and advertised (marked [rel] below); the rest build
-# fine but are internal-only - kept as the record of how those boards differ,
-# and as dev hardware. See the "Support matrix" section of CLAUDE.md before
-# promoting one.
+# THIS FORK (jeewanghuman/Micra-display) RELEASES ONE board, the round
+# P4-WIFI6-Touch-LCD-3.4C (marked [rel] below). Every other env builds fine but
+# is unpublished here - upstream's four released boards included. See the
+# "Fork releases" section of CLAUDE.md.
 #
 #   make flash              build + flash the connected board (auto-detect; see below)
-#   make flash BOARD=p4-5   flash a specific board (p4-5 | p4-4-3 | s3-4-3c | p4-x-8 | s3-2 | s3-7b | s3-4-3b | p4-x-7 | p4-x-10-1)
-#   make flash-p4-5 / flash-p4-4-3 / flash-s3-4-3c / flash-p4-x-8   [rel]
+#   make flash BOARD=p4-3-4c   flash a specific board (p4-3-4c | p4-3-4c-rev3 | p4-5 | p4-4-3 | s3-4-3c | p4-x-8 | s3-2 | s3-7b | s3-4-3b | p4-x-7 | p4-x-10-1)
+#   make flash-p4-3-4c                                                       [rel]
+#   make flash-p4-3-4c-rev3 / flash-p4-5 / flash-p4-4-3 / flash-s3-4-3c / flash-p4-x-8
 #   make flash-s3-2 / flash-s3-7b / flash-s3-4-3b / flash-p4-x-7 / flash-p4-x-10-1
-#   make build-p4-5         compile the P4-WIFI6 5" (DSI 1280x720) firmware      [rel]
-#   make build-p4-4-3       compile the P4-WIFI6 4.3" (DSI 800x480) firmware     [rel]
-#   make build-s3-4-3c      compile the S3 4.3C (800x480, dimmable + battery)    [rel]
-#   make build-p4-x-8       compile the P4-WIFI6 X 8" box (DSI 1280x800)         [rel]
-#   make build-release      compile all four released firmwares + the sim
+#   make build-p4-3-4c      compile the round P4-WIFI6 3.4C (DSI 800x800)       [rel]
+#   make build-p4-3-4c-rev3 the same for rev v3 silicon
+#   make build-p4-5         compile the P4-WIFI6 5" (DSI 1280x720) firmware
+#   make build-p4-4-3       compile the P4-WIFI6 4.3" (DSI 800x480) firmware
+#   make build-s3-4-3c      compile the S3 4.3C (800x480, dimmable + battery)
+#   make build-p4-x-8       compile the P4-WIFI6 X 8" box (DSI 1280x800)
+#   make build-release      compile the released firmware (the 3.4C) + the sim
 #   make build-all          compile EVERY device env (released + internal) + sim
 #   make build              compile the default (s3-2, 2" 320x240) firmware
 #   make build-s3-7b        compile the S3 7" (1024x600) firmware
@@ -142,10 +145,10 @@ build-p4-3-4c-rev3: $(WEBAPP_HDR)
 # plus the sim - run it before pushing a platform change or cutting a release.
 # build-all adds the internal-only boards, so a refactor that touches shared
 # driver/board code can be proven against every env we keep.
-build-release: build-p4-5 build-p4-4-3 build-s3-4-3c build-p4-x-8 sim
+build-release: build-p4-3-4c sim
 
-build-all: build-release build build-s3-7b build-s3-4-3b \
-           build-p4-x-7 build-p4-x-10-1 build-p4-3-4c build-p4-3-4c-rev3
+build-all: build-release build build-s3-7b build-s3-4-3b build-p4-5 build-p4-4-3 \
+           build-s3-4-3c build-p4-x-8 build-p4-x-7 build-p4-x-10-1 build-p4-3-4c-rev3
 
 # --- Pre-rename aliases (muscle memory + older docs) -------------------------
 flash-2inch: flash-s3-2

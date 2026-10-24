@@ -14,6 +14,10 @@
 // it gets its OWN copy of the string, and the release workflow asserts the
 // slug appears EXACTLY ONCE in the binary (it is the self-updater's URL — two
 // copies fail the build, as adding a second user of it did).
+//
+// Fork note: this fork (jeewanghuman/Micra-display) releases only the 3.4C
+// block. The "RELEASED" comments on the other blocks are upstream's, kept
+// as-is so upstream merges stay clean (see CLAUDE.md "Fork releases").
 
 namespace board {
 
@@ -829,7 +833,8 @@ constexpr int kSdLdoChannel = 4;
 // from the board schematic (ESP32-P4-WIFI6-Touch-LCD-XC-Schematic.pdf, rev1.1
 // PCB, shared with the 720x720 4C) and Waveshare's XC repo
 // (docs/HARDWARE.md + examples/arduino/libraries/displays/displays_config.h).
-// UNVERIFIED on hardware.
+// HW-verified on a rev v1.3 unit (2026-10): panel, backlight, touch, radio.
+// Paddle header pins, audio and SD are still from the schematic only.
 //
 // SILICON IS PER UNIT. One block serves both generations; the -rev3 env adds
 // -DBOARD_P4_SILICON_REV3 (+ chip_variant "esp32p4" in its boards json), the
@@ -839,10 +844,11 @@ constexpr char kName[] = "Waveshare ESP32-P4-WIFI6-Touch-LCD-3.4C (rev3)";
 #else
 constexpr char kName[] = "Waveshare ESP32-P4-WIFI6-Touch-LCD-3.4C";
 #endif
-// INTERNAL-ONLY board: NOT in the firmware-release.yml matrix, the web
-// flasher, or the docs, so nothing is published at firmware/app/<slug>.bin
-// and self-update cannot complete here (the check runs, the download 404s —
-// see CLAUDE.md "Support matrix"). Slugs kept so promoting it is a matrix row.
+// RELEASED IN THIS FORK (jeewanghuman/Micra-display): the rev v1.x image is
+// the fork's only firmware-release.yml matrix row and web-flasher card, so
+// it self-updates from the fork's site (see CLAUDE.md "Fork releases"). The
+// -rev3 slug is not published: a rev3 unit's install would 404 and roll back
+// (upstream internal-only boards behave the same way).
 #if defined(BOARD_P4_SILICON_REV3)
 inline constexpr char kUpdateSlug[] = "p4-wifi6-touch-lcd-3.4c-rev3";
 #else
