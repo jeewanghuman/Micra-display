@@ -139,7 +139,17 @@ bool render(core::IMachine& machine, core::IProvisioner& provisioner,
       disp_settings.screensaver_style() != core::IDisplaySettings::kSaverClock &&
       !check_saver_dirty_area(screen))
     return false;
-  if (screen.round) display.mask_round();
+  if (screen.round) {
+    // A clean copy first, for the user manual (tools/annotate_docs.py cuts it
+    // to the circle); the render itself is masked to show what the glass hides.
+    const std::filesystem::path glass = p.parent_path() / "glass" / p.filename();
+    std::filesystem::create_directories(glass.parent_path());
+    if (!display.save_png(glass.string().c_str())) {
+      std::fprintf(stderr, "error: failed to write %s\n", glass.string().c_str());
+      return false;
+    }
+    display.mask_round();
+  }
   if (!display.save_png(out_path)) {
     std::fprintf(stderr, "error: failed to write %s\n", out_path);
     return false;
@@ -178,6 +188,15 @@ int main() {
                   unwired_midshot_ms, toast, join_modal, screensaver, update_modal,
                   &updates, &backup, backup_modal, round_sheet);
   };
+  // A round (3.4C) render posed outside the round block below, for the manual:
+  // same fake state as the rectangular twin beside it, without a battery.
+  const ui::ScreenProfile rd{800, 800, 1.0f, true};
+  auto r_round = [&](const char* path, auto... args) {
+    battery.set_hw(false);
+    const bool done = r(rd, path, args...);
+    battery.set_hw(true);
+    return done;
+  };
   bool ok = true;
   ok &= r({800, 480}, "renders/home_800x480.png");
   ok &= r({320, 240}, "renders/home_320x240.png");
@@ -185,7 +204,6 @@ int main() {
   // pill below it, the tray above. The PNGs are masked to the circle (edge in
   // red, off-glass dimmed) so anything the panel would hide is obvious.
   {
-    const ui::ScreenProfile rd{800, 800, 1.0f, true};
     battery.set_hw(false);  // the 3.4C has no battery circuit
     ok &= r(rd, "renders/round_home_800x800.png");
     machine.set_temps(78.0f, 96.0f);
@@ -368,10 +386,12 @@ int main() {
   ok &= r({800, 480}, "renders/micra_cleaning_800x480.png", 1, ui::kSectionMicraCleaning);
   ok &= r({320, 240}, "renders/scale_bt_320x240.png", 1, ui::kSectionScaleBt);
   ok &= r({800, 480}, "renders/scale_bt_800x480.png", 1, ui::kSectionScaleBt);
+  ok &= r_round("renders/round_scale_bt_800x800.png", 1, ui::kSectionScaleBt);
   // Cleaning page with Auto flush on, so the Flush delay row is visible (the
   // user manual's screenshot needs all three rows).
   brew.set_flush_s(3);
   ok &= r({800, 480}, "renders/micra_cleaning_on_800x480.png", 1, ui::kSectionMicraCleaning);
+  ok &= r_round("renders/round_micra_cleaning_on_800x800.png", 1, ui::kSectionMicraCleaning);
   brew.set_flush_s(0);
   ok &= r({320, 240}, "renders/scale_settings_320x240.png", 1, ui::kSectionScaleSettings);
   ok &= r({800, 480}, "renders/scale_settings_800x480.png", 1, ui::kSectionScaleSettings);
@@ -380,6 +400,7 @@ int main() {
   // Scale > Device settings (stored on the scale): live values, and the
   // link-down state where the rows disable ("--") behind a Connect prompt.
   ok &= r({800, 480}, "renders/scale_device_800x480.png", 1, ui::kSectionScaleDevice);
+  ok &= r_round("renders/round_scale_device_800x800.png", 1, ui::kSectionScaleDevice);
   scale.set_connected(false);
   scale_provisioner.set_connect_enabled(false);
   ok &= r({800, 480}, "renders/scale_device_disc_800x480.png", 1,
@@ -413,6 +434,10 @@ int main() {
   ok &= r({800, 480}, "renders/device_backup_empty_800x480.png", 1, ui::kSectionDeviceBackup);
   backup.pose_backup_present();
   ok &= r({800, 480}, "renders/device_backup_800x480.png", 1, ui::kSectionDeviceBackup);
+  ok &= r_round("renders/round_device_backup_800x800.png", 1, ui::kSectionDeviceBackup);
+  ok &= r_round("renders/round_backup_modal_800x800.png", 1, ui::kSectionDeviceBackup,
+                false, 0, -1, false, -1, 0, false, false, false, false, false, false,
+                false, 1);
   ok &= r({1280, 720, 1.5f}, "renders/device_backup_1280x720.png", 1, ui::kSectionDeviceBackup);
   ok &= r({1280, 720, 1.5f}, "renders/backup_modal_1280x720.png", 1, ui::kSectionDeviceBackup,
           false, 0, -1, false, -1, 0, false, false, false, false, false, false, false, 1);
@@ -467,6 +492,8 @@ int main() {
   // flow shows the same layout with different copy).
   ok &= r({800, 480}, "renders/join_modal_800x480.png", 0, -1, false, 0, -1,
           false, -1, 0, false, false, false, false, true);
+  ok &= r_round("renders/round_join_modal_800x800.png", 0, -1, false, 0, -1, false, -1, 0,
+                false, false, false, false, true);
   ok &= r({320, 240}, "renders/join_modal_320x240.png", 0, -1, false, 0, -1,
           false, -1, 0, false, false, false, false, true);
   ok &= r(p5, "renders/join_modal_1280x720.png", 0, -1, false, 0, -1,

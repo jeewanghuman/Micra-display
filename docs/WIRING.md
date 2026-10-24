@@ -26,11 +26,12 @@ it), but you will have the machine open — **unplug the Micra first**.
   [this one](https://a.co/d/07cSW1AY), but any 3‑conductor cable works.
 - **Bullet connectors** (or your favorite splice) for the in‑machine pigtail,
   so everything stays pluggable and reversible.
-- **P4 boards only**: a single‑channel **PC817‑style opto‑isolator module**,
-  e.g. [this one](https://a.co/d/03qHqcyM) — anything similar works. (The
-  S3‑4.3C has isolators built in; no module needed.) A
-  [2.54 mm screw‑terminal block](https://a.co/d/0eVdsD4h) that clips onto the
-  P4's GPIO header makes the board‑side connection clean and solder‑free.
+- A single‑channel **PC817‑style opto‑isolator module**, e.g.
+  [this one](https://a.co/d/03qHqcyM) — anything similar works. It keeps
+  Apollo electrically separate from the machine's controller.
+- A [2.54 mm screw‑terminal block](https://a.co/d/0eVdsD4h) that clips onto
+  the board's 40‑pin header makes the board‑side connection clean and
+  solder‑free.
 
 Although there are **four** connections at the machine end (Micra white,
 Micra black, and the two paddle‑switch wires), one 3‑conductor cable is all
@@ -61,43 +62,31 @@ you're looking at:
 
 ![Loom pulled up, tapped with bullet connectors](img/wiring/micra-loom-tap.jpg)
 
-## ESP32‑S3‑Touch‑LCD‑4.3C / 4.3C‑BOX (built‑in isolators)
+## At the board: the 3.4C's header
 
-The 4.3C's isolated DI/DO terminal block already contains the opto‑isolators,
-so the 3‑conductor cable is the whole job:
-
-| Board terminal | Connects to |
-|----------------|-------------|
-| **DO0** | Micra **white** (thin wire, controller +5 V) |
-| **DI0** | one paddle‑switch wire |
-| **GND** | Micra **black** (thin wire) **and** the other paddle‑switch wire (shared) |
-
-Note: use the **GND** terminal for the paddle return, **not DI COM** — DI COM
-is internally biased on this board, and the paddle must close DI0 to ground to
-be sensed.
-
-A finished 4.3C cable — bare wires for the screw terminals at the board end,
-bullet connectors at the machine end (two on the shared ground conductor):
-
-![Finished 4.3C cable](img/wiring/cable-s3.jpg)
-
-## ESP32‑P4 boards (external opto module)
-
-On the P4‑WIFI6‑Touch‑LCD‑5 (and the 4.3), the paddle uses three native pins
-that sit **side by side** on the corner of the GPIO header — **GND, GPIO 52,
-GPIO 51**, in that order on the silkscreen — so a
+The paddle uses three pins that sit **in a row** on the board's 40‑pin header,
+which is laid out like a Raspberry Pi's: **pins 7, 9 and 11** — the
+odd‑numbered column, the one that starts with pin 1 — carry **GPIO 52, GND
+and GPIO 51**, in that order. A
 [2.54 mm 3‑pin screw‑terminal block](https://a.co/d/0eVdsD4h) clips straight
-onto them, no soldering. The X‑series boxes (7"/8") use the **same three
-pins**: on their 40‑pin header one pin column runs GND, IO52, IO51 in a row
-near the header's end (per the schematic — the photos below show the 5";
-double‑check the silkscreen before clipping on):
+onto them, no soldering.
+
+> [!CAUTION]
+> These positions come from Waveshare's schematic and haven't been checked
+> on a real 3.4C yet. Before clipping anything on, find pin 1 on the
+> silkscreen and confirm pin 9 is ground (continuity to the USB‑C shell, or
+> to a known GND pin such as 6).
+
+The photos below are of upstream's 5" P4 board, whose header has the same
+three signals in a different order (GND, 52, 51 at its corner); they show the
+idea:
 
 ![The P4 header corner — GND, 52, 51 in a row](img/wiring/p4-header-pins.jpg)
 
 ![Screw-terminal block on the pins, cable attached](img/wiring/p4-header-terminal.jpg)
 
-The cable can run out through a hole in the 3D‑printed backplate. From there,
-the opto module provides the isolation:
+The cable leaves the round case through the slot at its bottom edge. From
+there, the opto module provides the isolation:
 
 ![Apollo P4 → opto module → Micra wiring](img/wiring/p4-opto-wiring.svg)
 
@@ -120,9 +109,9 @@ In detail:
   see the manual's "Paddle pin protection & per‑unit remapping" section.
 
 **No‑solder way to add that resistor:** use a **4‑slot** screw‑terminal block
-instead of the 3‑slot. Positions 1–3 land on GND / 52 / 51 as usual; position
-4 hangs past the used pins — **bend or cut off its header pin** so it doesn't
-insert into the board. Screw the **1 kΩ resistor** in as a jumper between
+instead of the 3‑slot. Positions 1–3 land on pins 7 / 9 / 11 (52 / GND / 51)
+as usual; position 4 would land on pin 13 — **bend or cut off its header pin**
+so it doesn't insert into the board. Screw the **1 kΩ resistor** in as a jumper between
 positions 3 and 4, then land the paddle‑sense wire in position **4** instead
 of 3: the signal reaches GPIO 51 only through the resistor, and nothing was
 soldered or spliced.
@@ -130,7 +119,8 @@ soldered or spliced.
 ![4-slot terminal block with the resistor jumpering positions 3-4 and the
 position-4 pin bent clear](img/wiring/paddle-resistor-terminal.jpg)
 
-A finished P4 cable with the opto module spliced in near the machine end
+A finished cable (upstream's P4 build) with the opto module spliced in near
+the machine end
 (shown before wrapping the module in heat‑shrink — do wrap it, so nothing can
 short out inside the machine). Of the cable's conductors, **red + black feed
 the opto module's input** — that pair carries Apollo's drive and becomes the
@@ -151,12 +141,12 @@ neoprene sheet between the module and the nearest hot surface does the job.
 ## Bench‑test before installing
 
 The whole cable can be validated before it ever touches the machine. Connect
-it to Apollo, power up, and turn on **Settings → Micra → Settings → Wired
+it to Apollo, power up, and turn on **Settings → Micra → Controls → Wired
 paddle**. Apollo relays the paddle regardless of anything else, so:
 
 1. **Touch the two paddle‑sense wires together** — to Apollo that's the
-   paddle flipping ON. On a P4 build the opto module's **red LED lights**
-   while they're touching.
+   paddle flipping ON. The opto module's **red LED lights** while they're
+   touching.
 2. **Meter the Micra side**: with a multimeter in continuity mode across the
    two machine‑side connectors (the ones destined for the Micra's white and
    black), you should read a **closed circuit** while the sense wires touch
@@ -173,5 +163,6 @@ you unplugged** for loom access, and put the top panel back on.
 ## Afterwards
 
 With **Wired paddle** on (from the bench test above), the **Auto shot** mode
-appears on the Home shot pill and **Auto flush** becomes available. See the
+appears on the Home shot pill, the **Flush** button appears on Home, and
+**Auto flush** becomes available. See the
 [manual](../MANUAL.md) for what each mode does.
