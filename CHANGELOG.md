@@ -7,6 +7,23 @@ for someone reading the diff. These notes are also shown ON THE DEVICE, whose
 fonts are ASCII-only: stick to characters `sanitize_notes()` (src/ui/app.cpp)
 maps — plain ASCII plus `— – → … × ' "` — or they render as empty boxes.
 
+## Unreleased
+
+- **Round display support.** Runs on the Waveshare ESP32-P4 3.4C round touch
+  display, with a new glass-style interface built for the circle.
+- **Updates from this fork.** The display now checks
+  jeewanghuman.github.io/Micra-display for new versions instead of the
+  original Apollo 2 site.
+- **Tidier settings.** The chime and button sounds share a new Sound page, the
+  shot graph options moved to Shot settings → Graph, and Time & date hides its
+  pickers once WiFi has set the clock. On the round display, brew and steam
+  settings open the same dial and sheet as Home.
+- **Performance overlay** is now a long-press on the Firmware row in
+  Stats → Info.
+- **Easier-to-read round graphs.** Stats shows brew and steam history as a
+  plain chart with the latest reading on top, an axis that zooms to the
+  data, and the set point marked. The shot graph's labels are bigger.
+
 ## v0.14.2
 
 ### Changes

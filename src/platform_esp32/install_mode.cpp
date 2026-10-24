@@ -24,7 +24,9 @@ namespace platform {
 namespace install_mode {
 namespace {
 
-constexpr char kSiteBase[] = "https://mlsorensen.github.io/Apollo2";
+// This fork publishes its own releases (the round 3.4C build) — see the
+// "Fork releases" note in CLAUDE.md. Upstream Apollo2 has no 3.4C image.
+constexpr char kSiteBase[] = "https://jeewanghuman.github.io/Micra-display";
 
 lv_obj_t* g_title = nullptr;
 lv_obj_t* g_bar = nullptr;

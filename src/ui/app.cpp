@@ -9,6 +9,7 @@
 
 #include "core/log_ring.h"
 #include "core/system.h"
+#include "ui/glass.h"
 #include "ui/saver_art.h"
 #include "ui/shot_card.h"
 #include "ui/stats_tab.h"
@@ -18,6 +19,8 @@
 #include "ui/widgets.h"
 #include "version.h"
 
+
+LV_FONT_DECLARE(font_outfit_hero);
 namespace {
 
 void style_tab_button(lv_obj_t* btn, const lv_font_t* font) {
@@ -314,7 +317,17 @@ void on_reset_stats_cancel(lv_event_t* e) {
 void on_stats_segment(lv_event_t* e) {
   auto* app = static_cast<ui::App*>(lv_event_get_user_data(e));
   auto* btn = static_cast<lv_obj_t*>(lv_event_get_target(e));
-  app->select_stats_section(static_cast<int>(lv_obj_get_index(btn)));
+  // The section is the button's position among its BUTTON siblings: the round
+  // glass capsule also holds its specular-rim child at index 0, so a raw
+  // lv_obj_get_index would select the section to the right of the tapped one.
+  lv_obj_t* row = lv_obj_get_parent(btn);
+  int section = 0;
+  for (uint32_t i = 0; i < lv_obj_get_child_count(row); ++i) {
+    lv_obj_t* c = lv_obj_get_child(row, static_cast<int32_t>(i));
+    if (c == btn) break;
+    if (lv_obj_check_type(c, &lv_button_class)) ++section;
+  }
+  app->select_stats_section(section);
 }
 void on_zoom_in(lv_event_t* e) {
   static_cast<ui::App*>(lv_event_get_user_data(e))->zoom_step(-1);  // shorter window
@@ -495,10 +508,10 @@ void on_scope_graph_switch(lv_event_t* e) {
   auto* sw = static_cast<lv_obj_t*>(lv_event_get_target(e));
   app->set_scope_graph(lv_obj_has_state(sw, LV_STATE_CHECKED));
 }
-void on_perf_overlay_switch(lv_event_t* e) {
-  auto* app = static_cast<ui::App*>(lv_event_get_user_data(e));
-  auto* sw = static_cast<lv_obj_t*>(lv_event_get_target(e));
-  app->set_perf_overlay(lv_obj_has_state(sw, LV_STATE_CHECKED));
+// Long-press on Stats > Info's Firmware row: the performance overlay is a
+// developer aid, so it sits behind a gesture rather than in Settings.
+void on_fw_row_long_pressed(lv_event_t* e) {
+  static_cast<ui::App*>(lv_event_get_user_data(e))->toggle_perf_overlay();
 }
 void on_click_sound_switch(lv_event_t* e) {
   auto* app = static_cast<ui::App*>(lv_event_get_user_data(e));
@@ -621,6 +634,9 @@ void set_flush_delay_label(ui::SettingsWidgets& s, int delay_s) {
 // Graph smoothing levels (IDisplaySettings::flow_smooth 0..3). The kernels
 // themselves live with the painters in home_tab.cpp (kSmoothLevels).
 constexpr const char* kSmoothName[] = {"Off", "Light", "Medium", "Strong"};
+// Round glass's fixed palette: Midnight (index 0; the palette list in
+// theme.cpp is append-only, so the index is stable).
+constexpr int kRoundThemeIndex = 0;
 // Shot-graph X-window growth (IDisplaySettings::shot_window_growth 0..2); the
 // mapping itself lives in home_tab.cpp (shot_live_mapping).
 constexpr const char* kWindowGrowthName[] = {"Snap", "Smooth", "Continuous"};
@@ -652,7 +668,9 @@ void set_dim_label(ui::SettingsWidgets& s) {
 //   Dim  — backlight at the same dim floor, the live UI stays on screen (the
 //          original screensaver, from before the lion existed)
 //   Off  — backlight fully off (set_brightness(0) is a true off, not a minimum)
-constexpr const char* kSaverName[] = {"Lion", "Apollo", "Alternate", "Dim", "Off"};
+//   Clock — round glass only: the time and a drifting glass orb with the
+//          machine's state, at the same dim floor (start_clock_saver)
+constexpr const char* kSaverName[] = {"Lion", "Apollo", "Alternate", "Dim", "Off", "Clock"};
 constexpr int kSaverCount = static_cast<int>(sizeof(kSaverName) / sizeof(kSaverName[0]));
 static_assert(kSaverCount == core::IDisplaySettings::kSaverStyleCount,
               "kSaverName must follow core::IDisplaySettings::SaverStyle");
@@ -777,12 +795,23 @@ void on_wifi_setup_cancel(lv_event_t* e) {
 }
 // Show/hide LVGL's performance monitor (FPS/CPU) on the default display. Compiled
 // out when the sysmon isn't built, so the toggle just persists a no-op preference.
-void apply_perf_overlay(bool on) {
+// LVGL parks the label bottom-right (LV_USE_PERF_MONITOR_POS), which is off the
+// glass on the round panel: there it moves to the top centre, above the tray.
+// (It's the only label on the system layer — LVGL's own object, no new memory.)
+void apply_perf_overlay(bool on, bool round) {
 #if LV_USE_PERF_MONITOR
   if (on) lv_sysmon_show_performance(nullptr);
   else lv_sysmon_hide_performance(nullptr);
+  if (on && round) {
+    lv_obj_t* sys = lv_layer_sys();
+    for (uint32_t i = 0; i < lv_obj_get_child_count(sys); ++i) {
+      lv_obj_t* c = lv_obj_get_child(sys, static_cast<int32_t>(i));
+      if (lv_obj_check_type(c, &lv_label_class)) lv_obj_align(c, LV_ALIGN_TOP_MID, 0, ui::dp(30));
+    }
+  }
 #else
   (void)on;
+  (void)round;
 #endif
 }
 // lv_menu fires VALUE_CHANGED on every page navigation; re-seed the clock steppers
@@ -811,7 +840,9 @@ void set_theme_label(ui::SettingsWidgets& s) {
 
 // Switching the main tab (e.g. leaving Settings) commits any pending temp edit.
 void on_tab_changed(lv_event_t* e) {
-  static_cast<ui::App*>(lv_event_get_user_data(e))->commit_temp_edits();
+  auto* app = static_cast<ui::App*>(lv_event_get_user_data(e));
+  app->commit_temp_edits();
+  app->sync_round_backdrop();
 }
 
 float clampf(float v, float lo, float hi) { return v < lo ? lo : (v > hi ? hi : v); }
@@ -882,6 +913,10 @@ void set_temp_controls_enabled(ui::SettingsWidgets& s, bool connected) {
   const bool boiler_en = connected && s.steam_enabled;  // can't set level when off
   set_clickable(s.boiler_minus, boiler_en && boiler_can_dec(s));
   set_clickable(s.boiler_plus, boiler_en && boiler_can_inc(s));
+  // Round glass rows: the dial / sheet need a machine to talk to (the sheet
+  // has its own On/Off, so steam-off doesn't grey its row).
+  set_clickable(s.brew_open_row, connected);
+  set_clickable(s.steam_open_row, connected);
 }
 
 }  // namespace
@@ -932,13 +967,20 @@ void App::build(core::IMachine& machine, core::IProvisioner& provisioner,
   network_ = &network;
   sound_ = &sound;
   screen_ = screen;
-  ui::set_scale(screen.scale);  // before any widget: ui::dp/font_dp read this
+  // Before any widget: ui::dp/font_dp read the scale, the glass styling the
+  // round flag.
+  ui::set_scale(screen.scale);
+  ui::set_round_glass(screen.round);
   const bool compact = is_compact(screen);
   const bool xl = is_xl(screen);
   const bool round = is_round(screen);
   const ui::Band band = ui::round_band(screen);
 
-  ui::theme::set_active(display_->theme());  // pick the palette before any widget is colored
+  // Pick the palette before any widget is colored. Round glass draws its own
+  // glass colours over black and was designed on Midnight, so it has no Theme
+  // row and pins that palette; the stored choice is untouched (a settings
+  // backup restored onto a rectangular board still carries it).
+  ui::theme::set_active(round ? kRoundThemeIndex : display_->theme());
 
   // Button-press click on audio boards. The hook is read at event time and
   // checks the cached setting, so the switch takes effect immediately.
@@ -959,6 +1001,7 @@ void App::build(core::IMachine& machine, core::IProvisioner& provisioner,
   // The toast lives on lv_layer_top (never cleaned by build) and captured the
   // old theme's colors — kill it rather than carry it across.
   dismiss_toast();
+  close_dial();  // the top layer survives a rebuild; the dial must not
   if (home_.shot_flash_timer != nullptr) {
     lv_timer_delete(home_.shot_flash_timer);
     home_.shot_flash_timer = nullptr;
@@ -1032,9 +1075,12 @@ void App::build(core::IMachine& machine, core::IProvisioner& provisioner,
     lv_obj_set_style_bg_opa(rail, LV_OPA_TRANSP, 0);
     lv_obj_set_style_pad_left(rail, (screen.width - row_w) / 2, 0);
     lv_obj_set_style_pad_right(rail, (screen.width - row_w) / 2, 0);
-    lv_obj_set_style_pad_top(rail, cap / 8, 0);
-    lv_obj_set_style_pad_bottom(rail, cap * 3 / 8, 0);
+    lv_obj_set_style_pad_top(rail, cap * 3 / 16, 0);
+    lv_obj_set_style_pad_bottom(rail, cap * 7 / 16, 0);
     lv_obj_set_style_pad_column(rail, ui::dp(12), 0);
+    // The cap shows whatever is behind the tabview: the black backdrop on Home,
+    // the plain theme background elsewhere (pages paint their own, below).
+    lv_obj_set_style_bg_opa(content, LV_OPA_TRANSP, 0);
   }
 
   lv_obj_t* home = lv_tabview_add_tab(tv, LV_SYMBOL_HOME);
@@ -1052,7 +1098,21 @@ void App::build(core::IMachine& machine, core::IProvisioner& provisioner,
     // tray. Grow the buttons so they fill the bar (big touch targets) instead of
     // sitting small with dead space; the non-grow tray labels stay at the right.
     if (compact || round) lv_obj_set_flex_grow(tb, 1);
-    if (round) lv_obj_set_style_radius(tb, LV_RADIUS_CIRCLE, 0);
+    if (round) {
+      // Liquid glass: unselected tabs are bare white glyphs on the dock; the
+      // selected one sits in a brighter glass bubble (see ui::glass kBright).
+      lv_obj_set_style_radius(tb, LV_RADIUS_CIRCLE, 0);
+      lv_obj_set_style_text_color(tb, lv_color_hex(0xFFFFFF), 0);
+      lv_obj_set_style_text_opa(tb, 185, 0);
+      lv_obj_set_style_text_font(tb, ui::font_dp(24), 0);
+      lv_obj_set_style_text_opa(tb, LV_OPA_COVER, LV_STATE_CHECKED);
+      lv_obj_set_style_text_color(tb, lv_color_hex(0xFFFFFF), LV_STATE_CHECKED);
+      lv_obj_set_style_bg_color(tb, lv_color_hex(0xFFFFFF), LV_STATE_CHECKED);
+      lv_obj_set_style_bg_opa(tb, 72, LV_STATE_CHECKED);
+      lv_obj_set_style_border_color(tb, lv_color_hex(0xFFFFFF), LV_STATE_CHECKED);
+      lv_obj_set_style_border_width(tb, ui::dp(2), LV_STATE_CHECKED);
+      lv_obj_set_style_border_opa(tb, 120, LV_STATE_CHECKED);
+    }
   }
 
   // Round: each tab lays out in the content band, not the full square — the
@@ -1069,12 +1129,31 @@ void App::build(core::IMachine& machine, core::IProvisioner& provisioner,
     lv_obj_set_size(body, band.w, band.h);
     return body;
   };
-  home = band_body(home);
-  settings = band_body(settings);
-  stats = band_body(stats);
-
   const bool scale_on =
       scale_provisioner_ != nullptr && !scale_provisioner_->saved_name().empty();
+  // ...except the liquid-glass Home, which is designed for the whole circle
+  // and takes the full page (build_round_home).
+  if (!round) home = band_body(home);
+  if (round) {
+    // Settings: a column narrower and taller than the band — every row is a
+    // pill, and at 520 px wide the pills stay inside the circle from just
+    // under the tray down to the dock (at 800: x 140..660, y 116..640).
+    lv_obj_remove_flag(settings, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_style_pad_all(settings, 0, 0);
+    lv_obj_t* body = lv_obj_create(settings);
+    lv_obj_remove_style_all(body);
+    lv_obj_set_pos(body, (screen.width - ui::dp(520)) / 2, ui::dp(116));
+    lv_obj_set_size(body, ui::dp(520), band.y + band.h - ui::dp(116));  // page = band bottom
+    settings = body;
+  } else {
+    settings = band_body(settings);
+  }
+  // Stats on round glass is built for the whole circle too (the chart window
+  // is wider than the band).
+  if (!round) stats = band_body(stats);
+  glass_bodies_[0] = round ? settings : nullptr;
+  glass_bodies_[1] = round ? stats : nullptr;
+
   build_home_tab(home, screen, scale_on, home_);
   // Every layout except large-no-scale drops the top bar and moves clock/battery to
   // a tray (visible on every tab). Compact -> a horizontal tray on the bottom tab
@@ -1085,6 +1164,20 @@ void App::build(core::IMachine& machine, core::IProvisioner& provisioner,
     // Round: clock / WiFi / battery as one centered row in the cap above the
     // band, floating over every tab (a child of the screen, not of a page).
     ui::build_round_tray(scr, band.y, ui::font_dp(16), home_);
+    // The tab dock: one glass capsule behind the three tab buttons, INSIDE the
+    // tab bar (so it hides with the tabview under a modal or sheet). The
+    // tabview finds its buttons by class, not index, so a plain object at
+    // index 0 is ignored by it — the same trick the rail trays use. Placed
+    // out of the bar's flex layout, around the buttons' row (x/y are relative
+    // to the bar's content box, i.e. inside its padding).
+    const int cap = screen.height - (band.y + band.h);
+    const int row_w = ui::dp(3 * 96 + 2 * 12);
+    const int inset = ui::dp(8);
+    lv_obj_t* dock = ui::glass::make_panel(rail, LV_RADIUS_CIRCLE, ui::glass::Tone::kClear);
+    lv_obj_add_flag(dock, LV_OBJ_FLAG_IGNORE_LAYOUT);
+    lv_obj_set_size(dock, row_w + 2 * inset, cap * 6 / 16 + 2 * inset);
+    lv_obj_set_pos(dock, -inset, -inset);
+    lv_obj_move_to_index(dock, 0);
   } else if (compact) {
     ui::build_bottom_tray(rail, ui::font_dp(14), home_);
   } else {
@@ -1093,6 +1186,19 @@ void App::build(core::IMachine& machine, core::IProvisioner& provisioner,
     // Font 16 (not 20) so a 2-digit 12h clock ("12:55 PM") + "100%" battery fit the
     // narrow rail without clipping (font metrics differ on-device vs sim).
     ui::build_rail_tray(rail, ui::font_dp(16), home_);
+  }
+  sync_round_backdrop();
+  if (home_.round_glass) {
+    lv_obj_add_event_cb(
+        home_.brew_value,
+        [](lv_event_t* e) { static_cast<ui::App*>(lv_event_get_user_data(e))->open_brew_dial(); },
+        LV_EVENT_CLICKED, this);
+    lv_obj_add_event_cb(
+        home_.rg_steam_capsule,
+        [](lv_event_t* e) {
+          static_cast<ui::App*>(lv_event_get_user_data(e))->open_steam_sheet();
+        },
+        LV_EVENT_CLICKED, this);
   }
   lv_obj_add_event_cb(home_.power_btn, on_power_clicked, LV_EVENT_CLICKED, this);
   if (home_.tare_btn != nullptr)
@@ -1185,11 +1291,26 @@ void App::build(core::IMachine& machine, core::IProvisioner& provisioner,
     lv_obj_add_event_cb(settings_.xgrow_btn, on_xgrow_clicked, LV_EVENT_CLICKED, this);
   }
   lv_obj_add_event_cb(settings_.target_plus, on_target_plus, LV_EVENT_CLICKED, this);
-  lv_obj_add_event_cb(settings_.brew_minus, on_brew_minus, LV_EVENT_ALL, this);
-  lv_obj_add_event_cb(settings_.brew_plus, on_brew_plus, LV_EVENT_ALL, this);
-  lv_obj_add_event_cb(settings_.boiler_minus, on_boiler_minus, LV_EVENT_CLICKED, this);
-  lv_obj_add_event_cb(settings_.boiler_plus, on_boiler_plus, LV_EVENT_CLICKED, this);
-  lv_obj_add_event_cb(settings_.steam_switch, on_steam_switch, LV_EVENT_VALUE_CHANGED, this);
+  if (settings_.brew_minus != nullptr) {  // steppers (every layout but round glass)
+    lv_obj_add_event_cb(settings_.brew_minus, on_brew_minus, LV_EVENT_ALL, this);
+    lv_obj_add_event_cb(settings_.brew_plus, on_brew_plus, LV_EVENT_ALL, this);
+    lv_obj_add_event_cb(settings_.boiler_minus, on_boiler_minus, LV_EVENT_CLICKED, this);
+    lv_obj_add_event_cb(settings_.boiler_plus, on_boiler_plus, LV_EVENT_CLICKED, this);
+    lv_obj_add_event_cb(settings_.steam_switch, on_steam_switch, LV_EVENT_VALUE_CHANGED, this);
+  }
+  // Round glass: the Controls rows open Home's own dial / steam sheet.
+  if (settings_.brew_open_row != nullptr)
+    lv_obj_add_event_cb(
+        settings_.brew_open_row,
+        [](lv_event_t* e) { static_cast<ui::App*>(lv_event_get_user_data(e))->open_brew_dial(); },
+        LV_EVENT_CLICKED, this);
+  if (settings_.steam_open_row != nullptr)
+    lv_obj_add_event_cb(
+        settings_.steam_open_row,
+        [](lv_event_t* e) {
+          static_cast<ui::App*>(lv_event_get_user_data(e))->open_steam_sheet();
+        },
+        LV_EVENT_CLICKED, this);
   if (settings_.brightness_minus != nullptr) {  // absent on boards that can't dim
     lv_obj_add_event_cb(settings_.brightness_minus, on_brightness_minus, LV_EVENT_CLICKED, this);
     lv_obj_add_event_cb(settings_.brightness_plus, on_brightness_plus, LV_EVENT_CLICKED, this);
@@ -1208,8 +1329,9 @@ void App::build(core::IMachine& machine, core::IProvisioner& provisioner,
   lv_obj_add_event_cb(settings_.units_switch, on_units_switch, LV_EVENT_VALUE_CHANGED, this);
   lv_obj_add_event_cb(settings_.drop_neg_flow_switch, on_drop_neg_flow_switch,
                       LV_EVENT_VALUE_CHANGED, this);
-  lv_obj_add_event_cb(settings_.scope_graph_switch, on_scope_graph_switch,
-                      LV_EVENT_VALUE_CHANGED, this);
+  if (settings_.scope_graph_switch != nullptr)  // not on round glass
+    lv_obj_add_event_cb(settings_.scope_graph_switch, on_scope_graph_switch,
+                        LV_EVENT_VALUE_CHANGED, this);
   if (settings_.clean_lock_btn != nullptr)
     lv_obj_add_event_cb(settings_.clean_lock_btn, on_clean_lock_clicked, LV_EVENT_CLICKED,
                         this);
@@ -1236,8 +1358,6 @@ void App::build(core::IMachine& machine, core::IProvisioner& provisioner,
   }
   if (settings_.backflush_btn != nullptr)  // paddle-capable boards only
     lv_obj_add_event_cb(settings_.backflush_btn, on_backflush_open, LV_EVENT_CLICKED, this);
-  lv_obj_add_event_cb(settings_.perf_overlay_switch, on_perf_overlay_switch,
-                      LV_EVENT_VALUE_CHANGED, this);
   if (settings_.click_sound_switch != nullptr) {
     if (click_sound_on_) lv_obj_add_state(settings_.click_sound_switch, LV_STATE_CHECKED);
     lv_obj_add_event_cb(settings_.click_sound_switch, on_click_sound_switch,
@@ -1278,6 +1398,9 @@ void App::build(core::IMachine& machine, core::IProvisioner& provisioner,
   lv_obj_add_event_cb(settings_.menu, on_menu_page_changed, LV_EVENT_VALUE_CHANGED, this);
 
   build_stats_tab(stats, screen, stats_);
+  // Round: Settings and Stats become dark glass over the black backdrop.
+  ui::glass::glassify_tree(glass_bodies_[0]);
+  ui::glass::glassify_tree(glass_bodies_[1]);
   for (int i = 0; i < kStatsCount; ++i) {
     lv_obj_add_event_cb(stats_.seg[i], on_stats_segment, LV_EVENT_CLICKED, this);
   }
@@ -1291,6 +1414,17 @@ void App::build(core::IMachine& machine, core::IProvisioner& provisioner,
   }
   if (stats_.info_log_btn != nullptr)
     lv_obj_add_event_cb(stats_.info_log_btn, on_info_log_row, LV_EVENT_CLICKED, this);
+  // No battery circuit (the 3.4C): the Runtime row would only ever say "USB
+  // power", so it goes.
+  if (!battery_state_.hw && stats_.info_val[1] != nullptr)
+    lv_obj_add_flag(lv_obj_get_parent(stats_.info_val[1]), LV_OBJ_FLAG_HIDDEN);
+  // The performance overlay (LVGL FPS/CPU) toggles on a long-press of the
+  // Firmware row — a developer aid kept out of Settings.
+  if (stats_.info_val[0] != nullptr) {
+    lv_obj_t* fw_row = lv_obj_get_parent(stats_.info_val[0]);
+    lv_obj_add_flag(fw_row, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_event_cb(fw_row, on_fw_row_long_pressed, LV_EVENT_LONG_PRESSED, this);
+  }
   if (stats_.update_btn != nullptr) {
     if (updates_ != nullptr)
       lv_obj_add_event_cb(stats_.update_btn, on_manual_check_clicked,
@@ -1313,6 +1447,11 @@ void App::build(core::IMachine& machine, core::IProvisioner& provisioner,
   settings_.screen_timeout_min = display_->screen_timeout_min();
   set_dim_label(settings_);
   settings_.screensaver_style = display_->screensaver_style();
+  // A Clock choice restored onto a rectangular board (settings backups
+  // travel) falls back to the default artwork there.
+  if (settings_.screensaver_style == core::IDisplaySettings::kSaverClock &&
+      !ui::is_round(screen_))
+    settings_.screensaver_style = core::IDisplaySettings::kSaverLion;
   sync_saver_row(settings_);
   // Idle-dim poll. Created once (build() reruns on theme rebuilds; the timer
   // isn't part of the widget tree, so it survives them).
@@ -1325,11 +1464,11 @@ void App::build(core::IMachine& machine, core::IProvisioner& provisioner,
   if (drop_neg) lv_obj_add_state(settings_.drop_neg_flow_switch, LV_STATE_CHECKED);
   home_.flow_drop_negative = drop_neg;
   const bool scope = display_->scope_graph();
-  if (scope) lv_obj_add_state(settings_.scope_graph_switch, LV_STATE_CHECKED);
+  if (scope && settings_.scope_graph_switch != nullptr)
+    lv_obj_add_state(settings_.scope_graph_switch, LV_STATE_CHECKED);
   home_.flow_scope_mode = scope;
-  const bool perf = display_->perf_overlay();
-  if (perf) lv_obj_add_state(settings_.perf_overlay_switch, LV_STATE_CHECKED);
-  apply_perf_overlay(perf);  // match the saved preference (LVGL auto-shows it at init)
+  // Match the saved preference (LVGL auto-shows the overlay at init).
+  apply_perf_overlay(display_->perf_overlay(), round);
   if (network_ != nullptr) {
     if (network_->enabled()) lv_obj_add_state(settings_.wifi_switch, LV_STATE_CHECKED);
     if (network_->ntp_enabled()) lv_obj_add_state(settings_.ntp_switch, LV_STATE_CHECKED);
@@ -1357,6 +1496,7 @@ void App::build(core::IMachine& machine, core::IProvisioner& provisioner,
   }
   ui::apply_flow_xaxis_labels(home_);  // initial x-axis label set (no plot reset)
   seed_time_controls();
+  sync_time_rows();
 
   settings_.theme_index = ui::theme::active_index();
   set_theme_label(settings_);
@@ -1437,6 +1577,16 @@ void App::refresh() {
   }
   update_result_poll();  // surface a finished update check (notice / "up to date")
   backup_result_poll();  // ...and a finished settings backup/restore
+  // Round glass: keep rows built after the tab (scan results, history list,
+  // modal content) glassy. Last, so rows this tick's updates just added are
+  // converted before they are ever drawn opaque. Cheap: only still-opaque
+  // fills are touched.
+  if (ui::is_round(screen_) && tabview_ != nullptr) {
+    const uint32_t tab = lv_tabview_get_tab_active(tabview_);
+    if (tab == 1 || tab == 2) ui::glass::glassify_tree(glass_bodies_[tab - 1]);
+    ui::glass::glassify_tree(modal_);
+    ui::glass::glassify_tree(bf_overlay_);
+  }
 }
 
 // A press updates the local value AND writes it to the machine right away (the
@@ -1556,10 +1706,31 @@ void App::seed_time_controls() {
 void App::on_settings_page_shown() {
   // Re-seed the Hour/Minute steppers from the live clock whenever the Time & date
   // page is opened, so they reflect the current time instead of the boot-time seed.
+  // The pickers vs "set automatically" swap is decided here too: it can only
+  // change between visits, and deciding it on entry never moves a row out from
+  // under a finger.
   if (settings_.menu != nullptr &&
       lv_menu_get_cur_main_page(settings_.menu) == settings_.device_time_page) {
     seed_time_controls();
+    sync_time_rows();
   }
+}
+
+void App::sync_time_rows() {
+  if (settings_.time_row == nullptr || settings_.time_auto_note == nullptr) return;
+  // Automatic = Auto time is on AND it has actually set the clock this session.
+  // Until then (no WiFi, no internet) the pickers are the only way to a real
+  // date, so they stay.
+  const bool automatic = network_ != nullptr && network_->ntp_enabled() &&
+                         network_->ntp_seconds_since_sync() >= 0;
+  auto show = [](lv_obj_t* o, bool on) {
+    if (o == nullptr || on != lv_obj_has_flag(o, LV_OBJ_FLAG_HIDDEN)) return;
+    if (on) lv_obj_remove_flag(o, LV_OBJ_FLAG_HIDDEN);
+    else lv_obj_add_flag(o, LV_OBJ_FLAG_HIDDEN);
+  };
+  show(settings_.time_row, !automatic);
+  show(settings_.date_row, !automatic);
+  show(settings_.time_auto_note, automatic);
 }
 
 void App::hour_select(int idx) {
@@ -1693,7 +1864,14 @@ void App::ready_chime_vol_adjust(int dir) {
 
 void App::set_perf_overlay(bool on) {
   if (display_ != nullptr) display_->set_perf_overlay(on);  // persist
-  apply_perf_overlay(on);  // show/hide the LVGL sysmon label now
+  apply_perf_overlay(on, ui::is_round(screen_));  // show/hide the LVGL sysmon label now
+}
+
+void App::toggle_perf_overlay() {
+  if (display_ == nullptr) return;
+  const bool on = !display_->perf_overlay();
+  set_perf_overlay(on);
+  show_toast(on ? "Performance overlay on" : "Performance overlay off");
 }
 
 void App::theme_select(int idx) {
@@ -1778,8 +1956,13 @@ void App::update_temp_panels(const core::MachineSnapshot& s) {
     } else if (s.steam_enabled == settings_.steam_enabled) {
       settings_.steam_enable_dirty = false;  // machine confirmed the toggle
     }
-    if (settings_.steam_enabled) lv_obj_add_state(settings_.steam_switch, LV_STATE_CHECKED);
-    else lv_obj_remove_state(settings_.steam_switch, LV_STATE_CHECKED);
+    if (settings_.steam_switch == nullptr) {
+      // round glass: no switch; the Steam row's value reads "Off" instead
+    } else if (settings_.steam_enabled) {
+      lv_obj_add_state(settings_.steam_switch, LV_STATE_CHECKED);
+    } else {
+      lv_obj_remove_state(settings_.steam_switch, LV_STATE_CHECKED);
+    }
 
     // Track the machine's value unless we have an unconfirmed local edit; clear
     // the edit once the machine reports it back (then resume tracking).
@@ -1811,6 +1994,19 @@ void App::update_temp_panels(const core::MachineSnapshot& s) {
 
 void App::show_tab(int index) {
   if (tabview_ != nullptr) lv_tabview_set_active(tabview_, index, LV_ANIM_OFF);
+  sync_round_backdrop();
+}
+
+void App::sync_round_backdrop() {
+  // The round-glass backdrop (black + bezel arcs) lives behind the whole
+  // tabview and shows through every tab. The arcs are Home's: off Home they
+  // hide.
+  if (home_.rg_ring == nullptr || tabview_ == nullptr) return;
+  const bool on_home = lv_tabview_get_tab_active(tabview_) == 0;
+  if (on_home == lv_obj_has_flag(home_.rg_ring, LV_OBJ_FLAG_HIDDEN)) {
+    if (on_home) lv_obj_remove_flag(home_.rg_ring, LV_OBJ_FLAG_HIDDEN);
+    else lv_obj_add_flag(home_.rg_ring, LV_OBJ_FLAG_HIDDEN);
+  }
 }
 
 void App::toggle_power() {
@@ -1925,6 +2121,10 @@ void App::cycle_screen_timeout() {
 void App::cycle_screensaver_style() {
   if (display_ == nullptr) return;
   settings_.screensaver_style = (settings_.screensaver_style + 1) % kSaverCount;
+  // Clock is designed for the circle; rectangular screens skip it.
+  if (settings_.screensaver_style == core::IDisplaySettings::kSaverClock &&
+      !ui::is_round(screen_))
+    settings_.screensaver_style = core::IDisplaySettings::kSaverLion;
   display_->set_screensaver_style(settings_.screensaver_style);
   sync_saver_row(settings_);
 }
@@ -1976,6 +2176,11 @@ void App::screensaver_tick() {
 
 void App::start_screensaver(int style) {
   stop_screensaver();
+  close_dial();  // on the top layer, it would float over the saver
+  if (style == core::IDisplaySettings::kSaverClock && ui::is_round(screen_)) {
+    start_clock_saver();
+    return;
+  }
   // A full-screen cover on the top layer. Its first job in every style is to
   // swallow the waking tap so it can't press whatever control happens to sit
   // under the finger. The artworks and Off paint it opaque black; Dim leaves
@@ -2119,9 +2324,15 @@ void App::stop_screensaver() {
     saver_prev_screen_ = nullptr;
   }
   saver_img_ = nullptr;
+  // The clock saver's widgets died with saver_screen_.
+  saver_clock_ = saver_day_ = saver_orb_ = saver_orb_temp_ = saver_orb_state_ = nullptr;
 }
 
 void App::saver_anim_tick() {
+  if (saver_orb_ != nullptr) {
+    clock_saver_tick();
+    return;
+  }
   if (saver_img_ == nullptr) return;
   // Alternate: the other artwork takes over every kSaverSwapMs. Only the image
   // changes -- position, direction and color carry on as they were.
@@ -2145,6 +2356,154 @@ void App::saver_anim_tick() {
                                    lv_color_hex(kSaverColors[saver_color_i_]), 0);
   }
   lv_obj_set_pos(saver_img_, x, y);
+}
+
+// ---- Clock idle screen (round glass) ----------------------------------------
+// The "Apollo Round — Liquid Glass" Idle mockup: on black, faint brew/steam
+// bezel tracks, the weekday and a large thin clock, and a glass orb with the
+// brew temperature and machine state that drifts slowly round an ellipse
+// below the clock. Like the artworks it is its OWN screen (the UI costs
+// nothing while it is unloaded) at the per-board dim backlight. Burn-in: the
+// orb laps every few minutes and the clock sways a few pixels, so no bright
+// pixel stays put for hours.
+
+void App::start_clock_saver() {
+  const int d = screen_.width < screen_.height ? screen_.width : screen_.height;
+  auto at = [d](int px) { return px * d / 800; };
+
+  saver_prev_screen_ = lv_screen_active();
+  saver_screen_ = lv_obj_create(nullptr);
+  lv_obj_remove_style_all(saver_screen_);
+  lv_obj_set_style_bg_color(saver_screen_, lv_color_black(), 0);
+  lv_obj_set_style_bg_opa(saver_screen_, LV_OPA_COVER, 0);
+  lv_obj_add_flag(saver_screen_, LV_OBJ_FLAG_CLICKABLE);  // swallows the waking tap
+  lv_obj_remove_flag(saver_screen_, LV_OBJ_FLAG_SCROLLABLE);
+  lv_screen_load(saver_screen_);
+
+  // Faint bezel tracks: brew (amber) left, steam (blue) right. Static.
+  static constexpr struct { int start, end; uint32_t color; lv_opa_t opa; } kTracks[] = {
+      {120, 240, 0xF2A24A, 85}, {300, 60, 0xA9D2FF, 70}};
+  for (const auto& tr : kTracks) {
+    lv_obj_t* arc = lv_arc_create(saver_screen_);
+    lv_obj_remove_style_all(arc);
+    lv_obj_remove_flag(arc, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_size(arc, 2 * (at(372) + at(2)), 2 * (at(372) + at(2)));
+    lv_obj_center(arc);
+    lv_arc_set_rotation(arc, 0);
+    lv_arc_set_bg_angles(arc, tr.start, tr.end);
+    lv_arc_set_value(arc, lv_arc_get_min_value(arc));
+    lv_obj_set_style_arc_width(arc, at(3), LV_PART_MAIN);
+    lv_obj_set_style_arc_rounded(arc, true, LV_PART_MAIN);
+    lv_obj_set_style_arc_color(arc, lv_color_hex(tr.color), LV_PART_MAIN);
+    lv_obj_set_style_arc_opa(arc, tr.opa, LV_PART_MAIN);
+  }
+
+  saver_day_ = lv_label_create(saver_screen_);
+  lv_obj_set_style_text_font(saver_day_, ui::font_dp(20), 0);
+  lv_obj_set_style_text_color(saver_day_, lv_color_hex(0xFFFFFF), 0);
+  lv_obj_set_style_text_opa(saver_day_, 140, 0);
+  lv_obj_set_style_text_letter_space(saver_day_, ui::dp(2), 0);
+  lv_label_set_text(saver_day_, "");
+
+  saver_clock_ = lv_label_create(saver_screen_);
+  lv_obj_set_style_text_font(saver_clock_, &font_outfit_hero, 0);
+  lv_obj_set_style_text_color(saver_clock_, lv_color_hex(0xFFFFFF), 0);
+  lv_obj_set_style_text_opa(saver_clock_, 225, 0);
+  lv_obj_set_style_text_letter_space(saver_clock_, -at(6), 0);
+  lv_label_set_text(saver_clock_, "--:--");
+
+  // The orb: a glass marble with the amber glow showing through it (the
+  // glow is its shadow, recoloured and spread).
+  saver_orb_ = ui::glass::make_panel(saver_screen_, LV_RADIUS_CIRCLE, ui::glass::Tone::kClear);
+  lv_obj_set_size(saver_orb_, at(124), at(124));
+  lv_obj_set_style_shadow_color(saver_orb_, lv_color_hex(0xE8913E), 0);
+  lv_obj_set_style_shadow_width(saver_orb_, at(70), 0);
+  lv_obj_set_style_shadow_spread(saver_orb_, at(2), 0);
+  lv_obj_set_style_shadow_offset_y(saver_orb_, at(6), 0);
+  lv_obj_set_style_shadow_opa(saver_orb_, 190, 0);
+  lv_obj_set_flex_flow(saver_orb_, LV_FLEX_FLOW_COLUMN);
+  lv_obj_set_flex_align(saver_orb_, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER,
+                        LV_FLEX_ALIGN_CENTER);
+  saver_orb_temp_ = lv_label_create(saver_orb_);
+  lv_obj_set_style_text_font(saver_orb_temp_, ui::font_dp(28), 0);
+  saver_orb_state_ = lv_label_create(saver_orb_);
+  lv_obj_set_style_text_font(saver_orb_state_, ui::font_dp(14), 0);
+  lv_obj_set_style_text_opa(saver_orb_state_, 210, 0);
+
+  // Initial placement; the tick only re-aligns when the sway moves them.
+  lv_obj_align(saver_clock_, LV_ALIGN_TOP_MID, 0, at(232));
+  lv_obj_align(saver_day_, LV_ALIGN_TOP_MID, 0, at(198));
+  saver_clock_t0_ = lv_tick_get();
+  clock_saver_tick();  // place + fill now, not a tick later
+  // 10 Hz: the orb crawls a few px per second; faster would only redraw it
+  // in place.
+  saver_anim_ = lv_timer_create(on_saver_anim_timer, 100, this);
+}
+
+void App::clock_saver_tick() {
+  if (saver_orb_ == nullptr) return;
+  const int d = screen_.width < screen_.height ? screen_.width : screen_.height;
+  auto at = [d](int px) { return px * d / 800; };
+  constexpr float kTwoPi = 6.2831853f;
+  const float t = static_cast<float>(lv_tick_elaps(saver_clock_t0_)) / 1000.0f;
+
+  // Orb: one lap of a flat ellipse below the clock every 4 minutes.
+  const float a = 0.9f + t * (kTwoPi / 240.0f);
+  const int orb = at(124);  // its set size (get_width reads 0 before the first layout)
+  const int ox = screen_.width / 2 + static_cast<int>(std::lround(at(190) * std::cos(a))) - orb / 2;
+  const int oy = at(590) + static_cast<int>(std::lround(at(40) * std::sin(a))) - orb / 2;
+  if (lv_obj_get_x(saver_orb_) != ox || lv_obj_get_y(saver_orb_) != oy)
+    lv_obj_set_pos(saver_orb_, ox, oy);
+  // Clock + weekday: a slow +-8 px sway (10-minute period).
+  const int sway = static_cast<int>(std::lround(at(8) * std::sin(t * (kTwoPi / 600.0f))));
+  if (lv_obj_get_style_x(saver_clock_, LV_PART_MAIN) != sway) {
+    lv_obj_align(saver_clock_, LV_ALIGN_TOP_MID, sway, at(232));
+    lv_obj_align(saver_day_, LV_ALIGN_TOP_MID, sway, at(198));
+  }
+
+  char buf[24];
+  const core::WallTime now = clock_ != nullptr ? clock_->now() : core::WallTime{};
+  if (now.valid) {
+    int h = now.hour;
+    if (!clock_->use_24h()) {  // 12-hour: no AM/PM on the idle clock
+      h %= 12;
+      if (h == 0) h = 12;
+    }
+    std::snprintf(buf, sizeof(buf), "%d:%02d", h, now.minute);
+  } else {
+    std::snprintf(buf, sizeof(buf), "--:--");
+  }
+  ui::set_text(saver_clock_, buf);
+  if (now.date_valid) {
+    // Sakamoto's day-of-week (0 = Sunday).
+    static constexpr int kT[] = {0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4};
+    static constexpr const char* kDay[] = {"SUNDAY",   "MONDAY", "TUESDAY", "WEDNESDAY",
+                                           "THURSDAY", "FRIDAY", "SATURDAY"};
+    int y = now.year;
+    if (now.month < 3) y -= 1;
+    const int dow =
+        (y + y / 4 - y / 100 + y / 400 + kT[(now.month - 1) % 12] + now.day) % 7;
+    ui::set_text(saver_day_, kDay[dow]);
+  } else {
+    ui::set_text(saver_day_, "");
+  }
+
+  // Orb: brew temperature + the machine's state.
+  const char* state = "Offline";
+  if (machine_ != nullptr) {
+    const core::MachineSnapshot m = machine_->snapshot();
+    if (m.link == core::Link::Connected) {
+      std::snprintf(buf, sizeof(buf), "%.0f°",
+                    static_cast<double>(ui::temp_disp(m.brew_temp_c, display_->use_fahrenheit())));
+      state = m.power != core::Power::On ? "Standby" : heating_ ? "Heating" : "Ready";
+    } else {
+      std::snprintf(buf, sizeof(buf), "--");
+    }
+  } else {
+    std::snprintf(buf, sizeof(buf), "--");
+  }
+  ui::set_text(saver_orb_temp_, buf);
+  ui::set_text(saver_orb_state_, state);
 }
 
 void App::pose_screensaver() {
@@ -2205,7 +2564,7 @@ void App::open_update_modal() {
   lv_obj_set_style_text_font(hint, ui::font_dp(12), 0);
   lv_label_set_text(hint,
                     "Or install from a computer at "
-                    "mlsorensen.github.io/Apollo2 - settings are kept. "
+                    "jeewanghuman.github.io/Micra-display - settings are kept. "
                     "Turn these notices off under Settings > Apollo > WiFi.");
 
   // Install now downloads the image and reboots into it (both BLE links are
@@ -2644,6 +3003,9 @@ void App::pump_scale_chart() {
     if (snap.connected) std::snprintf(wb, sizeof(wb), "%.1f g", static_cast<double>(shown));
     else std::snprintf(wb, sizeof(wb), "-- g");
     lv_label_set_text(home_.scale_weight, wb);
+    // Round glass: the shot ring follows the weight at the same rate.
+    if (have_brew && snap.connected && bsnap.phase != core::ShotPhase::kIdle)
+      ui::round_shot_progress(home_, shown, bsnap.target_weight_g);
   }
 
   // Shot timer: continuous (ms) value, so redraw on a fixed ~10 Hz cadence that
@@ -2741,6 +3103,7 @@ lv_obj_t* App::open_modal_card(const char* title) {
                         LV_FLEX_ALIGN_CENTER);
   lv_obj_set_style_pad_all(card, ui::dp(14), 0);
   lv_obj_set_style_pad_row(card, ui::dp(10), 0);
+  if (ui::is_round(screen_)) ui::glass::glassify_tree(card);  // its rows: next refresh
 
   // Larger faces on the non-compact tiers: the WiFi/token instructions carry
   // an SSID + URL the user has to read across the room while holding a phone.
@@ -2994,6 +3357,7 @@ void App::open_backflush() {
   bf_state_ = brew_->snapshot().backflush_active ? kBackflushRunning : kBackflushPrompt;
   if (bf_timer_ == nullptr) bf_timer_ = lv_timer_create(on_backflush_timer, 250, this);
   backflush_tick();  // paint the initial state now, not a tick later
+  if (ui::is_round(screen_)) ui::glass::glassify_tree(bf_overlay_);  // over the black
 }
 
 void App::close_backflush() {
@@ -3335,7 +3699,8 @@ void App::update_history_view() {
       lv_obj_set_style_text_color(stats_.history_sd_label,
                                   lv_color_hex(ui::theme::muted()), 0);
     }
-    lv_obj_align(stats_.history_sd_label, LV_ALIGN_RIGHT_MID, 0, 0);
+    lv_obj_align(stats_.history_sd_label,
+                 ui::is_round(screen_) ? LV_ALIGN_CENTER : LV_ALIGN_RIGHT_MID, 0, 0);
   }
 
   // Rebuild the month filter + rows only when the data or filter changed —
@@ -4004,7 +4369,11 @@ void App::update_stats_view() {
   stats_.y_min = 20;
   stats_.y_max = (stats_.active == kStatsBoiler) ? 140 : 100;
   stats_.fahrenheit = display_->use_fahrenheit();  // chart stays C; labels convert
-  lv_chart_set_range(stats_.chart, LV_CHART_AXIS_PRIMARY_Y, stats_.y_min, stats_.y_max);
+  // The chart holds degrees x value_scale (tenths on round glass, whose axis
+  // fits the data closely; whole degrees elsewhere).
+  const int vscale = stats_.value_scale > 0 ? stats_.value_scale : 1;
+  lv_chart_set_range(stats_.chart, LV_CHART_AXIS_PRIMARY_Y, stats_.y_min * vscale,
+                     stats_.y_max * vscale);
 
   // Set-point reference line: the current target for this boiler (none when
   // disconnected, or for the steam boiler while steam is off).
@@ -4035,7 +4404,7 @@ void App::update_stats_view() {
       lv_chart_set_value_by_id(stats_.chart, stats_.series, i, LV_CHART_POINT_NONE);
     } else {
       lv_chart_set_value_by_id(stats_.chart, stats_.series, i,
-                               static_cast<int32_t>(std::lroundf(data[i])));
+                               static_cast<int32_t>(std::lroundf(data[i] * vscale)));
       any = true;
     }
   }
@@ -4045,6 +4414,7 @@ void App::update_stats_view() {
   }
   lv_chart_refresh(stats_.chart);
   lv_obj_invalidate(stats_.chart);  // redraw the overlay (axes, set-point, gaps)
+  ui::stats_round_refresh(stats_);  // round glass: latest reading + window label
 }
 
 void App::update_settings_view() {
@@ -4258,13 +4628,14 @@ void App::update_scale_view() {
                    (v >= 0 && v < d.option_count) ? d.option_labels[v] : "--");
       // Read-only rows (e.g. the Lunar's Mode) drop the button chrome
       // entirely — bare right-aligned text reads as information, while the
-      // card-background chip is the affordance for "tap to change".
+      // card-background chip is the affordance for "tap to change". USER_1
+      // carries that look (built in settings_tab).
       if (d.read_only) {
-        lv_obj_set_style_bg_opa(settings_.scale_dev_btns[i], LV_OPA_TRANSP, 0);
+        lv_obj_add_state(settings_.scale_dev_btns[i], LV_STATE_USER_1);
         lv_obj_remove_state(settings_.scale_dev_btns[i], LV_STATE_DISABLED);
         lv_obj_remove_flag(settings_.scale_dev_btns[i], LV_OBJ_FLAG_CLICKABLE);
       } else {
-        lv_obj_set_style_bg_opa(settings_.scale_dev_btns[i], LV_OPA_COVER, 0);
+        lv_obj_remove_state(settings_.scale_dev_btns[i], LV_STATE_USER_1);
         lv_obj_add_flag(settings_.scale_dev_btns[i], LV_OBJ_FLAG_CLICKABLE);
         if (connected && !shot)
           lv_obj_remove_state(settings_.scale_dev_btns[i], LV_STATE_DISABLED);
@@ -4374,6 +4745,339 @@ void App::detect_lead_in_adjust(int dir) {
   settings_.detect_lead_in_s = v;
   set_lead_in_label(settings_);
   if (brew_ != nullptr) brew_->set_detect_lead_in_s(v);
+}
+
+
+// ---- Round glass: temperature dial + steam sheet ---------------------------
+// Both live on the top layer over a dimmed Home (the backdrop stays visible
+// through the veil), in the same glass pieces as the Home. One at a time
+// (dial_). They write through the same set-point paths as the Settings
+// steppers (brew_dirty / boiler_dirty + the machine call), so Settings and
+// Home agree and the machine's confirmation clears the edit as usual.
+
+namespace {
+
+void on_dial_close(lv_event_t* e) {
+  static_cast<ui::App*>(lv_event_get_user_data(e))->close_dial();
+}
+void on_dial_minus(lv_event_t* e) {
+  static_cast<ui::App*>(lv_event_get_user_data(e))->dial_step(-1);
+}
+void on_dial_plus(lv_event_t* e) {
+  static_cast<ui::App*>(lv_event_get_user_data(e))->dial_step(+1);
+}
+void on_dial_arc(lv_event_t* e) {
+  static_cast<ui::App*>(lv_event_get_user_data(e))->dial_from_arc();
+}
+void on_dial_set(lv_event_t* e) {
+  static_cast<ui::App*>(lv_event_get_user_data(e))->dial_commit();
+}
+template <int L>
+void on_steam_level(lv_event_t* e) {
+  static_cast<ui::App*>(lv_event_get_user_data(e))->steam_choose_level(L);
+}
+void on_steam_on(lv_event_t* e) {
+  static_cast<ui::App*>(lv_event_get_user_data(e))->steam_choose_enabled(true);
+}
+void on_steam_off(lv_event_t* e) {
+  static_cast<ui::App*>(lv_event_get_user_data(e))->steam_choose_enabled(false);
+}
+
+// The dimmed full-screen layer both sheets sit on (swallows stray taps).
+lv_obj_t* make_sheet_layer(const ui::ScreenProfile& screen) {
+  lv_obj_t* bg = lv_obj_create(lv_layer_top());
+  lv_obj_remove_style_all(bg);
+  lv_obj_set_size(bg, screen.width, screen.height);
+  lv_obj_set_style_bg_color(bg, lv_color_hex(0x000000), 0);
+  lv_obj_set_style_bg_opa(bg, 110, 0);
+  lv_obj_add_flag(bg, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_remove_flag(bg, LV_OBJ_FLAG_SCROLLABLE);
+  return bg;
+}
+
+lv_obj_t* make_sheet_label(lv_obj_t* parent, const lv_font_t* font, lv_opa_t opa) {
+  lv_obj_t* l = lv_label_create(parent);
+  lv_obj_set_style_text_font(l, font, 0);
+  lv_obj_set_style_text_color(l, lv_color_hex(0xFFFFFF), 0);
+  lv_obj_set_style_text_opa(l, opa, 0);
+  return l;
+}
+
+// A glass button holding one centred label.
+lv_obj_t* make_sheet_button(lv_obj_t* parent, int w, int h, ui::glass::Tone tone,
+                            const char* text, const lv_font_t* font) {
+  lv_obj_t* b = ui::glass::make_button(parent, LV_RADIUS_CIRCLE, tone);
+  lv_obj_set_size(b, w, h);
+  lv_obj_t* l = make_sheet_label(b, font, LV_OPA_COVER);
+  lv_label_set_text(l, text);
+  lv_obj_center(l);
+  return b;
+}
+
+}  // namespace
+
+void App::close_dial() {
+  if (dial_ == nullptr) return;
+  // Async: this is usually called from a button INSIDE the sheet, mid-event.
+  lv_obj_delete_async(dial_);
+  dial_ = dial_value_ = dial_set_label_ = dial_arc_ = nullptr;
+  for (lv_obj_t*& b : steam_btns_) b = nullptr;
+  // Bring Home back (open_* hid it so the sheet reads cleanly).
+  if (tabview_ != nullptr && modal_ == nullptr)
+    lv_obj_remove_flag(tabview_, LV_OBJ_FLAG_HIDDEN);
+  if (home_.clock_label != nullptr)
+    lv_obj_remove_flag(lv_obj_get_parent(home_.clock_label), LV_OBJ_FLAG_HIDDEN);
+  sync_round_backdrop();
+}
+
+// A sheet replaces Home rather than layering over it: the clear glass would
+// show every readout beneath. The backdrop stays; the arcs go too (the
+// dial draws its own ring).
+void App::hide_home_for_sheet() {
+  if (tabview_ != nullptr) lv_obj_add_flag(tabview_, LV_OBJ_FLAG_HIDDEN);
+  if (home_.rg_ring != nullptr) lv_obj_add_flag(home_.rg_ring, LV_OBJ_FLAG_HIDDEN);
+  // The clock tray would sit on the dial's tick ring.
+  if (home_.clock_label != nullptr)
+    lv_obj_add_flag(lv_obj_get_parent(home_.clock_label), LV_OBJ_FLAG_HIDDEN);
+}
+
+void App::open_brew_dial() {
+  close_dial();
+  if (!ui::is_round(screen_)) return;
+  const bool f = display_->use_fahrenheit();
+  const int d = screen_.width < screen_.height ? screen_.width : screen_.height;
+  auto at = [d](int px) { return px * d / 800; };
+  dial_target_c_ = std::round(settings_.brew_target * 2.0f) / 2.0f;
+
+  lv_obj_t* bg = make_sheet_layer(screen_);
+  dial_ = bg;
+  hide_home_for_sheet();
+
+  // Tick ring: 80..100 C (or the same span in F) over the Home arcs' 300 deg.
+  lv_obj_t* sc = lv_scale_create(bg);
+  lv_obj_set_size(sc, at(760), at(760));
+  lv_obj_center(sc);
+  lv_scale_set_mode(sc, LV_SCALE_MODE_ROUND_INNER);
+  lv_scale_set_angle_range(sc, 300);
+  lv_scale_set_rotation(sc, 120);
+  const int lo = static_cast<int>(std::lround(ui::temp_disp(core::kBrewTargetMinC, f)));
+  const int hi = static_cast<int>(std::lround(ui::temp_disp(core::kBrewTargetMaxC, f)));
+  lv_scale_set_range(sc, lo, hi);
+  lv_scale_set_total_tick_count(sc, f ? static_cast<uint32_t>(hi - lo + 1) : 41u);
+  lv_scale_set_major_tick_every(sc, f ? 9u : 10u);
+  lv_scale_set_label_show(sc, true);
+  lv_obj_set_style_arc_opa(sc, LV_OPA_TRANSP, LV_PART_MAIN);
+  lv_obj_set_style_line_color(sc, lv_color_hex(0xFFFFFF), LV_PART_INDICATOR);
+  lv_obj_set_style_line_width(sc, ui::dp(3), LV_PART_INDICATOR);
+  lv_obj_set_style_length(sc, at(20), LV_PART_INDICATOR);
+  lv_obj_set_style_text_color(sc, lv_color_hex(0xFFFFFF), LV_PART_INDICATOR);
+  lv_obj_set_style_text_opa(sc, 190, LV_PART_INDICATOR);
+  lv_obj_set_style_text_font(sc, ui::font_dp(16), LV_PART_INDICATOR);
+  lv_obj_set_style_line_color(sc, lv_color_hex(0xFFFFFF), LV_PART_ITEMS);
+  lv_obj_set_style_line_opa(sc, 90, LV_PART_ITEMS);
+  lv_obj_set_style_line_width(sc, ui::dp(2), LV_PART_ITEMS);
+  lv_obj_set_style_length(sc, at(12), LV_PART_ITEMS);
+  lv_obj_remove_flag(sc, LV_OBJ_FLAG_CLICKABLE);
+
+  // The dial itself: drag the glass knob round the ring (0.5 C steps).
+  lv_obj_t* arc = lv_arc_create(bg);
+  lv_obj_remove_style_all(arc);
+  lv_obj_set_size(arc, 2 * (at(326) + at(6)), 2 * (at(326) + at(6)));
+  lv_obj_center(arc);
+  lv_arc_set_rotation(arc, 0);
+  lv_arc_set_bg_angles(arc, 120, 60);
+  lv_arc_set_range(arc, static_cast<int32_t>(core::kBrewTargetMinC * 2),
+                   static_cast<int32_t>(core::kBrewTargetMaxC * 2));
+  lv_arc_set_value(arc, static_cast<int32_t>(std::lround(dial_target_c_ * 2.0f)));
+  lv_obj_set_style_arc_width(arc, at(12), LV_PART_MAIN);
+  lv_obj_set_style_arc_rounded(arc, true, LV_PART_MAIN);
+  lv_obj_set_style_arc_color(arc, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
+  lv_obj_set_style_arc_opa(arc, 36, LV_PART_MAIN);
+  lv_obj_set_style_arc_width(arc, at(12), LV_PART_INDICATOR);
+  lv_obj_set_style_arc_rounded(arc, true, LV_PART_INDICATOR);
+  lv_obj_set_style_arc_color(arc, lv_color_hex(0xF2A24A), LV_PART_INDICATOR);
+  lv_obj_set_style_bg_opa(arc, LV_OPA_COVER, LV_PART_KNOB);
+  lv_obj_set_style_bg_color(arc, lv_color_hex(0xFFFFFF), LV_PART_KNOB);
+  lv_obj_set_style_bg_opa(arc, 95, LV_PART_KNOB);
+  lv_obj_set_style_radius(arc, LV_RADIUS_CIRCLE, LV_PART_KNOB);
+  lv_obj_set_style_pad_all(arc, at(22), LV_PART_KNOB);
+  lv_obj_set_style_border_width(arc, ui::dp(2), LV_PART_KNOB);
+  lv_obj_set_style_border_color(arc, lv_color_hex(0xFFFFFF), LV_PART_KNOB);
+  lv_obj_set_style_border_opa(arc, 200, LV_PART_KNOB);
+  lv_obj_set_style_shadow_width(arc, ui::dp(24), LV_PART_KNOB);
+  lv_obj_set_style_shadow_color(arc, lv_color_hex(0x000000), LV_PART_KNOB);
+  lv_obj_set_style_shadow_opa(arc, 90, LV_PART_KNOB);
+  lv_obj_add_flag(arc, LV_OBJ_FLAG_ADV_HITTEST);  // only the ring takes touches
+  lv_obj_add_event_cb(arc, on_dial_arc, LV_EVENT_VALUE_CHANGED, this);
+  dial_arc_ = arc;
+
+  lv_obj_t* cap = make_sheet_label(bg, ui::font_dp(20), 225);
+  lv_label_set_text(cap, "Brew temperature");
+  lv_obj_align(cap, LV_ALIGN_TOP_MID, 0, at(196));
+  dial_value_ = make_sheet_label(bg, &font_outfit_hero, LV_OPA_COVER);
+  lv_obj_set_style_text_letter_space(dial_value_, -at(4), 0);
+  lv_obj_align(dial_value_, LV_ALIGN_TOP_MID, 0, at(232));
+  lv_obj_t* now = make_sheet_label(bg, ui::font_dp(16), 185);
+  if (machine_ != nullptr && machine_->snapshot().link == core::Link::Connected) {
+    // std::snprintf, not lv_label_set_text_fmt: LVGL's printf has no %f here.
+    char t[32];
+    std::snprintf(t, sizeof(t), "Boiler now %.1f°",
+                  static_cast<double>(ui::temp_disp(machine_->snapshot().brew_temp_c, f)));
+    lv_label_set_text(now, t);
+  } else {
+    lv_label_set_text(now, "Machine offline");
+  }
+  lv_obj_align(now, LV_ALIGN_TOP_MID, 0, at(366));
+
+  lv_obj_t* minus = make_sheet_button(bg, at(76), at(76), ui::glass::Tone::kClear,
+                                      LV_SYMBOL_MINUS, ui::font_dp(28));
+  lv_obj_align(minus, LV_ALIGN_TOP_MID, -at(112), at(420));
+  lv_obj_add_event_cb(minus, on_dial_minus, LV_EVENT_CLICKED, this);
+  lv_obj_t* plus = make_sheet_button(bg, at(76), at(76), ui::glass::Tone::kClear,
+                                     LV_SYMBOL_PLUS, ui::font_dp(28));
+  lv_obj_align(plus, LV_ALIGN_TOP_MID, at(112), at(420));
+  lv_obj_add_event_cb(plus, on_dial_plus, LV_EVENT_CLICKED, this);
+
+  lv_obj_t* cancel = make_sheet_button(bg, at(72), at(72), ui::glass::Tone::kClear,
+                                       LV_SYMBOL_CLOSE, ui::font_dp(24));
+  lv_obj_align(cancel, LV_ALIGN_TOP_MID, -at(112), at(540));
+  lv_obj_add_event_cb(cancel, on_dial_close, LV_EVENT_CLICKED, this);
+  lv_obj_t* set = make_sheet_button(bg, at(190), at(72), ui::glass::Tone::kBright, "",
+                                    ui::font_dp(20));
+  lv_obj_align(set, LV_ALIGN_TOP_MID, at(48), at(540));
+  lv_obj_add_event_cb(set, on_dial_set, LV_EVENT_CLICKED, this);
+  dial_set_label_ = lv_obj_get_child(set, -1);  // make_sheet_button's label (last child)
+  dial_refresh_labels();
+}
+
+void App::dial_refresh_labels() {
+  if (dial_value_ == nullptr) return;
+  const bool f = display_->use_fahrenheit();
+  const double v = static_cast<double>(ui::temp_disp(dial_target_c_, f));
+  char t[24];
+  std::snprintf(t, sizeof(t), "%.1f°", v);
+  lv_label_set_text(dial_value_, t);
+  if (dial_set_label_ != nullptr) {
+    std::snprintf(t, sizeof(t), "Set %.1f°", v);
+    lv_label_set_text(dial_set_label_, t);
+  }
+}
+
+void App::dial_step(int half_degrees) {
+  if (dial_arc_ == nullptr) return;
+  dial_target_c_ = clampf(dial_target_c_ + 0.5f * static_cast<float>(half_degrees),
+                          core::kBrewTargetMinC, core::kBrewTargetMaxC);
+  lv_arc_set_value(dial_arc_, static_cast<int32_t>(std::lround(dial_target_c_ * 2.0f)));
+  dial_refresh_labels();
+}
+
+void App::dial_from_arc() {
+  if (dial_arc_ == nullptr) return;
+  dial_target_c_ = static_cast<float>(lv_arc_get_value(dial_arc_)) / 2.0f;
+  dial_refresh_labels();
+}
+
+void App::dial_commit() {
+  // The absolute twin of brew_adjust: same dirty flag, labels and machine call.
+  settings_.brew_target = clampf(dial_target_c_, core::kBrewTargetMinC, core::kBrewTargetMaxC);
+  settings_.brew_dirty = true;
+  set_brew_label(settings_, true, display_->use_fahrenheit());
+  set_temp_controls_enabled(settings_, true);
+  sync_home_setpoints(true);
+  if (machine_ != nullptr) machine_->set_brew_target(settings_.brew_target);
+  close_dial();
+}
+
+void App::open_steam_sheet() {
+  close_dial();
+  if (!ui::is_round(screen_)) return;
+  const bool f = display_->use_fahrenheit();
+  const int d = screen_.width < screen_.height ? screen_.width : screen_.height;
+  auto at = [d](int px) { return px * d / 800; };
+
+  lv_obj_t* bg = make_sheet_layer(screen_);
+  dial_ = bg;
+  hide_home_for_sheet();
+  lv_obj_add_event_cb(bg, on_dial_close, LV_EVENT_CLICKED, this);  // tap outside: done
+
+  lv_obj_t* card = ui::glass::make_panel(bg, at(44), ui::glass::Tone::kClear);
+  lv_obj_add_flag(card, LV_OBJ_FLAG_CLICKABLE);  // swallow taps (not "outside")
+  lv_obj_set_size(card, at(540), LV_SIZE_CONTENT);
+  lv_obj_center(card);
+  lv_obj_set_flex_flow(card, LV_FLEX_FLOW_COLUMN);
+  lv_obj_set_flex_align(card, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER,
+                        LV_FLEX_ALIGN_CENTER);
+  lv_obj_set_style_pad_all(card, at(26), 0);
+  lv_obj_set_style_pad_row(card, at(18), 0);
+
+  lv_obj_t* title = make_sheet_label(card, ui::font_dp(24), LV_OPA_COVER);
+  lv_label_set_text(title, "Steam boiler");
+
+  auto row = [&](lv_obj_t* parent) {
+    lv_obj_t* r = lv_obj_create(parent);
+    lv_obj_remove_style_all(r);
+    lv_obj_remove_flag(r, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_flag(r, LV_OBJ_FLAG_OVERFLOW_VISIBLE);
+    lv_obj_set_size(r, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+    lv_obj_set_flex_flow(r, LV_FLEX_FLOW_ROW);
+    lv_obj_set_style_pad_column(r, at(12), 0);
+    return r;
+  };
+  lv_obj_t* onoff = row(card);
+  steam_btns_[0] = make_sheet_button(onoff, at(170), at(58), ui::glass::Tone::kClear, "On",
+                                     ui::font_dp(20));
+  lv_obj_add_event_cb(steam_btns_[0], on_steam_on, LV_EVENT_CLICKED, this);
+  steam_btns_[1] = make_sheet_button(onoff, at(170), at(58), ui::glass::Tone::kClear, "Off",
+                                     ui::font_dp(20));
+  lv_obj_add_event_cb(steam_btns_[1], on_steam_off, LV_EVENT_CLICKED, this);
+
+  lv_obj_t* levels = row(card);
+  static constexpr lv_event_cb_t kLevelCb[3] = {on_steam_level<0>, on_steam_level<1>,
+                                                on_steam_level<2>};
+  for (int i = 0; i < 3; ++i) {
+    char t[12];
+    std::snprintf(t, sizeof(t), "%.0f°",
+                  static_cast<double>(ui::temp_disp(core::kSteamLevelsC[i], f)));
+    steam_btns_[2 + i] = make_sheet_button(levels, at(140), at(58), ui::glass::Tone::kClear, t,
+                                           ui::font_dp(20));
+    lv_obj_add_event_cb(steam_btns_[2 + i], kLevelCb[i], LV_EVENT_CLICKED, this);
+  }
+
+  lv_obj_t* done = make_sheet_button(card, at(200), at(58), ui::glass::Tone::kBright, "Done",
+                                     ui::font_dp(20));
+  lv_obj_add_event_cb(done, on_dial_close, LV_EVENT_CLICKED, this);
+  steam_sheet_refresh();
+}
+
+void App::steam_sheet_refresh() {
+  if (steam_btns_[0] == nullptr) return;
+  using ui::glass::Tone;
+  const bool on = settings_.steam_enabled;
+  ui::glass::set_tone(steam_btns_[0], on ? Tone::kBright : Tone::kClear);
+  ui::glass::set_tone(steam_btns_[1], on ? Tone::kClear : Tone::kBright);
+  for (int i = 0; i < 3; ++i) {
+    ui::glass::set_tone(steam_btns_[2 + i],
+                        on && settings_.boiler_level == i ? Tone::kBright : Tone::kClear);
+    if (on) lv_obj_remove_state(steam_btns_[2 + i], LV_STATE_DISABLED);
+    else lv_obj_add_state(steam_btns_[2 + i], LV_STATE_DISABLED);
+  }
+}
+
+void App::steam_choose_level(int level) {
+  // The absolute twin of boiler_adjust.
+  level = level < 0 ? 0 : (level > 2 ? 2 : level);
+  settings_.boiler_level = level;
+  settings_.boiler_dirty = true;
+  set_boiler_label(settings_, true, display_->use_fahrenheit());
+  set_temp_controls_enabled(settings_, true);
+  sync_home_setpoints(true);
+  if (machine_ != nullptr) machine_->set_steam_target(core::kSteamLevelsC[level]);
+  steam_sheet_refresh();
+}
+
+void App::steam_choose_enabled(bool on) {
+  steam_set_enabled(on);
+  steam_sheet_refresh();
 }
 
 }  // namespace ui

@@ -17,6 +17,11 @@ constexpr char kScreenTimeoutKey[] = "scrtimeout";
 constexpr char kSaverStyleKey[] = "ssstyle";   // legacy: 0=Logo, 1=Blank
 constexpr char kSaverStyle2Key[] = "ssstyle2";  // 0=Logo, 1=Dim, 2=Off
 constexpr char kSaverArtKey[] = "ssart";        // Logo artwork: 0=Lion, 1=Apollo, 2=Alternate
+// The Clock idle screen (round glass). Its OWN key, not a new ssstyle2/ssart
+// value: older builds index those into fixed arrays (NVS add-only rule). A
+// build that predates it never reads it, and with ssstyle2 = Logo and ssart
+// untouched it bounces whatever artwork was chosen before -- a sane rollback.
+constexpr char kSaverClockKey[] = "ssclock";
 constexpr char kSkippedUpdateKey[] = "skipver";
 constexpr char kPendingInstallKey[] = "otainst";  // boot-flag install target version
 constexpr char kUpdateCheckKey[] = "updchk";   // legacy bool (pre-mode)
@@ -507,10 +512,12 @@ int Config::screensaver_style() const {
     style = p.getInt(kSaverStyleKey, 0) == 1 ? 2 : 0;
   }
   int art = p.getInt(kSaverArtKey, IDisplaySettings::kSaverLion);
+  const bool clock = p.isKey(kSaverClockKey) && p.getBool(kSaverClockKey, false);
   p.end();
   if (art < 0 || art >= IDisplaySettings::kSaverDim) art = IDisplaySettings::kSaverLion;
   if (style == 1) return IDisplaySettings::kSaverDim;
   if (style == 2) return IDisplaySettings::kSaverOff;
+  if (clock) return IDisplaySettings::kSaverClock;  // Clock rides on "Logo"
   return art;
 }
 
@@ -518,10 +525,17 @@ void Config::set_screensaver_style(int style) {
   using core::IDisplaySettings;
   Preferences p;
   p.begin(kNamespace, /*readOnly=*/false);
+  // The Clock flag is only ever true alongside ssstyle2 = Logo; every other
+  // choice clears it.
+  p.putBool(kSaverClockKey, style == IDisplaySettings::kSaverClock);
   if (style == IDisplaySettings::kSaverDim) {
     p.putInt(kSaverStyle2Key, 1);
   } else if (style == IDisplaySettings::kSaverOff) {
     p.putInt(kSaverStyle2Key, 2);
+  } else if (style == IDisplaySettings::kSaverClock) {
+    // Logo for every older build (which then bounces the remembered artwork);
+    // ssart is left alone so that artwork comes back if Clock is left.
+    p.putInt(kSaverStyle2Key, 0);
   } else {
     // An artwork: Logo for the old key, and remember which one. Dim/Off leave
     // ssart alone so the artwork choice survives a detour through them.

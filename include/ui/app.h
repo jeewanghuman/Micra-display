@@ -75,6 +75,19 @@ class App {
   // Switch the active tab by index (0=Home, 1=Settings, 2=Stats). Mainly for
   // the simulator to render a specific tab.
   void show_tab(int index);
+  // Round glass only: the temperature dial (tap the brew numerals) and the
+  // steam sheet (tap the steam capsule). Public so the sim can pose them.
+  void open_brew_dial();
+  void open_steam_sheet();
+  void close_dial();
+  void dial_step(int half_degrees);    // -/+ on the dial (0.5 deg steps)
+  void dial_from_arc();                // the dial's ring was dragged
+  void dial_commit();                  // Set
+  void steam_choose_level(int level);  // steam sheet: level 0..2
+  void steam_choose_enabled(bool on);  // steam sheet: on / off
+  // Round-glass Home: show its screen-level backdrop only while Home is the
+  // active tab (called on every tab change; a no-op elsewhere).
+  void sync_round_backdrop();
 
   // Bound to UI events:
   void toggle_power();         // power button
@@ -151,9 +164,10 @@ class App {
   void set_use_fahrenheit(bool on);      // Device "Fahrenheit" switch
   void set_drop_negative_flow(bool on);  // Scale "Drop negative g/s" switch
   void set_scope_graph(bool on);         // Scale "Oscilloscope graph" switch
-  void set_perf_overlay(bool on);        // Device "Performance overlay" switch
-  void set_click_sound(bool on);         // Device "Button sounds" switch
-  // Micra "Chime volume": linear 0-100 (0 = Off), slider + [-]/[+]. sound.cpp
+  void set_perf_overlay(bool on);        // LVGL FPS/CPU overlay (persisted)
+  void toggle_perf_overlay();            // long-press on Stats > Info's Firmware row
+  void set_click_sound(bool on);         // Device > Sound "Button sounds" switch
+  // Sound "Chime volume": linear 0-100 (0 = Off), slider + [-]/[+]. sound.cpp
   // maps it onto a dB curve so the steps are even by ear.
   void set_ready_chime_vol(int percent, bool audition);
   void ready_chime_vol_adjust(int dir);  // one step per [-]/[+] tap
@@ -228,6 +242,9 @@ class App {
   void sync_home_setpoints(bool connected);  // mirror set-points to the Home steppers
   void update_battery_runtime(const core::BatteryState& b);  // track drain for the estimate
   void seed_time_controls();   // load the clock into the time/date dropdowns
+  // Time & date: hide the Time/Date pickers (show a note instead) once Auto
+  // time has set the clock this session — NTP would overwrite a manual pick.
+  void sync_time_rows();
   void apply_date_selection(); // clamp day, resize its options, write set_date
   // Re-derive the inferred Heating state (hysteresis bit = heating_) and
   // start/stop the status-dot pulse. Call once per machine-snapshot pass,
@@ -287,6 +304,20 @@ class App {
   lv_obj_t* tabview_ = nullptr;
   ScreenProfile screen_{};          // stored so we can rebuild on a theme change
   lv_obj_t* modal_ = nullptr;       // current overlay modal, if open
+  // Round glass: the Settings / Stats tab bodies glassify_tree re-runs on
+  // (rows built later — scan results, history — start out opaque).
+  lv_obj_t* glass_bodies_[2] = {nullptr, nullptr};
+  // Round glass: the brew temperature dial / steam sheet (one at a time, on
+  // the top layer). dial_target_c_ is the dial's pending value in Celsius.
+  lv_obj_t* dial_ = nullptr;
+  lv_obj_t* dial_value_ = nullptr;
+  lv_obj_t* dial_set_label_ = nullptr;
+  lv_obj_t* dial_arc_ = nullptr;
+  float dial_target_c_ = 93.0f;
+  lv_obj_t* steam_btns_[5] = {};    // steam sheet: On, Off, level 1..3
+  void steam_sheet_refresh();       // re-tone the sheet's buttons in place
+  void dial_refresh_labels();
+  void hide_home_for_sheet();
   // Log-viewer modal (live tail): refreshed from core::log_ring() by a timer
   // while open; all three are torn down together in close_modal().
   lv_obj_t* log_box_ = nullptr;
@@ -320,6 +351,16 @@ class App {
   lv_obj_t* saver_prev_screen_ = nullptr;  // the UI screen to load back on wake
   lv_obj_t* saver_img_ = nullptr;       // null in the Dim and Off styles
   lv_timer_t* saver_anim_ = nullptr;
+  // Clock idle screen (round glass; start_clock_saver): it reuses
+  // saver_screen_ / saver_anim_, and saver_orb_ != null marks it running.
+  lv_obj_t* saver_clock_ = nullptr;
+  lv_obj_t* saver_day_ = nullptr;
+  lv_obj_t* saver_orb_ = nullptr;
+  lv_obj_t* saver_orb_temp_ = nullptr;
+  lv_obj_t* saver_orb_state_ = nullptr;
+  uint32_t saver_clock_t0_ = 0;
+  void start_clock_saver();
+  void clock_saver_tick();
   int saver_vx_ = 0, saver_vy_ = 0;     // px per anim tick
   int saver_color_i_ = 0;               // palette index; advances on bounce
   int saver_art_ = 0;                   // ui::SaverArt currently on screen

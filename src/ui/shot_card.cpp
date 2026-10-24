@@ -11,6 +11,12 @@ namespace ui {
 
 namespace {
 
+// Round glass: the graph's two series take Home's colours — crema for the
+// weight (the shot ring), the steam blue for the flow — instead of the theme
+// accent / ok pair.
+uint32_t weight_hex() { return round_glass() ? 0xFFB866 : theme::accent(); }
+uint32_t flow_hex() { return round_glass() ? 0xA9D2FF : theme::ok(); }
+
 // One stat column for the hero row: value over an uppercase micro-caption.
 // Every column uses the SAME value font and grows equally, so the five values
 // sit on one shared baseline in an even grid — targeted or not, every card
@@ -118,7 +124,7 @@ void shot_graph_cb(lv_event_t* e) {
   auto draw_wash = [&](bool flow_series) {
     lv_draw_rect_dsc_t wash;
     lv_draw_rect_dsc_init(&wash);
-    wash.bg_color = lv_color_hex(flow_series ? theme::ok() : theme::accent());
+    wash.bg_color = lv_color_hex(flow_series ? flow_hex() : weight_hex());
     wash.bg_opa = LV_OPA_10;
     for (int i = 1; i < rec->n_samples; ++i) {
       lv_area_t a;
@@ -155,7 +161,7 @@ void shot_graph_cb(lv_event_t* e) {
   auto draw_trace = [&](bool flow_series) {
     lv_draw_line_dsc_t line;
     lv_draw_line_dsc_init(&line);
-    line.color = lv_color_hex(flow_series ? theme::ok() : theme::accent());
+    line.color = lv_color_hex(flow_series ? flow_hex() : weight_hex());
     line.width = ui::dp(2);
     line.round_start = 1;
     line.round_end = 1;
@@ -181,7 +187,7 @@ void shot_graph_cb(lv_event_t* e) {
     const int32_t ring = ui::dp(6);
     lv_area_t a = {cx - ring, cy - ring, cx + ring, cy + ring};
     lv_draw_rect(layer, &dot, &a);
-    dot.bg_color = lv_color_hex(flow_series ? theme::ok() : theme::accent());
+    dot.bg_color = lv_color_hex(flow_series ? flow_hex() : weight_hex());
     const int32_t r = ui::dp(4);
     a = {cx - r, cy - r, cx + r, cy + r};
     lv_draw_rect(layer, &dot, &a);
@@ -202,7 +208,7 @@ void shot_graph_cb(lv_event_t* e) {
   key.round_start = 1;
   key.round_end = 1;
 
-  key.color = lv_color_hex(theme::accent());
+  key.color = lv_color_hex(weight_hex());
   key.p1.x = box.x1 + ui::dp(2);
   key.p1.y = key_y;
   key.p2.x = box.x1 + ui::dp(16);
@@ -214,7 +220,7 @@ void shot_graph_cb(lv_event_t* e) {
                   box.y1 + legend_h};
   lv_draw_label(layer, &lbl, &la);
 
-  key.color = lv_color_hex(theme::ok());
+  key.color = lv_color_hex(flow_hex());
   key.p1.x = box.x2 - ui::dp(16);
   key.p2.x = box.x2 - ui::dp(2);
   lv_draw_line(layer, &key);
@@ -451,6 +457,21 @@ lv_obj_t* build_shot_card(lv_obj_t* parent, const core::ShotRecord& rec,
   lv_obj_set_style_bg_opa(graph, LV_OPA_COVER, 0);
   lv_obj_set_style_radius(graph, ui::dp(8), 0);
   lv_obj_set_style_pad_all(graph, ui::dp(6), 0);
+  if (round_glass()) {
+    // A glass card whose big corners clear the circle (the modal fills the
+    // band, whose corners sit exactly on the edge), the graph on clear black.
+    lv_obj_set_style_bg_color(card, lv_color_hex(0x161616), 0);
+    lv_obj_set_style_radius(card, ui::dp(64), 0);
+    lv_obj_set_style_border_width(card, 1, 0);
+    lv_obj_set_style_border_color(card, lv_color_hex(0xFFFFFF), 0);
+    lv_obj_set_style_border_opa(card, 60, 0);
+    lv_obj_set_style_pad_hor(card, ui::dp(44), 0);
+    lv_obj_set_style_pad_top(card, ui::dp(26), 0);
+    lv_obj_set_style_pad_bottom(card, ui::dp(30), 0);
+    lv_obj_set_style_bg_color(graph, lv_color_hex(0x000000), 0);
+    lv_obj_set_style_radius(graph, ui::dp(28), 0);
+    lv_obj_set_style_pad_hor(graph, ui::dp(12), 0);
+  }
   lv_obj_add_event_cb(graph, shot_graph_cb, LV_EVENT_DRAW_MAIN_END,
                       const_cast<core::ShotRecord*>(&rec));
   return card;

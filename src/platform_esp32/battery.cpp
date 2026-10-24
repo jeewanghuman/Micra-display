@@ -19,6 +19,13 @@ void Battery::begin() {
 
 core::BatteryState Battery::battery() const {
   core::BatteryState s;
+#if defined(BOARD_NO_BATTERY)
+  // No battery circuit at all: always external power, and nothing for the UI
+  // to show (hw = false hides the tray indicator and the Runtime row).
+  s.hw = false;
+  s.usb = true;
+  return s;
+#endif
   float volts;
 
 #if defined(BOARD_BATTERY_VIA_IOEXT)

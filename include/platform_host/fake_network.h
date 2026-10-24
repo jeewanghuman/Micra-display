@@ -32,10 +32,14 @@ class FakeNetwork : public core::INetwork {
   void set_ntp_server(const char* host) override { ntp_ = host; }
   bool ntp_enabled() const override { return ntp_en_; }
   void set_ntp_enabled(bool on) override { ntp_en_ = on; }
+  int ntp_seconds_since_sync() const override { return ntp_since_s_; }
+  // Sim-only: pose an NTP sync (>= 0 = seconds since; -1 = none this session).
+  void set_ntp_seconds_since_sync(int s) { ntp_since_s_ = s; }
 
  private:
   bool enabled_ = true;
   bool ntp_en_ = true;
+  int ntp_since_s_ = -1;  // never synced: the previews show the manual pickers
   std::string tz_ = "AEST-10AEDT,M10.1.0,M4.1.0";  // Sydney, for previews
   std::string ntp_ = "pool.ntp.org";
 };

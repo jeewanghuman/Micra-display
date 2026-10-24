@@ -8,10 +8,13 @@
 // Settings tab: an lv_menu drill-in, grouped by device with short leaf pages
 // under each (short = little to no scrolling, the whole point of the split):
 //   - Micra  -> Bluetooth (scan/save/connect/forget/auto-connect)
-//               | Controls (Brew + Boiler) | Cleaning
-//   - Scale  -> Bluetooth (scan/save/connect/forget) | Settings (Target weight)
-//   - Device -> Display (brightness/theme/units) | Time & date | WiFi
-//               | Backup (settings to/from the card; card-capable boards)
+//               | Controls (Wired paddle + Brew + Boiler) | Cleaning
+//   - Scale  -> Bluetooth (scan/save/connect/forget)
+//               | Shot settings (target/review/lead-in) -> Graph (line tuning)
+//               | Device settings
+//   - Device -> Display (brightness/timeout/idle/theme/units)
+//               | Sound (chime + button clicks; speaker boards) | Time & date
+//               | WiFi | Backup (settings to/from the card; card-capable boards)
 // ui::App owns it — builds the frame here, navigates pages, and (re)populates the
 // scan lists. lv_menu provides the page stack + back navigation so we don't
 // hand-roll it.
@@ -23,17 +26,20 @@ namespace ui {
 enum SettingsSection {
   kSectionMicra = 0,       // Micra chooser (Bluetooth | Controls | Cleaning)
   kSectionMicraBt,         // Micra > Bluetooth (connection + auto connect)
-  kSectionMicraControls,   // Micra > Controls (Brew + Steam Boiler)
+  kSectionMicraControls,   // Micra > Controls (Wired paddle + Brew + Steam Boiler)
   kSectionMicraCleaning,   // Micra > Cleaning (flush settings + backflush)
   kSectionScale,           // Scale chooser
   kSectionScaleBt,         // Scale > Bluetooth
-  kSectionScaleSettings,   // Scale > Shot settings (target/review/graph)
+  kSectionScaleSettings,   // Scale > Shot settings (target/review/lead-in + Graph)
   kSectionScaleDevice,     // Scale > Device settings (stored on the scale)
-  kSectionDevice,          // Device chooser (Display | Time & date | WiFi)
-  kSectionDeviceDisplay,   // Device > Display (brightness/dim/theme/units/sound)
+  kSectionDevice,          // Device chooser (Display | Sound | Time & date | WiFi)
+  kSectionDeviceDisplay,   // Device > Display (brightness/dim/idle/theme/units)
   kSectionDeviceTime,      // Device > Time & date (clock + calendar steppers)
   kSectionDeviceWifi,      // Device > WiFi (enable/setup/timezone/NTP)
   kSectionDeviceBackup,    // Device > Backup (settings to/from the card)
+  // Appended (not inserted) so the values above keep their meaning.
+  kSectionDeviceSound,     // Device > Sound (chime + button sounds; speaker boards)
+  kSectionScaleGraph,      // Scale > Shot settings > Graph (line tuning)
   kSectionCount
 };
 
@@ -47,7 +53,9 @@ struct SettingsWidgets {
                                             // (paddle-capable boards only)
   lv_obj_t* scale_page = nullptr;           // chooser: Bluetooth | Settings
   lv_obj_t* scale_bt_page = nullptr;        // connection
-  lv_obj_t* scale_settings_page = nullptr;  // shot settings (target/review/graph)
+  lv_obj_t* scale_settings_page = nullptr;  // shot settings (target/review/lead-in)
+  lv_obj_t* scale_graph_page = nullptr;     // its Graph sub-page (smoothing, drop
+                                            // negative, oscilloscope, window growth)
   lv_obj_t* scale_device_page = nullptr;    // device settings (stored on the scale)
 
   // Scale > Device settings: the settings the SCALE stores (beep, auto-off —
@@ -62,7 +70,8 @@ struct SettingsWidgets {
   lv_obj_t* scale_dev_btns[core::kMaxScaleSettings] = {};    // cycle buttons
   lv_obj_t* scale_dev_values[core::kMaxScaleSettings] = {};  // value labels
   lv_obj_t* device_page = nullptr;          // chooser: Display | Time & date | WiFi
-  lv_obj_t* device_display_page = nullptr;  // brightness/dim/theme/units/sound
+  lv_obj_t* device_display_page = nullptr;  // brightness/dim/idle/theme/units
+  lv_obj_t* device_sound_page = nullptr;    // chime + button sounds (speaker boards)
   lv_obj_t* device_time_page = nullptr;     // clock + calendar steppers
   lv_obj_t* device_wifi_page = nullptr;     // enable/status/setup/timezone/NTP
 
@@ -113,19 +122,19 @@ struct SettingsWidgets {
   lv_obj_t* smooth_btn = nullptr;
   lv_obj_t* smooth_value = nullptr;
   lv_obj_t* drop_neg_flow_switch = nullptr;  // on = clamp negative g/s on the graph
-  lv_obj_t* scope_graph_switch = nullptr;    // on = oscilloscope sweep, off = scroll
+  lv_obj_t* scope_graph_switch = nullptr;    // on = oscilloscope sweep, off = scroll;
+                                             // nullptr on round glass (no live sweep)
   // Shot-graph X-window growth cycle button (Snap / Smooth / Continuous)
   lv_obj_t* xgrow_btn = nullptr;
   lv_obj_t* xgrow_value = nullptr;
-  lv_obj_t* perf_overlay_switch = nullptr;   // on = show LVGL FPS/CPU overlay
   lv_obj_t* clean_lock_btn = nullptr;        // 30 s touch lockout for wiping the screen
   lv_obj_t* auto_connect_switch = nullptr;   // Micra > Bluetooth: connect to the
                                              // saved machine at boot
-  lv_obj_t* chime_vol_minus = nullptr;       // Micra > Controls: warm-up chime
+  lv_obj_t* chime_vol_minus = nullptr;       // Device > Sound: warm-up chime
   lv_obj_t* chime_vol_slider = nullptr;      // level. Slider + [-]/[+] + readout
   lv_obj_t* chime_vol_value = nullptr;       // over a LINEAR 0-100 scale (0 =
   lv_obj_t* chime_vol_plus = nullptr;        // Off); audio boards only
-  lv_obj_t* chime_mel_btn = nullptr;         // Micra > Controls: warm-up chime
+  lv_obj_t* chime_mel_btn = nullptr;         // Device > Sound: warm-up chime
   lv_obj_t* chime_mel_value = nullptr;       // melody cycle (Off / Blue / Pink
                                              // / ...); audio boards only
   lv_obj_t* wired_paddle_switch = nullptr;   // Micra: paddle harness in use (off =
@@ -138,6 +147,14 @@ struct SettingsWidgets {
   lv_obj_t* flush_delay_value = nullptr;     // flush itself is Off
   lv_obj_t* backflush_btn = nullptr;         // Micra > Cleaning: opens the
                                              // backflush screen
+
+  // Round glass only (nullptr elsewhere): Micra > Controls shows brew and steam
+  // as single rows that open Home's temperature dial / steam sheet instead of
+  // carrying their own steppers — one control, two ways in. On round the
+  // stepper buttons and the steam switch below are nullptr; brew_value /
+  // boiler_value / boiler_sub are the rows' value labels.
+  lv_obj_t* brew_open_row = nullptr;
+  lv_obj_t* steam_open_row = nullptr;
 
   // --- Brew temp stepper (continuous, tenths) ------------------------------
   lv_obj_t* brew_minus = nullptr;
@@ -180,6 +197,9 @@ struct SettingsWidgets {
   // (hour labels depend on 12/24h, day count on the month; shot history needs
   // a real date — NTP sets all of this automatically when WiFi is on, these
   // are the offline path).
+  lv_obj_t* time_row = nullptr;        // hidden (with date_row) once Auto time
+  lv_obj_t* date_row = nullptr;        // has set the clock; time_auto_note
+  lv_obj_t* time_auto_note = nullptr;  // says so in their place
   lv_obj_t* hour_dd = nullptr;
   lv_obj_t* minute_dd = nullptr;
   lv_obj_t* month_dd = nullptr;
@@ -194,7 +214,7 @@ struct SettingsWidgets {
   int set_day = 1;
   bool clock_24h = true;
 
-  lv_obj_t* theme_btn = nullptr;
+  lv_obj_t* theme_btn = nullptr;    // nullptr on round glass (fixed palette)
   lv_obj_t* theme_value = nullptr;
   int theme_index = 0;
 
@@ -211,7 +231,7 @@ struct SettingsWidgets {
   lv_obj_t* update_check_value = nullptr;   // its label (hidden if no source)
   lv_obj_t* beta_row = nullptr;             // "Beta updates" (hidden if cadence Off)
   lv_obj_t* beta_switch = nullptr;
-  lv_obj_t* click_sound_switch = nullptr;  // button-press click (audio boards only)
+  lv_obj_t* click_sound_switch = nullptr;  // Device > Sound: button-press click
 
   // Device > Backup (storage-capable boards only; nullptr elsewhere). Settings
   // travel to replacement hardware on the same card the shot history is on.

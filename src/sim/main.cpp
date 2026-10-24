@@ -79,7 +79,8 @@ bool render(core::IMachine& machine, core::IProvisioner& provisioner,
             uint32_t unwired_midshot_ms = 0, bool toast = false,
             bool join_modal = false, bool screensaver = false,
             bool update_modal = false, core::IUpdateSource* updates = nullptr,
-            core::ISettingsBackup* backup = nullptr, int backup_modal = 0) {
+            core::ISettingsBackup* backup = nullptr, int backup_modal = 0,
+            int round_sheet = 0) {
   std::filesystem::path p(out_path);
   if (p.has_parent_path()) std::filesystem::create_directories(p.parent_path());
 
@@ -129,9 +130,26 @@ bool render(core::IMachine& machine, core::IProvisioner& provisioner,
     app.confirm_restore();
     app.pose_backup_result();  // no reboot handler in the sim: the notice stays
   }
+  // Round glass: 1 = the brew temperature dial, 2 = the steam sheet.
+  if (round_sheet == 1) app.open_brew_dial();
+  if (round_sheet == 2) app.open_steam_sheet();
   display.render_frame();
-  if (screensaver && !check_saver_dirty_area(screen)) return false;
-  if (screen.round) display.mask_round();
+  // (The Clock idle screen has no bouncing artwork to check.)
+  if (screensaver &&
+      disp_settings.screensaver_style() != core::IDisplaySettings::kSaverClock &&
+      !check_saver_dirty_area(screen))
+    return false;
+  if (screen.round) {
+    // A clean copy first, for the user manual (tools/annotate_docs.py cuts it
+    // to the circle); the render itself is masked to show what the glass hides.
+    const std::filesystem::path glass = p.parent_path() / "glass" / p.filename();
+    std::filesystem::create_directories(glass.parent_path());
+    if (!display.save_png(glass.string().c_str())) {
+      std::fprintf(stderr, "error: failed to write %s\n", glass.string().c_str());
+      return false;
+    }
+    display.mask_round();
+  }
   if (!display.save_png(out_path)) {
     std::fprintf(stderr, "error: failed to write %s\n", out_path);
     return false;
@@ -163,12 +181,21 @@ int main() {
                int shot_id = -1, int history_ym = 0, bool backflush = false,
                bool log_modal = false, uint32_t unwired_midshot_ms = 0,
                bool toast = false, bool join_modal = false, bool screensaver = false,
-               bool update_modal = false, int backup_modal = 0) {
+               bool update_modal = false, int backup_modal = 0, int round_sheet = 0) {
     return render(machine, provisioner, battery, disp, clock, history, scale,
                   scale_provisioner, brew, network, shots, s, path, tab, sec, modal, theme,
                   stats, clean_lock, shot_id, history_ym, backflush, log_modal,
                   unwired_midshot_ms, toast, join_modal, screensaver, update_modal,
-                  &updates, &backup, backup_modal);
+                  &updates, &backup, backup_modal, round_sheet);
+  };
+  // A round (3.4C) render posed outside the round block below, for the manual:
+  // same fake state as the rectangular twin beside it, without a battery.
+  const ui::ScreenProfile rd{800, 800, 1.0f, true};
+  auto r_round = [&](const char* path, auto... args) {
+    battery.set_hw(false);
+    const bool done = r(rd, path, args...);
+    battery.set_hw(true);
+    return done;
   };
   bool ok = true;
   ok &= r({800, 480}, "renders/home_800x480.png");
@@ -177,7 +204,7 @@ int main() {
   // pill below it, the tray above. The PNGs are masked to the circle (edge in
   // red, off-glass dimmed) so anything the panel would hide is obvious.
   {
-    const ui::ScreenProfile rd{800, 800, 1.0f, true};
+    battery.set_hw(false);  // the 3.4C has no battery circuit
     ok &= r(rd, "renders/round_home_800x800.png");
     machine.set_temps(78.0f, 96.0f);
     ok &= r(rd, "renders/round_home_heating_800x800.png");
@@ -187,21 +214,70 @@ int main() {
     ok &= r(rd, "renders/round_settings_800x800.png", 1);
     ok &= r(rd, "renders/round_micra_controls_800x800.png", 1, ui::kSectionMicraControls);
     ok &= r(rd, "renders/round_device_display_800x800.png", 1, ui::kSectionDeviceDisplay);
-    ok &= r(rd, "renders/round_stats_800x800.png", 2);
+    ok &= r(rd, "renders/round_micra_bt_800x800.png", 1, ui::kSectionMicraBt);
+    ok &= r(rd, "renders/round_device_wifi_800x800.png", 1, ui::kSectionDeviceWifi);
+    ok &= r(rd, "renders/round_device_sound_800x800.png", 1, ui::kSectionDeviceSound);
+    ok &= r(rd, "renders/round_device_800x800.png", 1, ui::kSectionDevice);
+    ok &= r(rd, "renders/round_scale_settings_800x800.png", 1, ui::kSectionScaleSettings);
+    ok &= r(rd, "renders/round_scale_graph_800x800.png", 1, ui::kSectionScaleGraph);
+    ok &= r(rd, "renders/round_device_time_800x800.png", 1, ui::kSectionDeviceTime);
+    network.set_ntp_seconds_since_sync(42);  // Auto time has set the clock
+    ok &= r(rd, "renders/round_device_time_auto_800x800.png", 1, ui::kSectionDeviceTime);
+    network.set_ntp_seconds_since_sync(-1);
+    ok &= r(rd, "renders/round_stats_800x800.png", 2, -1, false, 0, ui::kStatsBrew);
+    ok &= r(rd, "renders/round_stats_steam_800x800.png", 2, -1, false, 0, ui::kStatsBoiler);
+    disp.set_use_fahrenheit(true);  // the axis picks round numbers in the user's unit
+    ok &= r(rd, "renders/round_stats_f_800x800.png", 2, -1, false, 0, ui::kStatsBrew);
+    disp.set_use_fahrenheit(false);
+    ok &= r(rd, "renders/round_stats_info_800x800.png", 2, -1, false, 0, ui::kStatsInfo);
     ok &= r(rd, "renders/round_token_modal_800x800.png", 0, -1, true);
     ok &= r(rd, "renders/round_clean_lock_800x800.png", 0, -1, false, 0, -1, true);
     ok &= r(rd, "renders/round_screensaver_800x800.png", 0, -1, false, 0, -1, false, -1,
             0, false, false, false, false, false, true);
+    disp.set_screensaver_style(core::IDisplaySettings::kSaverClock);
+    ok &= r(rd, "renders/round_screensaver_clock_800x800.png", 0, -1, false, 0, -1, false,
+            -1, 0, false, false, false, false, false, true);
+    disp.set_screensaver_style(core::IDisplaySettings::kSaverLion);
     updates.set_available(true);
     ok &= r(rd, "renders/round_update_modal_800x800.png", 0, -1, false, 0, -1, false, -1,
             0, false, false, false, false, false, false, true);
     updates.set_available(false);
     ok &= r(rd, "renders/round_backflush_800x800.png", 1, -1, false, 0, -1, false, -1, 0,
             true);
-    ok &= r(rd, "renders/round_shot_card_800x800.png", 0, -1, false, 0, -1, false, 0);
+    ok &= r(rd, "renders/round_shot_card_800x800.png", 2, -1, false, 0, ui::kStatsHistory,
+            false, 14);
+    // The liquid-glass Home (round + no scale): ready, heating, standby, and
+    // the Settings tab with the glass dock but no backdrop.
     scale_provisioner.set_saved(false);
     ok &= r(rd, "renders/round_home_noscale_800x800.png");
+    machine.set_temps(78.0f, 96.0f);
+    ok &= r(rd, "renders/round_home_glass_heating_800x800.png");
+    machine.set_temps(93.0f, 123.0f);
+    machine.set_power(false);
+    ok &= r(rd, "renders/round_home_glass_standby_800x800.png");
+    machine.set_power(true);
+    ok &= r(rd, "renders/round_settings_glass_800x800.png", 1);
+    ok &= r(rd, "renders/round_dial_800x800.png", 0, -1, false, 0, -1, false, -1, 0, false,
+            false, 0, false, false, false, false, 0, 1);
+    ok &= r(rd, "renders/round_steam_sheet_800x800.png", 0, -1, false, 0, -1, false, -1, 0,
+            false, false, 0, false, false, false, false, 0, 2);
     scale_provisioner.set_saved(true);
+    // With a scale: idle (weight / Tare / shot pill), a shot running (ring =
+    // progress, weight as the numerals, flow graph), and the review.
+    ok &= r(rd, "renders/round_home_scale_800x800.png");
+    brew.set_wired_paddle(false);  // the mid-shot pose back-fills an unwired shot
+    brew.set_phase(core::ShotPhase::kBrewing);
+    brew.set_shot_ms(24000);
+    ok &= r(rd, "renders/round_shot_800x800.png", 0, -1, false, 0, -1, false, -1, 0, false,
+            false, 24000);
+    brew.set_wired_paddle(true);
+    brew.set_phase(core::ShotPhase::kReview);
+    ok &= r(rd, "renders/round_review_800x800.png");
+    brew.set_phase(core::ShotPhase::kIdle);
+    brew.set_shot_ms(27000);
+    ok &= r(rd, "renders/round_micra_controls_glass_800x800.png", 1, ui::kSectionMicraControls);
+    ok &= r(rd, "renders/round_history_800x800.png", 2, -1, false, 0, ui::kStatsHistory);
+    battery.set_hw(true);
   }
   // Scrolling strip-chart graph (the non-default style; scope is the default).
   disp.set_scope_graph(false);
@@ -310,16 +386,21 @@ int main() {
   ok &= r({800, 480}, "renders/micra_cleaning_800x480.png", 1, ui::kSectionMicraCleaning);
   ok &= r({320, 240}, "renders/scale_bt_320x240.png", 1, ui::kSectionScaleBt);
   ok &= r({800, 480}, "renders/scale_bt_800x480.png", 1, ui::kSectionScaleBt);
+  ok &= r_round("renders/round_scale_bt_800x800.png", 1, ui::kSectionScaleBt);
   // Cleaning page with Auto flush on, so the Flush delay row is visible (the
   // user manual's screenshot needs all three rows).
   brew.set_flush_s(3);
   ok &= r({800, 480}, "renders/micra_cleaning_on_800x480.png", 1, ui::kSectionMicraCleaning);
+  ok &= r_round("renders/round_micra_cleaning_on_800x800.png", 1, ui::kSectionMicraCleaning);
   brew.set_flush_s(0);
   ok &= r({320, 240}, "renders/scale_settings_320x240.png", 1, ui::kSectionScaleSettings);
   ok &= r({800, 480}, "renders/scale_settings_800x480.png", 1, ui::kSectionScaleSettings);
+  ok &= r({320, 240}, "renders/scale_graph_320x240.png", 1, ui::kSectionScaleGraph);
+  ok &= r({800, 480}, "renders/scale_graph_800x480.png", 1, ui::kSectionScaleGraph);
   // Scale > Device settings (stored on the scale): live values, and the
   // link-down state where the rows disable ("--") behind a Connect prompt.
   ok &= r({800, 480}, "renders/scale_device_800x480.png", 1, ui::kSectionScaleDevice);
+  ok &= r_round("renders/round_scale_device_800x800.png", 1, ui::kSectionScaleDevice);
   scale.set_connected(false);
   scale_provisioner.set_connect_enabled(false);
   ok &= r({800, 480}, "renders/scale_device_disc_800x480.png", 1,
@@ -340,6 +421,12 @@ int main() {
   ok &= r({800, 480}, "renders/device_display_800x480.png", 1, ui::kSectionDeviceDisplay);
   ok &= r({800, 480}, "renders/device_time_800x480.png", 1, ui::kSectionDeviceTime);
   ok &= r({800, 480}, "renders/device_wifi_800x480.png", 1, ui::kSectionDeviceWifi);
+  ok &= r({320, 240}, "renders/device_sound_320x240.png", 1, ui::kSectionDeviceSound);
+  ok &= r({800, 480}, "renders/device_sound_800x480.png", 1, ui::kSectionDeviceSound);
+  // Time & date once Auto time has set the clock: the pickers give way to a note.
+  network.set_ntp_seconds_since_sync(42);
+  ok &= r({800, 480}, "renders/device_time_auto_800x480.png", 1, ui::kSectionDeviceTime);
+  network.set_ntp_seconds_since_sync(-1);
 
   // Settings > Apollo > Backup: the page in its three card states, then the two
   // confirmations (the whole point of the flow is what those two say).
@@ -347,6 +434,10 @@ int main() {
   ok &= r({800, 480}, "renders/device_backup_empty_800x480.png", 1, ui::kSectionDeviceBackup);
   backup.pose_backup_present();
   ok &= r({800, 480}, "renders/device_backup_800x480.png", 1, ui::kSectionDeviceBackup);
+  ok &= r_round("renders/round_device_backup_800x800.png", 1, ui::kSectionDeviceBackup);
+  ok &= r_round("renders/round_backup_modal_800x800.png", 1, ui::kSectionDeviceBackup,
+                false, 0, -1, false, -1, 0, false, false, false, false, false, false,
+                false, 1);
   ok &= r({1280, 720, 1.5f}, "renders/device_backup_1280x720.png", 1, ui::kSectionDeviceBackup);
   ok &= r({1280, 720, 1.5f}, "renders/backup_modal_1280x720.png", 1, ui::kSectionDeviceBackup,
           false, 0, -1, false, -1, 0, false, false, false, false, false, false, false, 1);
@@ -401,6 +492,8 @@ int main() {
   // flow shows the same layout with different copy).
   ok &= r({800, 480}, "renders/join_modal_800x480.png", 0, -1, false, 0, -1,
           false, -1, 0, false, false, false, false, true);
+  ok &= r_round("renders/round_join_modal_800x800.png", 0, -1, false, 0, -1, false, -1, 0,
+                false, false, false, false, true);
   ok &= r({320, 240}, "renders/join_modal_320x240.png", 0, -1, false, 0, -1,
           false, -1, 0, false, false, false, false, true);
   ok &= r(p5, "renders/join_modal_1280x720.png", 0, -1, false, 0, -1,

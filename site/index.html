@@ -74,8 +74,9 @@
       <p class="sub">
     An open-source Bluetooth remote for the La Marzocco Linea Micra — live
     temperatures, remote power, and brew-by-weight with a Bluetooth scale, on
-    Waveshare ESP32 touch displays.
-    <a href="https://github.com/mlsorensen/Apollo2">Source &amp; docs on GitHub</a>.
+    the round Waveshare ESP32-P4 3.4C touch display. A fork of
+    <a href="https://github.com/mlsorensen/Apollo2">Apollo&nbsp;2</a>;
+    <a href="https://github.com/jeewanghuman/Micra-display">source &amp; docs on GitHub</a>.
       </p>
     </div>
   </div>
@@ -135,34 +136,12 @@
 
   <div class="board">
     <div class="info">
-      <div class="name">ESP32-P4-WIFI6-Touch-LCD-5</div>
-      <div class="desc">5&quot; 1280&times;720, ESP32-P4 + WiFi 6. Two USB-C ports &mdash; use the one labeled <b>UART</b>.</div>
+      <div class="name">ESP32-P4-WIFI6-Touch-LCD-3.4C (round)</div>
+      <div class="desc">3.4&quot; 800&times;800 round, ESP32-P4 + WiFi 6, chip
+        revision v1.x. If the board has two USB-C ports, use the one labeled
+        <b>UART</b>.</div>
     </div>
-    <esp-web-install-button data-board="p4-wifi6-touch-lcd-5"><button slot="activate">Install</button></esp-web-install-button>
-  </div>
-
-  <div class="board">
-    <div class="info">
-      <div class="name">ESP32-P4-WIFI6-Touch-LCD-4.3</div>
-      <div class="desc">4.3&quot; 800&times;480, ESP32-P4 + WiFi 6. Two USB-C ports &mdash; use the one labeled <b>UART</b>.</div>
-    </div>
-    <esp-web-install-button data-board="p4-wifi6-touch-lcd-4.3"><button slot="activate">Install</button></esp-web-install-button>
-  </div>
-
-  <div class="board">
-    <div class="info">
-      <div class="name">ESP32-S3-Touch-LCD-4.3C / 4.3C-BOX</div>
-      <div class="desc">4.3&quot; 800&times;480, ESP32-S3. Single USB-C port.</div>
-    </div>
-    <esp-web-install-button data-board="s3-touch-lcd-4.3c"><button slot="activate">Install</button></esp-web-install-button>
-  </div>
-
-  <div class="board">
-    <div class="info">
-      <div class="name">ESP32-P4-WIFI6-Touch-LCD-X (8&quot;)</div>
-      <div class="desc">8&quot; 1280&times;800 finished box, ESP32-P4 + WiFi 6. Two USB-C ports &mdash; use the one labeled <b>UART</b>.</div>
-    </div>
-    <esp-web-install-button data-board="p4-wifi6-touch-lcd-x-8"><button slot="activate">Install</button></esp-web-install-button>
+    <esp-web-install-button data-board="p4-wifi6-touch-lcd-3.4c"><button slot="activate">Install</button></esp-web-install-button>
   </div>
 
   <h2>After flashing</h2>
@@ -171,7 +150,7 @@
     <li>If the machine was never paired with the La Marzocco app, pairing works
         right away. Otherwise the remote needs the machine's Bluetooth token —
         the on-screen setup walks you through it, or the
-        <a href="https://github.com/mlsorensen/Apollo2#2-pair-the-machine">pairing
+        <a href="https://github.com/jeewanghuman/Micra-display#2-pair-the-machine">pairing
         instructions</a> cover every path (including fetching the token from
         your La Marzocco account with the <code>lmtoken</code> tool).</li>
     <li>Optional: pair a Bluetooth scale (Bookoo Themis Mini, Acaia Umbra) under
@@ -192,7 +171,7 @@
 
   <footer>
     Firmware images are built and published by
-    <a href="https://github.com/mlsorensen/Apollo2/actions">GitHub Actions</a>
+    <a href="https://github.com/jeewanghuman/Micra-display/actions">GitHub Actions</a>
     from tagged releases. Not affiliated with La Marzocco.
   </footer>
 </main>
@@ -286,16 +265,13 @@
   // case where opening the port happens to reset a UART-bridge board. Matched
   // most-specific-first ("...LCD-X-8" before "...LCD-5" etc.). No DTR/RTS
   // toggling — a scripted reset dance can strand S3 boards in download mode.
-  // Only the three PUBLISHED boards are listed: a device running one of the
-  // unreleased board builds has no image here, so it correctly falls through
-  // to "couldn't identify" rather than being offered someone else's firmware.
-  // The reply also carries REV= (silicon revision) — unused until the P4-5
-  // ships in two revisions and needs two images to choose between.
+  // This fork publishes ONLY the round 3.4C on rev v1.x silicon. A rev3 3.4C
+  // reports "...3.4C (rev3)" and has no image here, so it maps to null and
+  // falls through to "couldn't identify" instead of being offered the rev1
+  // image (which would not boot on it).
   const BOARD_PATTERNS = [
-    ['P4-WIFI6-Touch-LCD-X-8', 'p4-wifi6-touch-lcd-x-8'],
-    ['P4-WIFI6-Touch-LCD-5',   'p4-wifi6-touch-lcd-5'],
-    ['P4-WIFI6-Touch-LCD-4.3', 'p4-wifi6-touch-lcd-4.3'],
-    ['S3-Touch-LCD-4.3C',      's3-touch-lcd-4.3c'],
+    ['P4-WIFI6-Touch-LCD-3.4C (rev3)', null],
+    ['P4-WIFI6-Touch-LCD-3.4C',        'p4-wifi6-touch-lcd-3.4c'],
   ];
   const matchBoard = (text) => {
     for (const [pat, id] of BOARD_PATTERNS) if (text.includes(pat)) return id;

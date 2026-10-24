@@ -4,6 +4,7 @@
 #include <cstdio>
 #include <cstring>
 
+#include "ui/glass.h"
 #include "ui/theme.h"
 #include "ui/units.h"
 #include "ui/widgets.h"
@@ -97,9 +98,15 @@ uint16_t blend565(uint16_t dst, uint16_t src, uint8_t a) {
 // Repaint one canvas column to the background + a mid gridline (half scale) so the
 // sweep leaves a clean grid behind it. Writes the RGB565 buffer directly
 // (lv_canvas_set_px is far too slow per-pixel).
+// Flow-graph palette. Round glass draws a crema trace on dark glass (the
+// colour of Home's shot ring); every other board uses the theme.
+uint32_t flow_bg_hex() { return ui::round_glass() ? 0x161616 : ui::theme::card(); }
+uint32_t flow_grid_hex() { return ui::round_glass() ? 0x343434 : ui::theme::scrollbar(); }
+uint32_t flow_trace_hex() { return ui::round_glass() ? 0xFFB866 : ui::theme::accent(); }
+
 void clear_flow_column(HomeWidgets& w, int x) {
-  const uint16_t bg = lv_color_to_u16(lv_color_hex(ui::theme::card()));
-  const uint16_t grid = lv_color_to_u16(lv_color_hex(ui::theme::scrollbar()));
+  const uint16_t bg = lv_color_to_u16(lv_color_hex(flow_bg_hex()));
+  const uint16_t grid = lv_color_to_u16(lv_color_hex(flow_grid_hex()));
   uint16_t* col = w.flow_buf + x;
   for (int y = 0; y < w.flow_h; ++y) col[y * w.flow_stride] = bg;
   for (int t = 1; t <= 2; ++t) {  // gridlines at 1/3 and 2/3 of full scale
@@ -112,11 +119,11 @@ void clear_flow_column(HomeWidgets& w, int x) {
 // background, used for the aged (previous-sweep) trace in oscilloscope mode so the
 // fresh sweep edge stands out against it.
 uint16_t flow_bright_color() {
-  return lv_color_to_u16(lv_color_hex(ui::theme::accent()));
+  return lv_color_to_u16(lv_color_hex(flow_trace_hex()));
 }
 uint16_t flow_dim_color() {
-  const lv_color_t a = lv_color_hex(ui::theme::accent());
-  const lv_color_t bg = lv_color_hex(ui::theme::card());
+  const lv_color_t a = lv_color_hex(flow_trace_hex());
+  const lv_color_t bg = lv_color_hex(flow_bg_hex());
   return lv_color_to_u16(lv_color_mix(a, bg, 100));  // ~40% accent over the bg
 }
 
@@ -131,7 +138,7 @@ void fill_flow_below(HomeWidgets& w, int x, float yf, uint16_t trace_color) {
   int start = static_cast<int>(b) + 1;
   if (start < 0) start = 0;
   if (start >= w.flow_h) return;
-  const uint16_t bg = lv_color_to_u16(lv_color_hex(ui::theme::card()));
+  const uint16_t bg = lv_color_to_u16(lv_color_hex(flow_bg_hex()));
   const uint16_t fill = blend565(bg, trace_color, 102);  // ~40% wash
   int gy[2];
   for (int t = 1; t <= 2; ++t) gy[t - 1] = w.flow_h * t / 3;  // gridline rows
@@ -334,13 +341,33 @@ void populate_flow_graph(lv_obj_t* card, HomeWidgets& out) {
   out.flow_unit_btn = btn;
   out.flow_unit_label = blab;
 
+  // Axis labels. Round glass is read from across the counter: the Stats
+  // chart's bigger, brighter labels (20 px, white at 175).
+  const lv_font_t* axis_font = ui::font_dp(ui::round_glass() ? 20 : 14);
+  auto style_axis_label = [&](lv_obj_t* l) {
+    if (ui::round_glass()) {
+      lv_obj_set_style_text_color(l, lv_color_hex(0xFFFFFF), 0);
+      lv_obj_set_style_text_opa(l, 175, 0);
+    } else {
+      lv_obj_set_style_text_color(l, lv_color_hex(ui::theme::muted()), 0);
+    }
+    lv_obj_set_style_text_font(l, axis_font, 0);
+  };
+
   // Four Y labels (0, max/3, 2max/3, max) in the left margin, aligned to the plot
   // rows. The top three are dynamic (updated on rescale); the bottom "0" is static.
+  // Round: a fixed column right-aligned against the plot, so "10" and "100"
+  // end at the same x.
   auto make_ylabel = [&](int y) {
     lv_obj_t* l = lv_label_create(card);
-    lv_obj_set_style_text_color(l, lv_color_hex(ui::theme::muted()), 0);
-    lv_obj_set_style_text_font(l, ui::font_dp(14), 0);
-    lv_obj_align(l, LV_ALIGN_TOP_LEFT, ui::dp(-26), y - ui::dp(8));
+    style_axis_label(l);
+    if (ui::round_glass()) {
+      lv_obj_set_width(l, ui::dp(48));
+      lv_obj_set_style_text_align(l, LV_TEXT_ALIGN_RIGHT, 0);
+      lv_obj_align(l, LV_ALIGN_TOP_LEFT, -ui::dp(56), y - lv_font_get_line_height(axis_font) / 2);
+    } else {
+      lv_obj_align(l, LV_ALIGN_TOP_LEFT, ui::dp(-26), y - ui::dp(8));
+    }
     return l;
   };
   for (int t = 0; t < 3; ++t) out.flow_ylabels[t] = make_ylabel(ph * t / 3);  // max..max/3
@@ -354,11 +381,21 @@ void populate_flow_graph(lv_obj_t* card, HomeWidgets& out) {
     const int secs = out.flow_win_s * (3 - t) / 3;
     if (secs == 0) lv_label_set_text(xl, "now");
     else lv_label_set_text_fmt(xl, "%ds", secs);
-    lv_obj_set_style_text_color(xl, lv_color_hex(ui::theme::muted()), 0);
-    lv_obj_set_style_text_font(xl, ui::font_dp(14), 0);
+    style_axis_label(xl);
     int x = pw * t / 3;
-    if (t == 3) x -= ui::dp(24);
-    else if (t > 0) x -= ui::dp(12);
+    if (ui::round_glass()) {
+      // Fixed-width boxes: the ends hug the plot's edges, the middles centre.
+      const int bw = ui::dp(64);
+      lv_obj_set_width(xl, bw);
+      lv_obj_set_style_text_align(xl, t == 0   ? LV_TEXT_ALIGN_LEFT
+                                      : t == 3 ? LV_TEXT_ALIGN_RIGHT
+                                               : LV_TEXT_ALIGN_CENTER, 0);
+      x = t == 0 ? 0 : t == 3 ? pw - bw : x - bw / 2;
+    } else if (t == 3) {
+      x -= ui::dp(24);
+    } else if (t > 0) {
+      x -= ui::dp(12);
+    }
     lv_obj_align(xl, LV_ALIGN_TOP_LEFT, x, ph + ui::dp(4));
     out.flow_xlabels[t] = xl;
   }
@@ -367,9 +404,11 @@ void populate_flow_graph(lv_obj_t* card, HomeWidgets& out) {
   // to age there — the sweep gap marks "now"). Hidden until scope mode is active.
   out.flow_xspan_label = lv_label_create(card);
   lv_label_set_text_fmt(out.flow_xspan_label, "%d s window", out.flow_win_s);
-  lv_obj_set_style_text_color(out.flow_xspan_label, lv_color_hex(ui::theme::muted()), 0);
-  lv_obj_set_style_text_font(out.flow_xspan_label, ui::font_dp(14), 0);
-  lv_obj_align(out.flow_xspan_label, LV_ALIGN_TOP_LEFT, pw / 2 - ui::dp(44), ph + ui::dp(4));
+  style_axis_label(out.flow_xspan_label);
+  if (ui::round_glass())  // centred on the plot whatever the caption's length
+    lv_obj_align(out.flow_xspan_label, LV_ALIGN_TOP_MID, 0, ph + ui::dp(4));
+  else
+    lv_obj_align(out.flow_xspan_label, LV_ALIGN_TOP_LEFT, pw / 2 - ui::dp(44), ph + ui::dp(4));
   lv_obj_add_flag(out.flow_xspan_label, LV_OBJ_FLAG_HIDDEN);
 
 #ifndef ESP_PLATFORM
@@ -858,6 +897,32 @@ void build_bottom_tray(lv_obj_t* bar, const lv_font_t* font, HomeWidgets& out) {
   lv_obj_set_style_text_font(out.battery_label, font, 0);
 }
 
+lv_obj_t* build_round_flow_graph(lv_obj_t* parent, int w, int h, HomeWidgets& out) {
+  lv_obj_t* card = make_flow_graph_card(parent);
+  lv_obj_set_flex_grow(card, 0);
+  lv_obj_set_size(card, w, h);
+  // Inset from the lens's big corner radius: the Y labels sit further in so
+  // the rounded corners don't clip them, and the margins fit 20 px labels.
+  lv_obj_set_style_bg_color(card, lv_color_hex(flow_bg_hex()), 0);
+  lv_obj_set_style_pad_left(card, ui::dp(64), 0);
+  lv_obj_set_style_pad_right(card, ui::dp(40), 0);
+  lv_obj_set_style_pad_top(card, ui::dp(26), 0);
+  lv_obj_set_style_pad_bottom(card, ui::dp(30), 0);
+  lv_obj_update_layout(card);  // populate_flow_graph measures the content box
+  populate_flow_graph(card, out);
+  // Glass chip for the unit toggle, nudged into the plot past the corner.
+  if (out.flow_unit_btn != nullptr) {
+    lv_obj_set_style_bg_color(out.flow_unit_btn, lv_color_hex(0xFFFFFF), 0);
+    lv_obj_set_style_bg_opa(out.flow_unit_btn, 30, 0);
+    lv_obj_set_style_radius(out.flow_unit_btn, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_border_width(out.flow_unit_btn, 1, 0);
+    lv_obj_set_style_border_color(out.flow_unit_btn, lv_color_hex(0xFFFFFF), 0);
+    lv_obj_set_style_border_opa(out.flow_unit_btn, 80, 0);
+    lv_obj_set_style_pad_ver(out.flow_unit_btn, ui::dp(4), 0);
+  }
+  return card;
+}
+
 void build_home_tab(lv_obj_t* parent, const ScreenProfile& screen, bool scale_enabled,
                     HomeWidgets& out) {
   const bool compact = is_compact(screen);
@@ -890,6 +955,22 @@ void build_home_tab(lv_obj_t* parent, const ScreenProfile& screen, bool scale_en
   out.flow_xspan_label = nullptr;
   for (lv_obj_t*& yl : out.flow_ylabels) yl = nullptr;
   for (lv_obj_t*& xl : out.flow_xlabels) xl = nullptr;
+  out.round_glass = false;
+  out.rg_backdrop = nullptr;
+  out.rg_brew_arc = out.rg_brew_glow = out.rg_steam_arc = out.rg_steam_glow = nullptr;
+  out.rg_power_icon = out.rg_flush_icon = nullptr;
+  out.rg_ring = out.rg_steam_capsule = nullptr;
+  out.rg_idle_view = out.rg_shot_view = nullptr;
+  out.rg_shot_arc = out.rg_shot_glow = out.rg_shot_status = nullptr;
+  out.rg_shot_target = out.rg_weight_small = nullptr;
+  out.power_btn = out.power_label = nullptr;
+  out.shot_btn = out.shot_btn_label = nullptr;
+
+  // Round glass: the liquid-glass Home (round_home.cpp), with or without a scale.
+  if (is_round(screen)) {
+    build_round_home(parent, screen, scale_enabled, out);
+    return;
+  }
 
   const int pad = ui::dp(compact ? 8 : xl ? 28 : 20);
   const int gap = ui::dp(compact ? 6 : xl ? 22 : 16);
@@ -1070,8 +1151,12 @@ void update_home(HomeWidgets& w, const core::MachineSnapshot& state,
   // Temperatures: real values when connected, placeholders otherwise. The set point
   // is always compact ("93.0°" — the live value above/beside it carries the unit),
   // whether it's a stepper's value (large) or a grey sub-value (compact).
+  // (The round-glass Home formats its own readouts — update_round_home, below —
+  // so this generic text is skipped there rather than written and rewritten.)
   char buf[24];
-  if (connected) {
+  if (w.round_glass) {
+    // see update_round_home
+  } else if (connected) {
     format_now(buf, sizeof(buf), state.brew_temp_c, fahrenheit);
     ui::set_text(w.brew_value, buf);
     if (w.brew_set != nullptr) {
@@ -1296,11 +1381,19 @@ void update_home(HomeWidgets& w, const core::MachineSnapshot& state,
   }
 
   // Battery / power (top-right):
+  //   no battery circuit on the board                    -> hidden (no gap)
   //   USB power (voltage at/above threshold, or no cell) -> USB symbol
   //   on battery                                         -> percent + level icon
   //   nothing known                                      -> blank
   char bb[24];
-  if (battery.usb) {
+  if (w.battery_label != nullptr &&
+      lv_obj_has_flag(w.battery_label, LV_OBJ_FLAG_HIDDEN) == battery.hw) {
+    if (battery.hw) lv_obj_remove_flag(w.battery_label, LV_OBJ_FLAG_HIDDEN);
+    else lv_obj_add_flag(w.battery_label, LV_OBJ_FLAG_HIDDEN);
+  }
+  if (!battery.hw) {
+    // Nothing to show: the label stays hidden (out of the tray's layout).
+  } else if (battery.usb) {
     ui::set_text(w.battery_label, LV_SYMBOL_USB);
     ui::set_text_color(w.battery_label, ui::theme::muted());
   } else if (battery.present) {
@@ -1348,6 +1441,9 @@ void update_home(HomeWidgets& w, const core::MachineSnapshot& state,
   // when the button lives inside the MICRA card (card-on-card is invisible).
   const uint32_t pow_neutral =
       (w.scale_connect_btn != nullptr) ? ui::theme::rail() : ui::theme::card();
+  // The round-glass Home keeps the enable/disable logic below but draws its own
+  // fills and words (update_round_home).
+  const bool generic_look = !w.round_glass;
   // Release a pending power toggle: answered (the reported power changed),
   // link lost (nothing left to wait on), or timed out.
   if (w.power_pending_until != 0 &&
@@ -1363,19 +1459,25 @@ void update_home(HomeWidgets& w, const core::MachineSnapshot& state,
         // button disabled so the lag can't read as "didn't work" and invite
         // a second (state-undoing) tap.
         lv_obj_add_state(w.power_btn, LV_STATE_DISABLED);
-        ui::set_bg_color(w.power_btn, pow_neutral);
-        ui::set_text(w.power_label, LV_SYMBOL_REFRESH "  Working...");
+        if (generic_look) {
+          ui::set_bg_color(w.power_btn, pow_neutral);
+          ui::set_text(w.power_label, LV_SYMBOL_REFRESH "  Working...");
+        }
         break;
       }
       lv_obj_remove_state(w.power_btn, LV_STATE_DISABLED);
-      ui::set_bg_color(w.power_btn, on ? pow_neutral : ui::theme::accent());
-      ui::set_text(w.power_label,
-                        on ? LV_SYMBOL_POWER "  Standby" : LV_SYMBOL_POWER "  Turn On");
+      if (generic_look) {
+        ui::set_bg_color(w.power_btn, on ? pow_neutral : ui::theme::accent());
+        ui::set_text(w.power_label,
+                     on ? LV_SYMBOL_POWER "  Standby" : LV_SYMBOL_POWER "  Turn On");
+      }
       break;
     case core::Link::Disconnected:  // configured + tokened, just not connected -> connect
       lv_obj_remove_state(w.power_btn, LV_STATE_DISABLED);
-      ui::set_bg_color(w.power_btn, ui::theme::accent());
-      ui::set_text(w.power_label, LV_SYMBOL_REFRESH "  Connect");
+      if (generic_look) {
+        ui::set_bg_color(w.power_btn, ui::theme::accent());
+        ui::set_text(w.power_label, LV_SYMBOL_REFRESH "  Connect");
+      }
       break;
     case core::Link::NeedsToken:
     case core::Link::Unconfigured:
@@ -1384,16 +1486,20 @@ void update_home(HomeWidgets& w, const core::MachineSnapshot& state,
       // can't take and doesn't say what to do instead. Tapping now opens
       // Settings > Micra > Bluetooth (see App::toggle_power).
       lv_obj_remove_state(w.power_btn, LV_STATE_DISABLED);
-      ui::set_bg_color(w.power_btn, ui::theme::accent());
-      ui::set_text(w.power_label, LV_SYMBOL_SETTINGS "  Set up");
+      if (generic_look) {
+        ui::set_bg_color(w.power_btn, ui::theme::accent());
+        ui::set_text(w.power_label, LV_SYMBOL_SETTINGS "  Set up");
+      }
       break;
     case core::Link::Connecting:
     default:
       lv_obj_add_state(w.power_btn, LV_STATE_DISABLED);
-      ui::set_bg_color(w.power_btn, pow_neutral);
-      ui::set_text(w.power_label, has_status_text
-                                      ? LV_SYMBOL_REFRESH "  Connect"
-                                      : LV_SYMBOL_REFRESH "  Connecting...");
+      if (generic_look) {
+        ui::set_bg_color(w.power_btn, pow_neutral);
+        ui::set_text(w.power_label, has_status_text
+                                        ? LV_SYMBOL_REFRESH "  Connect"
+                                        : LV_SYMBOL_REFRESH "  Connecting...");
+      }
       break;
   }
 
@@ -1410,8 +1516,10 @@ void update_home(HomeWidgets& w, const core::MachineSnapshot& state,
         lv_obj_remove_flag(w.flush_btn, LV_OBJ_FLAG_HIDDEN);
       if (brew.manual_flush) {
         lv_obj_remove_state(w.flush_btn, LV_STATE_DISABLED);
-        ui::set_bg_color(w.flush_btn, ui::theme::alert());
-        ui::set_text(w.flush_label, LV_SYMBOL_STOP "  Stop");
+        if (generic_look) {
+          ui::set_bg_color(w.flush_btn, ui::theme::alert());
+          ui::set_text(w.flush_label, LV_SYMBOL_STOP "  Stop");
+        }
       } else {
         // Backflush owns the line while it runs, and a shot in flight blocks a
         // flush — clean_ready covers both (plus a standby machine).
@@ -1419,14 +1527,30 @@ void update_home(HomeWidgets& w, const core::MachineSnapshot& state,
           lv_obj_remove_state(w.flush_btn, LV_STATE_DISABLED);
         else
           lv_obj_add_state(w.flush_btn, LV_STATE_DISABLED);
-        ui::set_bg_color(w.flush_btn, pow_neutral);
-        ui::set_text(w.flush_label, LV_SYMBOL_TINT "  Flush");
+        if (generic_look) {
+          ui::set_bg_color(w.flush_btn, pow_neutral);
+          ui::set_text(w.flush_label, LV_SYMBOL_TINT "  Flush");
+        }
       }
     }
   }
+
+  update_round_home(w, state, scale, brew, fahrenheit);
 }
 
 namespace {
+
+// The shot button's flash fill: a warn fill on the classic layouts; on round
+// glass the amber glass tone (a warn colour at glass opacity is too faint to
+// read as a flash) and back to clear.
+void set_shot_flash_fill(ui::HomeWidgets* w, bool lit) {
+  if (w->round_glass) {
+    ui::glass::set_tone(w->shot_btn, lit ? ui::glass::Tone::kAmber : ui::glass::Tone::kClear);
+  } else {
+    lv_obj_set_style_bg_color(w->shot_btn,
+                              lv_color_hex(lit ? ui::theme::warn() : ui::theme::card()), 0);
+  }
+}
 
 // One pulse step of the shot-button attention flash. Alternates a warn fill
 // with the button's normal outlined look, then restores + self-deletes. The
@@ -1438,8 +1562,7 @@ void shot_flash_cb(lv_timer_t* t) {
   if (!dead) {
     --w->shot_flash_count;
     const bool lit = (w->shot_flash_count & 1) != 0;
-    lv_obj_set_style_bg_color(
-        w->shot_btn, lv_color_hex(lit ? ui::theme::warn() : ui::theme::card()), 0);
+    set_shot_flash_fill(w, lit);
     lv_obj_set_style_text_color(
         w->shot_btn_label, lv_color_hex(lit ? ui::theme::bg() : ui::theme::warn()), 0);
   }
@@ -1462,8 +1585,7 @@ void stop_flash_cb(lv_timer_t* t) {
     --w->stop_flash_count;
     const bool lit = (w->stop_flash_count & 1) != 0;
     lv_label_set_text(w->shot_btn_label, "Stop");
-    lv_obj_set_style_bg_color(
-        w->shot_btn, lv_color_hex(lit ? ui::theme::warn() : ui::theme::card()), 0);
+    set_shot_flash_fill(w, lit);
     lv_obj_set_style_text_color(
         w->shot_btn_label, lv_color_hex(lit ? ui::theme::bg() : ui::theme::warn()), 0);
   }
@@ -1471,8 +1593,7 @@ void stop_flash_cb(lv_timer_t* t) {
     // Always end on the resting fill: update_home styles the border/text but
     // NEVER the bg (it assumes card()), so a warn fill left behind here would
     // stick — and with review's warn text on it, render the label invisible.
-    if (w->shot_btn != nullptr)
-      lv_obj_set_style_bg_color(w->shot_btn, lv_color_hex(ui::theme::card()), 0);
+    if (w->shot_btn != nullptr) set_shot_flash_fill(w, false);
     if (w->stop_flash_timer == t) w->stop_flash_timer = nullptr;
     lv_timer_delete(t);
   }

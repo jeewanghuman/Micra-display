@@ -14,6 +14,10 @@
 // it gets its OWN copy of the string, and the release workflow asserts the
 // slug appears EXACTLY ONCE in the binary (it is the self-updater's URL — two
 // copies fail the build, as adding a second user of it did).
+//
+// Fork note: this fork (jeewanghuman/Micra-display) releases only the 3.4C
+// block. The "RELEASED" comments on the other blocks are upstream's, kept
+// as-is so upstream merges stay clean (see CLAUDE.md "Fork releases").
 
 namespace board {
 
@@ -829,7 +833,8 @@ constexpr int kSdLdoChannel = 4;
 // from the board schematic (ESP32-P4-WIFI6-Touch-LCD-XC-Schematic.pdf, rev1.1
 // PCB, shared with the 720x720 4C) and Waveshare's XC repo
 // (docs/HARDWARE.md + examples/arduino/libraries/displays/displays_config.h).
-// UNVERIFIED on hardware.
+// HW-verified on a rev v1.3 unit (2026-10): panel, backlight, touch, radio.
+// Paddle header pins, audio and SD are still from the schematic only.
 //
 // SILICON IS PER UNIT. One block serves both generations; the -rev3 env adds
 // -DBOARD_P4_SILICON_REV3 (+ chip_variant "esp32p4" in its boards json), the
@@ -839,10 +844,11 @@ constexpr char kName[] = "Waveshare ESP32-P4-WIFI6-Touch-LCD-3.4C (rev3)";
 #else
 constexpr char kName[] = "Waveshare ESP32-P4-WIFI6-Touch-LCD-3.4C";
 #endif
-// INTERNAL-ONLY board: NOT in the firmware-release.yml matrix, the web
-// flasher, or the docs, so nothing is published at firmware/app/<slug>.bin
-// and self-update cannot complete here (the check runs, the download 404s —
-// see CLAUDE.md "Support matrix"). Slugs kept so promoting it is a matrix row.
+// RELEASED IN THIS FORK (jeewanghuman/Micra-display): the rev v1.x image is
+// the fork's only firmware-release.yml matrix row and web-flasher card, so
+// it self-updates from the fork's site (see CLAUDE.md "Fork releases"). The
+// -rev3 slug is not published: a rev3 unit's install would 404 and roll back
+// (upstream internal-only boards behave the same way).
 #if defined(BOARD_P4_SILICON_REV3)
 inline constexpr char kUpdateSlug[] = "p4-wifi6-touch-lcd-3.4c-rev3";
 #else
@@ -876,12 +882,16 @@ constexpr int  kLcdNativeH = 800;
 constexpr int  kLcdRotation = 1;
 constexpr int  kLcdRst = 27;               // schematic GPIO27 -> R11 -> RESET
 constexpr bool kLcdRstActiveHigh = false;
-// Backlight: AP3032 boost; GPIO26 PWM -> R65/R37 into its FB node, EN on
-// GPIO33 (R61, also pulled up by R57). Waveshare drives it analogWrite(26,
-// 242) for "95% max brightness", i.e. NORMAL polarity — unlike the 4.3,
-// whose identical-looking circuit runs inverted. Flip if full = dark on HW.
+// Backlight: AP3032 boost; GPIO26 PWM -> R65/R37 (+C70 filter) -> R36 into
+// its FB node, EN on GPIO33 (R61, also pulled up by R57). PWM high pushes
+// current into FB, so the boost backs off: higher duty = DIMMER, the same
+// inverted sense as the 4.3's identical circuit. HW-VERIFIED on a rev v1.3
+// 3.4C (2026-10): normal polarity left the panel dark and the board
+// resetting (POWERON) ~0.5 s after backlight-on; active-low lights the UI
+// and the resets stop. Waveshare's Arduino demo (analogWrite(26, 242) as
+// "95% brightness") reads as normal polarity — don't trust it here.
 constexpr int  kLcdBacklight = 26;
-constexpr bool kBacklightActiveLow = false;
+constexpr bool kBacklightActiveLow = true;
 constexpr int  kLcdBacklightEn = 33;
 constexpr long kDsiDpiClockHz = 80000000;
 constexpr int  kDsiLaneBitRateMbps = 1500;
@@ -891,8 +901,8 @@ constexpr int  kDsiVsyncPulse = 4,  kDsiVsyncBack = 12, kDsiVsyncFront = 24;
 // --- Touch: GT9271. TP_RST reaches GPIO23 (R62) but Waveshare deliberately
 //     leaves it undriven (resetting re-straps the address); TP_INT only goes
 //     to test point TP2 — no MCU route. So: no rst, no int, probe 0x5D then
-//     0x14, poll — the X-series contract. Mapping is a best guess for the
-//     rotation=1 flush; fix on HW from the one-line-per-press serial log. ---
+//     0x14, poll — the X-series contract. Mapping below is HW-VERIFIED
+//     (rev v1.3 unit, 2026-10) with the default panel orientation. ---
 constexpr int  kTouchSda = 7;   // == kI2cSda (Touch reads these names)
 constexpr int  kTouchScl = 8;
 constexpr int  kTouchAddr = 0x5D;    // 0x5D or 0x14
@@ -904,7 +914,9 @@ constexpr bool kTouchMirrorY = true;
 
 // --- Battery: none. The schematic has no Li-ion charger or BAT_ADC (GPIO20
 //     is a free header pin here); the "RTC" connector J1 only backs the P4's
-//     VBAT/LP domain. -1 => battery.cpp reports USB power. ---
+//     VBAT/LP domain. BOARD_NO_BATTERY => battery.cpp reports external power
+//     with hw = false, so the UI shows no power indicator at all. ---
+#define BOARD_NO_BATTERY
 constexpr int   kBatteryAdc = -1;
 constexpr float kBatteryDivider = 3.0f;
 constexpr float kBatteryFullVolts = 4.10f;

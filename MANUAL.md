@@ -1,23 +1,24 @@
-# Apollo 2 user manual
+# Apollo 2 user manual — round display
 
-Everything the firmware can do, screen by screen and setting by setting. For
-flashing and first‑time pairing, start with the [README](README.md#getting-started).
+Everything the firmware can do on the round **Waveshare ESP32‑P4‑WIFI6‑Touch‑LCD‑3.4C**,
+screen by screen and setting by setting. For flashing and first‑time pairing,
+start with the [README](README.md#getting-started).
 
-Some rows only appear where the hardware supports them — a switch you don't see
-(for example **Wired paddle** on a board without paddle wiring, or
-**Brightness** on a board whose backlight can't dim) simply doesn't apply to
-your board.
+The screen is a circle. The clock and WiFi status sit at the top, and a
+row of three buttons at the bottom switches between **Home**, **Settings** and
+**Stats**. Settings pages have a round **back** button beside their title.
 
 **Contents:**
 
 - [Where everything lives](#nav-map) — a map of every screen and setting
-- [Home](#home) — MICRA card · SCALE card · Flow graph · Shot lifecycle
+- [Home](#home) — the idle view · temperature dial · steam sheet · during a
+  shot · shot modes
 - [Settings → Micra](#settings-micra) — Bluetooth · Controls · Cleaning
-- [Settings → Scale](#settings-scale) — Bluetooth · Shot settings · Device
-  settings · Per‑scale nuances
-- [Settings → Apollo](#settings-device) — Display · Time & date · WiFi ·
+- [Settings → Scale](#settings-scale) — Bluetooth · Shot settings (→ Graph) ·
+  Device settings · Per‑scale nuances
+- [Settings → Apollo](#settings-device) — Display · Sound · Time & date · WiFi ·
   Backup · Root page
-- [Stats](#stats-section) — Brew/Boiler graphs · History · Info
+- [Stats](#stats-section) — Brew/Steam history · History · Info
 - [Brew‑by‑weight quick reference](#bbw-reference)
 
 ---
@@ -33,29 +34,31 @@ Every screen and setting, and how to reach it:
 
 ```
 Home
-├─ MICRA card — status · BREW/STEAM temps + set-point steppers
-│  ├─ [Power]  Standby / Turn On / Connect
-│  └─ [Flush]  quick group rinse                *(wired-paddle boards)*
-├─ SCALE card — status · WEIGHT (+ target) · TIMER   *(scale paired)*
-│  ├─ [shot-mode pill]  Auto shot → Shot detect → Manual  (Reset in review)
-│  └─ [Connect/Disconnect] · [Tare]
-└─ Flow graph — g/s ↔ g toggle · freezes for review after a shot
+├─ Status · brew temperature (tap → temperature dial) · brew/steam arcs
+├─ [Steam capsule]   tap → steam sheet (On/Off · three levels)
+├─ [Weight capsule]  live scale weight                     (scale paired)
+├─ [Standby]  Standby / Turn on / Connect / Set up
+├─ [Flush]    quick group rinse                            (Wired paddle on)
+├─ [Tare]                                                  (scale paired)
+├─ [shot-mode pill]  Auto shot → Shot detect → Manual       (scale paired)
+└─ During a shot: progress ring · weight · timer + target · flow graph
+   (g/s ↔ g) · Reset
 
 Settings
 ├─ Micra
-│  ├─ Bluetooth — Scan · saved machine (Setup / Connect / Forget) · Auto connect
-│  ├─ Controls  — Wired paddle* · Chime melody* · Chime volume*
-│  │             · Brew Temperature · Steam Enable + Temperature
-│  └─ Cleaning* — Auto flush · Flush delay · Backflush cleaning  → cleaning mode
+│  ├─ Bluetooth — saved machine (Setup / Connect / Forget) · Auto connect · Scan
+│  ├─ Controls  — Wired paddle · Brew temperature → dial · Steam boiler → sheet
+│  └─ Cleaning  — Auto flush · Flush delay · Backflush cleaning → cleaning mode
 ├─ Scale
-│  ├─ Bluetooth       — Scan · saved scale (Connect / Forget)
-│  ├─ Shot settings   — Target · Review hold · Detect lead-in · Smoothing
-│  │                    · Drop negative g/s · Oscilloscope graph · Window growth
+│  ├─ Bluetooth       — saved scale (Connect / Forget) · Scan
+│  ├─ Shot settings   — Target · Review hold · Detect lead-in
+│  │  └─ Graph        — Smoothing · Drop negative g/s · Window growth
 │  └─ Device settings — the scale's own settings (Beep · Auto-off/sleep · Unit …)
 ├─ Apollo
-│  ├─ Display     — Brightness* · Screen timeout · Idle screen (Lion/Apollo/Alternate/Dim/Off)
-│  │               · Theme · Fahrenheit · Button sounds* · Performance overlay
-│  ├─ Time & date — Time · Date · 24-hour · Timezone
+│  ├─ Display     — Brightness · Screen timeout
+│  │               · Idle screen (Lion/Apollo/Alternate/Dim/Off/Clock) · Fahrenheit
+│  ├─ Sound       — Chime melody · Chime volume · Button sounds
+│  ├─ Time & date — Time · Date (until Auto time sets them) · 24-hour · Timezone
 │  ├─ WiFi        — Enable · Status · Set up WiFi → QR portal · Forget
 │  │               · Auto time (NTP) · Check for updates (Off/Boot/Daily/Hourly)
 │  │                 → notice → Install now · Beta updates
@@ -63,69 +66,65 @@ Settings
 └─ Lock display for cleaning  → 30 s touch lock
 
 Stats
-├─ Brew | Boiler — temperature history graphs (+/− zoom)
-├─ History — headline stats (tap → reset) · month filter · shot list
+├─ Brew | Steam — temperature history chart (−/+ time window)
+├─ History — headline stats (tap → reset) · shot list · web address + card space
 │            └─ tap a shot → full-screen shot card (with delete)
-└─ Info — firmware (→ Check for updates) · uptime · IP · NTP synced · Diagnostic log
-          (tap → viewer) · Micra details
-
-  * = only on boards whose hardware supports it (see the note above)
+└─ Info — firmware (Check for updates; long-press → performance overlay) · uptime
+          · IP · NTP synced · Diagnostic log (tap → viewer) · Micra details
 ```
 
 ---
 
 ## Home
 
-The Home screen adapts to the screen size and to whether a scale is paired.
-Without a scale, the MICRA card fills the screen as a single hero:
+Home has two faces. Most of the time it shows the machine, as below. While a
+shot runs (with a scale paired) it switches to the
+[shot view](#during-a-shot). Without a scale, the scale parts simply aren't
+there:
 
-![Home without a scale](docs/img/manual/home-noscale.png)
+<p align="center">
+  <img src="docs/img/manual/home-noscale.png" width="60%" alt="Home without a scale">
+</p>
 
-### MICRA card
+### The idle view
 
-![MICRA card](docs/img/manual/home-micra.png)
+![Home with a scale paired](docs/img/manual/home.png)
+
+The two **arcs** around the edge are the boilers: brew on the left (amber),
+steam on the right (blue). Each fills from room temperature towards its
+set‑point and is full when the boiler has arrived. Both are empty while the
+machine is disconnected, and the steam arc is empty while steam is off.
 
 - ① **Status** — `Not set up` (no machine chosen yet), `Setup unfinished`
-  (a machine is chosen but pairing never completed — in both of these the Power
-  button reads **Set up** and takes you straight to Settings > Micra >
-  Bluetooth), `Disconnected`, `Connecting...`, `Heating` (powered on, boilers still coming
-  up to temperature — the dot pulses amber), `Ready` (at temperature), or
-  `Standby`. The Micra itself doesn't report a warm‑up state; `Heating` is
-  inferred from the live boiler temperatures vs their set‑points. A boiler
-  within **2 °C** of its set‑point counts as ready, because the machine's own
-  thermostat works to about that tolerance — a steam boiler set to 128 °C
-  routinely settles at 127 °C and stops heating there. Boards with a speaker
-  can also chime when it turns `Ready` — see
-  [Settings → Micra → Controls](#controls).
-- ② ③ **BREW / STEAM** — live boiler temperatures. On larger screens each has a
-  **−/+** stepper that edits the set‑point directly; the small grey number is
-  the current target. Edits are written to the machine as you tap.
-- ④ **Power button** — `Standby` / `Turn on` when connected. After a tap it
-  briefly reads `Working...` (disabled) until the machine reports the change —
-  the Micra's answer trails the command by a couple of seconds, and the button
+  (a machine is chosen but pairing never completed — in both of these the
+  Standby button reads **Set up** and takes you straight to Settings > Micra >
+  Bluetooth), `Disconnected`, `Connecting...`, `Heating` (powered on, boilers
+  still coming up to temperature — the dot pulses amber), `Ready` (at
+  temperature), or `Standby`. The Micra itself doesn't report a warm‑up state;
+  `Heating` is inferred from the live boiler temperatures vs their set‑points.
+  A boiler within **2 °C** of its set‑point counts as ready, because the
+  machine's own thermostat works to about that tolerance — a steam boiler set
+  to 128 °C routinely settles at 127 °C and stops heating there. Apollo can
+  also chime when it turns `Ready` — see [Settings → Apollo → Sound](#sound).
+- ② **Brew temperature** — the live coffee‑boiler temperature. **Tap it** to
+  open the [temperature dial](#dial) and change the set‑point.
+- ③ **Steam** — the live steam‑boiler temperature (or `Steam off`). **Tap it**
+  for the [steam sheet](#steam-sheet): on/off and the three steam levels.
+- ④ **Weight** *(scale paired)* — the scale's live reading, or `Scale off` when
+  it isn't connected. Connect and disconnect the scale under
+  [Settings → Scale → Bluetooth](#scale-bluetooth).
+- ⑤ **Standby** — `Standby` / `Turn on` when connected. After a tap it briefly
+  reads `Working...` (disabled) until the machine reports the change — the
+  Micra's answer trails the command by a couple of seconds, and the button
   would otherwise look like it did nothing. When the machine is configured but
   disconnected it becomes **Connect** and starts the Bluetooth link.
-- ⑤ **Flush** *(paddle‑wired boards, screens 4.3" and larger)* — runs the group
-  for a quick rinse, for the same time as **Auto flush** (3 s when Auto flush
-  is Off). Tap again while it runs to stop early. Greyed out while a shot is
-  in flight or the machine is in standby.
-
-### SCALE card (when a scale is paired)
-
-![SCALE card](docs/img/manual/home-scale-card.png)
-
-- ① **Status** — `Connected`, `Connecting...`, or `Sleeping` (sleep‑capable
-  scales such as the Acaia Umbra with the link switched off). A small battery
-  icon shows the scale's own battery where the scale reports it.
-- ② **WEIGHT** — live reading. During a finished shot's review it freezes at the
-  net shot weight so lifting the cup doesn't wipe the number you care about.
-- ③ **TARGET** — the brew‑by‑weight stop target in grams (**−/+** on larger
-  screens; also under **Settings → Scale → Shot settings → Target**).
-- ④ **TIMER** — the shot timer. Runs from the ESP's own clock whenever the
-  firmware is the shot authority (Auto shot or Shot detect, and every wired
-  shot); in Manual mode without a wire it falls back to the scale's built‑in
-  timer.
-- ⑤ **Shot mode pill** (under the timer) — tap to cycle the shot mode:
+- ⑥ **Flush** *(with **Wired paddle** on)* — runs the group for a quick rinse,
+  for the same time as **Auto flush** (3 s when Auto flush is Off). While it
+  runs it becomes **Stop**; tap to stop early. Greyed out while a shot is in
+  flight or the machine is in standby.
+- ⑦ **Tare** *(scale paired)* — zeroes the scale. (Tares are sent twice under
+  the hood; some scales drop single tare commands.)
+- ⑧ **Shot mode pill** *(scale paired)* — tap to cycle the shot mode:
   - **Auto shot** *(only with a wired paddle — see below)*: flipping the
     Micra's paddle starts the shot (auto‑tare, timer, graph), and the firmware
     opens the paddle circuit by itself when the weight reaches
@@ -140,32 +139,71 @@ Without a scale, the MICRA card fills the screen as a single hero:
     moment it does, the timer, weight and graph snap to the full shot —
     back‑dated to the estimated start, including the **Detect lead‑in**
     (see **Settings → Scale → Shot settings**).
-  - **Manual**: nothing armed. A wired board still relays the paddle and times
-    the shot; otherwise the scale's own timer is shown.
+  - **Manual**: nothing armed. A wired paddle still relays the paddle and
+    times the shot; otherwise the scale's own timer is shown.
   - While a finished shot is frozen for review the pill reads **Reset** —
     tap it to dismiss the review and return to live monitoring.
   - The pill is disabled while a shot is running or settling.
-- ⑦ **Tare** — zeroes the scale. (Tares are sent twice under the hood; some
-  scales drop single tare commands.)
-- ⑥ **Disconnect / Connect** — drops or re‑establishes the scale link, e.g. to
-  save the scale's battery.
-- Like the shot‑mode pill, **Tare** and **Disconnect** are disabled while a
-  shot is running or settling — either would disturb the weight the stop math
-  runs on. They re‑enable the moment the shot is over, however it ends.
+- Like the shot‑mode pill, **Tare** is disabled while a shot is running or
+  settling — it would disturb the weight the stop math runs on. It re‑enables
+  the moment the shot is over, however it ends.
 
-### Flow graph
+<a id="dial"></a>
 
-![Flow graph](docs/img/manual/home-flow-graph.png)
+### Temperature dial
 
-Plots the live flow rate (or weight) from the scale.
+![The brew temperature dial](docs/img/manual/home-dial.png)
 
-- Tap the **g/s** chip ① to switch between flow rate (g/s) and weight (g);
-  the caption ② names the time window in view.
-- During a shot the graph restarts and follows the shot, widening its time
-  window as the shot runs on (see **Window growth**); when the shot ends it
-  freezes for review (see **Review hold**) and then resumes.
-- The graph style (oscilloscope sweep vs scrolling) and smoothing are set under
-  **Settings → Scale → Shot settings**.
+Opened by tapping the brew temperature on Home (or **Settings → Micra →
+Controls → Brew temperature**). The big number is the set‑point you're
+choosing; the small line under it is the boiler's live temperature.
+
+- ① **Drag the knob** round the ring to pick a set‑point between 80 and
+  100 °C, in 0.5 °C steps.
+- ② **−** / **+** nudge it by 0.5 °C.
+- ③ **Set** writes the new set‑point to the machine and closes the dial.
+- ④ **✕** closes without changing anything.
+
+<a id="steam-sheet"></a>
+
+### Steam sheet
+
+<p align="center">
+  <img src="docs/img/manual/home-steam.png" width="60%" alt="The steam sheet">
+</p>
+
+Opened by tapping the steam capsule on Home (or **Settings → Micra → Controls
+→ Steam boiler**). **On** / **Off** switches the steam boiler; the three
+buttons below are the Micra's three steam levels (126, 128 and 131 °C). Each
+tap goes to the machine straight away. **Done** — or a tap outside the
+sheet — closes it.
+
+<a id="during-a-shot"></a>
+
+### During a shot
+
+![Home during a shot](docs/img/manual/home-shot.png)
+
+When a shot starts, Home switches to the shot view. The two boiler arcs give
+way to one **progress ring** that fills as the weight climbs towards the
+target. It switches back once the review ends.
+
+- ① **What's happening** — `Brewing (Auto shot)` (or Shot detect / Manual),
+  `Finishing` while the drips settle, then `Shot complete` while the result is
+  up for review.
+- ② **Weight** — the shot's weight. During review it freezes at the net shot
+  weight, so lifting the cup doesn't wipe the number you care about.
+- ③ **Timer** and **target** — the shot timer runs from Apollo's own clock
+  whenever the firmware is the shot authority (Auto shot or Shot detect, and
+  every wired shot); in Manual mode without a wire it falls back to the scale's
+  built‑in timer. The target is the brew‑by‑weight stop target (**Settings →
+  Scale → Shot settings → Target**).
+- ④ **g/s** — tap to switch the graph between flow rate (g/s) and weight (g).
+- ⑤ **Window** — the time span in view. The graph starts with the shot and
+  widens as the shot runs on (see **Window growth**); when the shot ends it
+  freezes for review (see **Review hold**).
+- ⑥ **Shot pill** — disabled while the shot runs, then **Reset** during the
+  review: tap it to go back to the idle view early.
 
 ### Shot lifecycle notes (all modes)
 
@@ -179,7 +217,7 @@ Plots the live flow rate (or weight) from the scale.
   shot. Waking a standby machine with a paddle flip still works (no water
   moves), and deliberate untracked runs remain available via Manual mode or
   the **Flush** button.
-- On wired boards, flipping the paddle ON **while a review is frozen** is
+- With a wired paddle, flipping the paddle ON **while a review is frozen** is
   swallowed (the machine does not start) and the **Reset** pill flashes —
   dismiss the review first, then start the next shot. This prevents an
   expected auto shot from silently running as a manual one.
@@ -194,16 +232,11 @@ Plots the live flow rate (or weight) from the scale.
 
 ![Micra Bluetooth](docs/img/manual/micra-bluetooth.png)
 
-- ③ **Scan** — searches for La Marzocco machines; found machines list below ④,
-  tap one to save it. Scanning takes priority over
-  in‑progress background connections (a scale stuck in `Connecting...` no
-  longer blocks it). If nothing is found the status line says so — make sure
-  the machine is powered on and in range, then scan again.
 - ① **Saved machine row** — shows the paired machine with:
   - **Setup** (only until a token is stored) — starts the token entry flow
     (see the [README](README.md#4-enter-your-token)):
 
-    <img src="docs/img/manual/token-modal.png" width="70%" alt="Token setup prompt">
+    <img src="docs/img/manual/token-modal.png" width="60%" alt="Token setup prompt">
 
   - **Connect / Disconnect** — manual link control. The Micra accepts only one
     Bluetooth client, so Disconnect frees it for another remote or the phone
@@ -212,43 +245,27 @@ Plots the live flow rate (or weight) from the scale.
 - ② **Auto connect** *(default on)* — connect to the saved machine automatically
   at power‑up. Turn off if another controller needs the Micra's single
   Bluetooth slot.
+- ③ **Scan** — searches for La Marzocco machines; found machines list below ④,
+  tap one to save it. Scanning takes priority over in‑progress background
+  connections (a scale stuck in `Connecting...` no longer blocks it). If
+  nothing is found the status line says so — make sure the machine is powered
+  on and in range, then scan again.
 
 ### Controls
 
 ![Micra Controls](docs/img/manual/micra-controls.png)
 
-- ① **Wired paddle** *(paddle‑capable boards; default off)* — tell the firmware
-  the paddle harness is physically wired. This enables the **Auto shot** mode
-  and the auto‑flush. Off, the board behaves like an unwired one (Shot detect
-  / Manual only). Flipping it mid‑shot cancels the shot.
-- ② **Chime melody** *(boards with a speaker; Off / Blue / Pink / Human /
-  Gold / White / Autumn / Random, default Blue)* — which tune announces the end of a warm‑up. Each tap
-  cycles to the next melody and auditions it; **Random** picks a different
-  tune each time the machine warms up; `Off` silences the chime regardless of
-  the volume below.
-- ③ **Chime volume** *(boards with a speaker; 0–100 %, default 80 %)* — the
-  warm‑up chime's level, so you can walk away and be called back. Drag the
-  slider to get close, or tap **–** / **+** to nudge it 5 % at a time; either
-  way it **plays a note at the new level** so you can set it by ear. `0 %`
-  shows as `Off` and silences it. The scale is even *to the ear* rather than
-  arithmetically — each step is the same size in loudness, so the lower half
-  is as useful as the upper half.
+- ① **Wired paddle** *(default off)* — tell the firmware the paddle harness is
+  physically wired (see the [wiring guide](docs/WIRING.md)). This enables the
+  **Auto shot** mode, the **Flush** button and the auto‑flush. Off, Apollo
+  behaves like an unwired remote (Shot detect / Manual only). Flipping it
+  mid‑shot cancels the shot.
+- ② **Brew temperature** — the coffee boiler's set‑point; tap to open the
+  [temperature dial](#dial).
+- ③ **Steam boiler** — the current steam level (or Off); tap to open the
+  [steam sheet](#steam-sheet).
 
-  The chime marks the *end of a warm‑up*, not every moment the boilers are at
-  temperature, so it sounds **at most once per turn‑on** and then stays quiet
-  through everything the session brings — the small dips and reheats that hold
-  the temperature, heavy steaming, refills, steam boiler toggles. It re‑arms
-  only when the machine goes to standby (or off, or disconnects), so the next
-  turn‑on's warm‑up chimes again. With the steam boiler **off** the chime
-  follows the coffee boiler alone; with it **on**, both boilers have to be
-  there.
-- ④ **Brew → Temperature** — coffee boiler set‑point stepper (0.1 °C steps;
-  long‑press for 0.5 °C).
-- ⑤ **Steam Boiler → Enable** — steam boiler on/off.
-- ⑥ **Steam Boiler → Temperature** — one of the Micra's three steam levels
-  (shown as Level 1–3 with the temperature underneath).
-
-### Cleaning *(paddle‑capable boards)*
+### Cleaning
 
 ![Micra Cleaning](docs/img/manual/micra-cleaning.png)
 
@@ -280,7 +297,9 @@ needs the paddle harness, since that's what drives it.
     the pulse comfortably outlasts preinfusion, or turn preinfusion off while
     you backflush.
 
-  <img src="docs/img/manual/backflush.png" width="70%" alt="Backflush cleaning mode">
+  <p align="center">
+    <img src="docs/img/manual/backflush.png" width="60%" alt="Backflush cleaning mode">
+  </p>
 
 ---
 
@@ -288,22 +307,26 @@ needs the paddle harness, since that's what drives it.
 
 ## Settings → Scale
 
+<a id="scale-bluetooth"></a>
+
 ### Bluetooth (scale)
 
 ![Scale Bluetooth](docs/img/manual/scale-bluetooth.png)
 
-- ② **Scan** — searches for supported scales (Bookoo Themis, Acaia Umbra /
-  Lunar / Prochef / Pyxis, Varia Aku — Pyxis and Aku untested). Wake the scale first — most
-  sleep their Bluetooth quickly.
 - ① **Saved scale row** — **Connect / Disconnect** and **Forget** (no token
-  needed for scales).
+  needed for scales). This is where the scale's link is switched on and off —
+  for instance to let it sleep and save its battery.
+- ② **Scan** — searches for supported scales (Bookoo Themis, Acaia Umbra /
+  Lunar / Prochef / Pyxis, Varia Aku — Pyxis and Aku untested). Wake the scale
+  first — most sleep their Bluetooth quickly. Found scales list below; tap one
+  to save it.
 
 ### Shot settings
 
 ![Shot settings](docs/img/manual/scale-shot-settings.png)
 
-- ① **Target** — brew‑by‑weight stop target, 5–120 g. Also editable from Home on
-  larger screens.
+- ① **Target** — brew‑by‑weight stop target, 5–120 g. The shot view shows it
+  beside the timer.
 - ② **Review hold** *(5–120 s, default 30 s)* — how long a finished shot's frozen
   graph and weight linger before auto‑dismissing. **Reset** dismisses early.
 - ③ **Detect lead‑in** *(0–10 s, default 3 s)* — Shot detect mode only. The
@@ -314,18 +337,26 @@ needs the paddle harness, since that's what drives it.
   started the shot. Adjust it to match your machine's preinfusion setting as
   needed (roughly your typical paddle‑to‑first‑drip time); 0 starts the shot
   at the first drip.
-- ④ **Smoothing** *(Off / Light / Medium / Strong, default Light)* — smoothing on
-  the shot graph's line. Purely visual; detection and auto‑stop use the raw
-  stream.
-- ⑤ **Drop negative g/s** *(default on)* — clamps negative flow readings (cup
+- ④ **Graph** — opens the shot graph's display options (below).
+
+<a id="graph"></a>
+
+#### Graph
+
+![Graph settings](docs/img/manual/scale-graph.png)
+
+How the flow graph in the shot view draws a shot. All of it is purely visual —
+detection, the timer and auto‑stop always use the scale's raw readings.
+
+- ① **Smoothing** *(Off / Light / Medium / Strong, default Light)* — smoothing on
+  the shot graph's line.
+- ② **Drop negative g/s** *(default on)* — clamps negative flow readings (cup
   bumps, scale noise) to zero on the graph.
-- ⑥ **Oscilloscope graph** *(default on)* — the shot graph sweeps left→right and
-  wraps, oscilloscope style. Off, it scrolls continuously instead.
-- ⑦ **Window growth** *(Snap / Smooth / Continuous, default Continuous)* — how
+- ③ **Window growth** *(Snap / Smooth / Continuous, default Continuous)* — how
   the shot graph's time window widens as a shot runs on past 15 s.
   **Continuous** keeps the whole shot filling the width, squeezing the trace
   as it lengthens. **Snap** jumps to 30, 45 and 60 s instead. **Smooth** makes
-  the same jumps but eases each one over a second or so. Purely visual.
+  the same jumps but eases each one over a second or so.
 
 ### Device settings
 
@@ -353,14 +384,14 @@ Themis's ① **Beep** and ② **Auto‑off** shown above):
   (Off / 5–60 min), **Unit** (g / oz), and **Mode** — the scale's current
   weighing mode, shown for reference only (the Acaia protocol has no way to
   change mode remotely; use the scale's buttons).
+- **Varia Aku** — none (no adjustable settings in its protocol; weight and
+  battery only).
 
 **Unit** only changes what the *scale's own display* shows — Apollo always
 works and displays in grams (an oz‑mode Acaia streams ounces over Bluetooth;
 the firmware converts them back, so brew‑by‑weight targets stay correct).
 Changed values may take a moment to be confirmed by the scale; if a change
 doesn't stick, the row snaps back to what the scale reports.
-- **Varia Aku** — none (no adjustable settings in its protocol; weight and
-  battery only).
 
 The scale owns these values: the rows show what it reports, so they read `--`
 until the scale is connected (a **Connect** prompt appears right in the group
@@ -382,12 +413,12 @@ machine is already warming up when you arrive.
   reconnects to it automatically.
 - **Acaia Umbra** — can be used exactly like the Lunar, but it also has a real
   sleep mode that Apollo can wake it from. Recommended routine: tap
-  **Disconnect** on Apollo's scale card when you're done (the Umbra won't
-  sleep *while connected*, so disconnecting is what lets it doze — the card
-  then shows `Sleeping`), and tap **Connect** in the morning, which wakes the
-  Umbra over Bluetooth. The Umbra's battery lasts about a **week** in sleep
-  mode — and once it's flat, Connect naturally can't wake it, so put it on a
-  charger if it's been sitting.
+  **Disconnect** under **Settings → Scale → Bluetooth** when you're done (the
+  Umbra won't sleep *while connected*, so disconnecting is what lets it doze),
+  and tap **Connect** there in the morning, which wakes the Umbra over
+  Bluetooth. The Umbra's battery lasts about a **week** in sleep mode — and
+  once it's flat, Connect naturally can't wake it, so put it on a charger if
+  it's been sitting.
 - **Bookoo Themis** — has a sleep mode, but it genuinely powers down: Apollo
   **cannot** wake it with Connect. Treat it like the Lunar: leave Apollo
   connecting, **turn the scale on** in the morning and you're good; when
@@ -399,56 +430,79 @@ machine is already warming up when you arrive.
 
 ## Settings → Apollo
 
-Three short sub‑pages — **Display**, **Time & date**, and **WiFi** — so each
-page fits on screen with little to no scrolling.
+Short sub‑pages — **Display**, **Sound**, **Time & date**, **WiFi** and
+**Backup** — so each page fits on the round screen with little to no
+scrolling.
 
 ### Display
 
 ![Display settings](docs/img/manual/device-display.png)
 
-- ① **Brightness** *(dimmable boards)* — backlight level.
+- ① **Brightness** — backlight level.
 - ② **Screen timeout** *(Off / 1 / 5 / 15 / 30 min, default 30 min)* — after
   this idle time the idle screen starts (see the next row); any touch wakes the
   screen. A shot in progress never counts as idle, so the idle screen won't
   cover a live shot no matter how short the timeout — the countdown restarts
   when the shot ends.
-- ③ **Idle screen** *(Lion / Apollo / Alternate / Dim / Off, default Lion; shown
-  while Screen timeout is on)* — what the timeout shows. **Lion** and
-  **Apollo** turn the backlight down (to 10 % on the S3 boards, 5 % on the
-  P4s — low enough to read as asleep, high enough that the panel isn't
-  mistaken for switched off) and bounce that drawing around a black screen,
-  changing color at every wall it hits — the La Marzocco lion, or Apollo
-  sipping an espresso. **Alternate** does the same, starting on either one and
-  switching to the other every three minutes.
-  **Dim** turns the backlight down the same way but leaves the normal screen
-  showing, so you can still glance at the machine from across the kitchen.
-  **Off** switches the backlight off entirely. On boards whose backlight can't
-  be turned down, the drawings and Dim show at full brightness — choose Off
-  there to go dark.
-
-- ④ **Theme** — tap to cycle the color scheme: Midnight, Graphite, Espresso,
-  Nord, Solarized, Plum, Forest, Rose, Mono (black & white), Contrast (high
-  contrast), Ferrari, Sunset, Citrus, Modena, Gulf, Monaco, Ivory. The last
-  four (plus Ferrari) are companions to the Micra body colors — the machine's
-  paint as the accent: Ferrari red, Modena the yellow Micra, Gulf the light
-  blue, Monaco the navy, Ivory the creme.
-- ⑤ **Fahrenheit** *(default off)* — display unit for temperatures. Set‑points
+- ③ **Idle screen** *(Lion / Apollo / Alternate / Dim / Off / Clock, default
+  Lion; shown while Screen timeout is on)* — what the timeout shows. **Lion**
+  and **Apollo** turn the backlight down to 5 % (low enough to read as asleep,
+  high enough that the panel isn't mistaken for switched off) and bounce that
+  drawing around a black screen, changing color at every wall it hits — the
+  La Marzocco lion, or Apollo sipping an espresso. **Alternate** does the
+  same, starting on either one and switching to the other every three
+  minutes. **Dim** turns the backlight down the same way but leaves the normal
+  screen showing, so you can still glance at the machine from across the
+  kitchen. **Off** switches the backlight off entirely. **Clock** is made for
+  the round glass: the weekday and time, dimmed the same way, with a small
+  glass orb carrying the brew temperature and machine state slowly circling
+  the face. Everything on it drifts a little over time so nothing burns into
+  the panel.
+- ④ **Fahrenheit** *(default off)* — display unit for temperatures. Set‑points
   are still stored in Celsius.
-- ⑥ **Button sounds** *(boards with a speaker; default on)* — click on button
-  presses. (The other sound, the warm‑up chime, is under
-  [Settings → Micra → Controls](#controls) since it's about the machine.) With
-  button sounds off *and* the chime volume `Off`, the audio hardware stays
-  powered down until the next restart.
-- ⑦ **Performance overlay** *(default off)* — LVGL FPS/CPU overlay, for
-  debugging.
+
+The round display has one colour scheme, made for its glass look, so there is
+no **Theme** row. (A settings backup from another Apollo keeps its theme
+choice — it applies again if restored onto a rectangular board.)
+
+<a id="sound"></a>
+
+### Sound
+
+![Sound settings](docs/img/manual/device-sound.png)
+
+Everything the speaker does, on one page.
+
+- ① **Chime melody** *(Off / Blue / Pink / Human / Gold / White / Autumn /
+  Random, default Blue)* — which tune announces the end of a warm‑up. Each tap
+  cycles to the next melody and auditions it; **Random** picks a different
+  tune each time the machine warms up; `Off` silences the chime regardless of
+  the volume below.
+- ② **Chime volume** *(0–100 %, default 80 %)* — the warm‑up chime's level, so
+  you can walk away and be called back. Drag the slider to get close, or tap
+  **–** / **+** to nudge it 5 % at a time; either way it **plays a note at the
+  new level** so you can set it by ear. `0 %` shows as `Off` and silences it.
+  The scale is even *to the ear* rather than arithmetically — each step is the
+  same size in loudness, so the lower half is as useful as the upper half.
+
+  The chime marks the *end of a warm‑up*, not every moment the boilers are at
+  temperature, so it sounds **at most once per turn‑on** and then stays quiet
+  through everything the session brings — the small dips and reheats that hold
+  the temperature, heavy steaming, refills, steam boiler toggles. It re‑arms
+  only when the machine goes to standby (or off, or disconnects), so the next
+  turn‑on's warm‑up chimes again. With the steam boiler **off** the chime
+  follows the coffee boiler alone; with it **on**, both boilers have to be
+  there.
+- ③ **Button sounds** *(default on)* — click on button presses. With button
+  sounds off *and* the chime volume `Off`, the audio hardware stays powered
+  down until the next restart.
 
 ### Time & date
 
 ![Time & date settings](docs/img/manual/device-time.png)
 
 - ① **Time** — hour and minute pickers, to set the clock by hand. (With Wi‑Fi +
-  NTP the clock sets itself on every boot; alternatively, boards with an RTC
-  and an optional coin cell installed keep time through a power‑off.)
+  NTP the clock sets itself on every boot.)
 - ② **Date** — month / day / year pickers. NTP fills the date in automatically;
   without NTP a real date is needed for features that stamp records (shot
   history). Setting only the time leaves the date unset.
@@ -456,19 +510,29 @@ page fits on screen with little to no scrolling.
 - ④ **Timezone** — city picker (handles daylight saving). Governs how all
   times display and how NTP time is converted.
 
+Once **Auto time** (on the WiFi page) has set the clock, the **Time** and
+**Date** rows give way to a line saying so — the next sync would overwrite
+anything picked by hand. To set them yourself, turn Auto time off. Until the
+first sync (no WiFi, or no internet), the pickers stay, so a date for shot
+history is always reachable.
+
 ### WiFi
 
 ![WiFi settings](docs/img/manual/device-wifi.png)
 
-- ① **Enable** *(default off)* — join your home network. Used only for NTP time
-  sync; all machine/scale control is local Bluetooth.
-- ② **Status** — `Off`, `Connecting`, or `Connected` with the IP address.
+- ① **Enable** *(default off)* — join your home network. Used for the clock,
+  update checks and the History web page; all machine/scale control is local
+  Bluetooth.
+- ② **Status** — `Off`, `Connecting`, `Connection failed`, or — once
+  connected — the network name and IP address in green.
 - ③ **Set up WiFi** — starts the device's own access point (`Micra-Setup`) and
   setup page for entering credentials (same flow as token entry: scan the
   QR code on the screen with your phone's camera and the page pops up on its
   own, or join the network and open the shown address):
 
-  <img src="docs/img/manual/join-modal.png" width="70%" alt="The QR join modal">
+  <p align="center">
+    <img src="docs/img/manual/join-modal.png" width="60%" alt="The QR join modal">
+  </p>
 
 - ③ **Forget** — clears the saved network.
 - ④ **Auto time (NTP)** *(default on)* — sync the clock over WiFi while
@@ -482,13 +546,15 @@ page fits on screen with little to no scrolling.
   internet is reachable. When a newer firmware exists, a notice shows the
   version and its release notes:
 
-  <img src="docs/img/manual/update-modal.png" width="70%" alt="Update-available notice">
+  <p align="center">
+    <img src="docs/img/manual/update-modal.png" width="60%" alt="Update-available notice">
+  </p>
 
   **Install now** installs it right on the device (see below); **Remind me
   later** closes the notice and offers again on the next check; **Skip this
   version** never offers that version again (the next release will). You can
-  also check any time from **Stats → Info → Check for updates** — and if it
-  can't reach the server it says "Couldn't check" rather than "up to date".
+  also check any time from **Stats → Info → Check** — and if it can't reach
+  the server it says "Couldn't check" rather than "up to date".
 
   **Installing** — after **Install now**, Apollo restarts into a minimal update
   screen: a progress bar while it downloads the new firmware, then a short
@@ -496,11 +562,11 @@ page fits on screen with little to no scrolling.
   writes, then it restarts on the new version. Your settings, the paired
   machine, and shot history are kept, and a firmware that fails to boot rolls
   back to the old one automatically. The
-  [web flasher](https://mlsorensen.github.io/Apollo2/) remains the fallback for
-  recovery and for a board's very first flash.
+  [web flasher](https://jeewanghuman.github.io/Micra-display/) remains the
+  fallback for recovery and for the very first flash.
 
 - ⑥ **Beta updates** *(default off; shown only while checks are on)* — also
-  offer pre-release builds, named like `0.14.0-beta.1`. Betas ship the next
+  offer pre-release builds, named like `0.15.0-beta.1`. Betas ship the next
   release early so it can be tested on real machines; they are less proven than
   a normal release, and the notice, the install and the automatic roll-back on
   a firmware that won't boot all work exactly the same.
@@ -508,10 +574,10 @@ page fits on screen with little to no scrolling.
   Switching the toggle re-checks straight away, so the next notice matches the
   channel you picked. Turning it **off** while running a beta does not move you
   back on its own — the device stays on that build until a stable release is
-  newer than it (`0.14.0` supersedes `0.14.0-beta.2`), which is usually days.
+  newer than it (`0.15.0` supersedes `0.15.0-beta.2`), which is usually days.
   To go back sooner, reflash the stable release from the
-  [web flasher](https://mlsorensen.github.io/Apollo2/); your settings and
-  history are kept.
+  [web flasher](https://jeewanghuman.github.io/Micra-display/); your settings
+  and history are kept.
 
 ### Backup
 
@@ -528,14 +594,16 @@ copies the settings onto that same card, so a replacement can pick them up.
 - ② **Back up to card** — writes every setting to `/Apollo2/settings.txt`,
   beside your shots. It is plain text, readable on any computer:
 
-  <img src="docs/img/manual/backup-modal.png" width="70%" alt="The backup confirmation">
+  <p align="center">
+    <img src="docs/img/manual/backup-modal.png" width="60%" alt="The backup confirmation">
+  </p>
 
   The two switches decide whether your **WiFi network** (name and password) and
   your **Micra pairing token** go onto the card with everything else. Both are
   on by default — the point of a backup is a replacement that just works — and
   turning one off means setting that up by hand later, which is the trade worth
-  making if the card won't stay with the machine. Everything else (theme,
-  chime, target weight, flush settings, timezone, and the rest) always travels.
+  making if the card won't stay with the machine. Everything else (chime,
+  target weight, flush settings, timezone, and the rest) always travels.
 - ③ **Restore from card** — replaces every setting on this Apollo with the
   backup, then restarts to apply it. Anything the backup doesn't carry — a
   setting added in a later firmware, or a credential you left out — goes back
@@ -543,8 +611,8 @@ copies the settings onto that same card, so a replacement can pick them up.
 
 A few things worth knowing:
 
-- **Moving between boards is the point.** A backup taken on any supported board
-  restores onto any other; nothing in it is board-specific.
+- **Moving between boards is the point.** A backup taken on any Apollo — round
+  or rectangular — restores onto any other; nothing in it is board-specific.
 - **A backup from newer firmware is refused** — update this Apollo first, then
   restore. Older backups are always fine.
 - **Nothing happens on its own.** No automatic backup, no automatic restore;
@@ -556,15 +624,16 @@ A few things worth knowing:
 
 ![Settings root page](docs/img/manual/settings-root.png)
 
-The rows ①–③ open the **Micra**, **Scale**, and **Device** pages above; one
+The rows ①–③ open the **Micra**, **Scale**, and **Apollo** pages above; one
 action lives directly on the root:
 
 - ④ **Lock display for cleaning** — disables touch for 30 seconds so you can
   wipe the screen. A full‑screen countdown shows the time remaining; the lock
   ends on its own (touching the screen does nothing until then).
 
-  <img src="docs/img/manual/clean-lock.png" width="50%" alt="The cleaning touch lock">
-
+  <p align="center">
+    <img src="docs/img/manual/clean-lock.png" width="50%" alt="The cleaning touch lock">
+  </p>
 
 ---
 
@@ -574,27 +643,31 @@ action lives directly on the root:
 
 ![Temperature history](docs/img/manual/stats-graphs.png)
 
-- **Brew / Boiler** — temperature history graphs, chosen with the selector ①.
-  Tap **+/−** ② to zoom the time
-  window; the set‑point is drawn as a reference line; gaps mean the machine was
-  disconnected.
+- **Brew / Steam** — temperature history, chosen with the selector ①. Above
+  the chart ② sits the boiler's latest reading and its set‑point. The chart
+  itself runs left to right in time (`now` at the right) with temperature up
+  the side; its scale zooms to the readings, so a settled boiler's small
+  wobble shows instead of a flat line. The set‑point is the dashed line,
+  shaded gaps are times the machine was disconnected, and the bright dot is
+  the newest reading. **− / +** ③ change the time window (30 minutes up to
+  24 hours).
 
 ![Shot history](docs/img/manual/stats-history.png)
 
-- **History** — the shot log (boards with an SD‑card slot). Headline cards ① show
+- **History** — the shot log (needs a microSD card). Headline bubbles ① show
   lifetime totals: shots recorded, lifetime accuracy and 30‑day accuracy
-  (actual vs target weight). Below, the shot list ③ with a calendar filter ② —
-  **All** plus a button for each month that has shots, so an old month is one
-  tap away instead of a long scroll. The footer ④ shows the web address and
-  SD‑card space. Each row shows the signed miss against
-  target — `36.2/36g (+0.2)` — green within 2 g, amber beyond, and how the
-  shot was run: a bolt for an **Auto** shot (the paddle harness stopped it at
-  weight) or an eye for a **Detect**ed one (inferred from the scale). Only
-  those two modes record — a fully manual shot has no armed start/stop, so
-  nothing is saved. Tap a shot for a full‑screen card with its
+  (actual vs target weight). Below, the shot list ②, newest first; the
+  footer ③ shows the web address and SD‑card space. Each row shows the signed
+  miss against target — `36.2/36g (+0.2)` — green within 2 g, amber beyond,
+  and how the shot was run: a bolt for an **Auto** shot (the paddle harness
+  stopped it at weight) or an eye for a **Detect**ed one (inferred from the
+  scale). Only those two modes record — a fully manual shot has no armed
+  start/stop, so nothing is saved. Tap a shot for a full‑screen card with its
   result/target/diff, time, average flow, and the weight + flow graph:
 
-  <img src="docs/img/manual/shot-card.png" width="70%" alt="A shot's full-screen card">
+  <p align="center">
+    <img src="docs/img/manual/shot-card.png" width="60%" alt="A shot's full-screen card">
+  </p>
 
   - **SD card**: any size — a **small card is more than enough**. A shot is
     a few tens of KB, so even a 1 GB card holds decades of daily espresso;
@@ -621,29 +694,32 @@ action lives directly on the root:
     confirm. The shot's files are removed from the card and the headline
     stats recalculate without it — handy for throwing out dial‑in or
     practice shots. This one *is* destructive (unlike Reset stats below).
-  - **Reset stats**: tap any headline card. Non‑destructive — the three
-    headline numbers restart from now (the Total card shows "Since ⟨date⟩")
+  - **Reset stats**: tap any headline bubble. Non‑destructive — the three
+    headline numbers restart from now (the Total bubble shows "Since ⟨date⟩")
     while every recorded shot stays on the card. Undo by deleting
     `Apollo2/stats_since.txt` on a computer.
   - **Browse from your phone or computer**: with WiFi connected, open
-    `http://⟨device IP⟩/` (the IP is on **Stats → Info**). The device serves
-    its own web page — the same stats, month filters, and shot list, with a
-    live graph per shot, a **Download card** button that saves any shot as a
-    PNG image (composed in your browser from the raw data), and CSV
-    downloads — all styled to match whatever theme the device is currently
-    using. The same built‑in web server also carries the setup pages during
-    pairing/WiFi setup, so nothing conflicts.
+    `http://⟨device IP⟩/` (the address is in the footer and on **Stats →
+    Info**). The device serves its own web page — the same stats, with month
+    filters, and the shot list, with a live graph per shot, a **Download
+    card** button that saves any shot as a PNG image (composed in your
+    browser from the raw data), and CSV downloads. The same built‑in web
+    server also carries the setup pages during pairing/WiFi setup, so nothing
+    conflicts.
+
 ![Device info](docs/img/manual/stats-info.png)
 
 - **Info** — device details: our firmware version + git revision, uptime,
-  battery/USB state with a runtime estimate, **NTP synced** (how long ago the
-  clock last synced over the internet, or "not since boot"), and the machine's
-  Device Information (manufacturer, model, serial, firmware) read over Bluetooth.
-  - **Check for updates** — next to the firmware version, tap it to check the
-    releases site right now (needs WiFi + NTP). It reports back either an
-    update notice or "You're on the latest firmware" — the same check the boot
-    option runs, on demand.
-  - ① **Diagnostic log** — tap **View** for the recent diagnostic log (the same
+  **NTP synced** (how long ago the clock last synced over the internet, or
+  "not since boot"), and the machine's Device Information (manufacturer,
+  model, serial, firmware) read over Bluetooth.
+  - ① **Firmware** — tap **Check** to check the releases site right now (needs
+    WiFi + NTP). It reports back either an update notice or "You're on the
+    latest firmware" — the same check the boot option runs, on demand.
+    **Long‑press the row** to show or hide LVGL's live FPS / CPU readout, a
+    developer aid (a short message confirms which); it stays as you left it
+    across restarts.
+  - ② **Diagnostic log** — tap **View** for the recent diagnostic log (the same
     messages the USB serial console prints), each line stamped with the time
     (or seconds‑since‑boot before the clock is set). The log lives in RAM:
     it survives as long as the device stays powered and holds the last
@@ -681,10 +757,10 @@ action lives directly on the root:
 | Auto‑tare at start | Yes | No (delta‑based) | No |
 | Overshoot learning | Yes | No | No |
 | Review graph + frozen weight | Yes | Yes | No |
-| Auto flush eligible | Yes | Yes (wired boards) | No |
+| Auto flush eligible | Yes | Yes (wired paddle) | No |
 
 Wiring the paddle harness — parts, photos of the Micra's paddle loom, and
-per‑board terminals — is covered in the [wiring guide](docs/WIRING.md).
+the 3.4C's header pins — is covered in the [wiring guide](docs/WIRING.md).
 
 ### Paddle pin protection & per‑unit remapping
 

@@ -10,6 +10,8 @@ namespace core {
 // level, or the bare charge node with no cell; we don't try to tell those
 // apart. Below it, a real pack is discharging and its level is meaningful.
 struct BatteryState {
+  bool hw = true;         // the board has a battery circuit at all; false (the
+                          // 3.4C) = always external power, no indicator shown
   bool present = false;   // running on a battery (voltage below the USB threshold)
   bool usb = false;       // external (USB) power
   int percent = 0;        // 0..100 (meaningful when present)
