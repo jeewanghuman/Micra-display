@@ -7,7 +7,7 @@ for someone reading the diff. These notes are also shown ON THE DEVICE, whose
 fonts are ASCII-only: stick to characters `sanitize_notes()` (src/ui/app.cpp)
 maps — plain ASCII plus `— – → … × ' "` — or they render as empty boxes.
 
-## Unreleased
+## v1.0.0
 
 - **Round display support.** Runs on the Waveshare ESP32-P4 3.4C round touch
   display, with a new glass-style interface built for the circle.
