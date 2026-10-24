@@ -270,13 +270,12 @@ void make_inline_slider(lv_obj_t* row, const lv_font_t* text_font,
   *out_plus = ui::make_step_button(grp, LV_SYMBOL_PLUS, btn_size, symbol_font);
 }
 
-// Device > Display: how the UI looks and sounds. Brightness only where the
-// backlight can dim, button sounds only on boards with a speaker (omitted rows
-// leave their pointers null; App guards on them).
+// Device > Display: how the UI looks. Brightness only where the backlight can
+// dim (omitted rows leave their pointers null; App guards on them). Sound has
+// its own page (build_device_sound_rows).
 void build_device_display_rows(lv_obj_t* page, const lv_font_t* text_font,
                                const lv_font_t* symbol_font, int btn_size,
-                               bool with_brightness, bool with_sound,
-                               ui::SettingsWidgets& out) {
+                               bool with_brightness, ui::SettingsWidgets& out) {
   if (with_brightness) {
     lv_obj_t* rb = make_setting_row(page, "Brightness", text_font);
     make_inline_stepper(rb, text_font, symbol_font, btn_size, &out.brightness_minus,
@@ -310,30 +309,56 @@ void build_device_display_rows(lv_obj_t* page, const lv_font_t* text_font,
   lv_obj_set_style_text_font(out.saver_value, text_font, 0);
   lv_obj_center(out.saver_value);
 
-  lv_obj_t* rt = make_setting_row(page, "Theme", text_font);
-  out.theme_btn = ui::make_button(rt);
-  lv_obj_set_style_bg_color(out.theme_btn, lv_color_hex(ui::theme::card()), 0);
-  out.theme_value = lv_label_create(out.theme_btn);
-  lv_obj_set_style_text_color(out.theme_value, lv_color_hex(ui::theme::text()), 0);
-  lv_obj_set_style_text_font(out.theme_value, text_font, 0);
-  lv_obj_center(out.theme_value);
+  // Theme: the colour scheme. Not on round glass — that UI draws its own glass
+  // colours over black and App pins one palette there (see App::build).
+  if (!g_round) {
+    lv_obj_t* rt = make_setting_row(page, "Theme", text_font);
+    out.theme_btn = ui::make_button(rt);
+    lv_obj_set_style_bg_color(out.theme_btn, lv_color_hex(ui::theme::card()), 0);
+    out.theme_value = lv_label_create(out.theme_btn);
+    lv_obj_set_style_text_color(out.theme_value, lv_color_hex(ui::theme::text()), 0);
+    lv_obj_set_style_text_font(out.theme_value, text_font, 0);
+    lv_obj_center(out.theme_value);
+  } else {
+    out.theme_btn = out.theme_value = nullptr;
+  }
 
   lv_obj_t* ru = make_setting_row(page, "Fahrenheit", text_font);
   out.units_switch = lv_switch_create(ru);
   lv_obj_set_size(out.units_switch, btn_size + ui::dp(8), btn_size / 2 + ui::dp(6));
+  // (The Performance overlay used to be a row here. It's a developer aid, so
+  // it moved to a long-press on Stats > Info's Firmware row — see App::build.)
+}
 
-  // Button-press click, only on boards with a speaker (core::ISound).
-  if (with_sound) {
-    lv_obj_t* rs = make_setting_row(page, "Button sounds", text_font);
-    out.click_sound_switch = lv_switch_create(rs);
-    lv_obj_set_size(out.click_sound_switch, btn_size + ui::dp(8), btn_size / 2 + ui::dp(6));
-  } else {
-    out.click_sound_switch = nullptr;
-  }
+// Device > Sound (boards with a speaker only): everything the speaker does in
+// one place — the warm-up chime (which tune, how loud) and the button clicks.
+// The chime is about the machine, but it's this device that makes the noise,
+// and with both here "turn the sound off" is one page.
+void build_device_sound_rows(lv_obj_t* page, const lv_font_t* text_font,
+                             const lv_font_t* symbol_font, int btn_size,
+                             ui::SettingsWidgets& out) {
+  // Chime when the machine reaches temperature: the melody row picks WHICH
+  // tune (Off / Blue / Pink / ...), the volume row its level; both audition as
+  // you tap so the choice is made by ear.
+  lv_obj_t* rm = make_setting_row(page, "Chime melody", text_font);
+  out.chime_mel_btn = ui::make_button(rm);
+  lv_obj_set_height(out.chime_mel_btn, btn_size);
+  lv_obj_set_style_pad_hor(out.chime_mel_btn, ui::dp(14), 0);
+  lv_obj_set_style_bg_color(out.chime_mel_btn, lv_color_hex(ui::theme::card()), 0);
+  out.chime_mel_value = lv_label_create(out.chime_mel_btn);
+  lv_obj_set_style_text_color(out.chime_mel_value, lv_color_hex(ui::theme::text()), 0);
+  lv_obj_set_style_text_font(out.chime_mel_value, text_font, 0);
+  lv_obj_center(out.chime_mel_value);
+  // Chime volume: slider + [-]/[+] + readout. The scale is a plain linear
+  // 0-100; sound.cpp turns it into amplitude on a dB curve, so equal steps
+  // here are equal steps by ear (see kChimeRangeDb).
+  lv_obj_t* rc = make_setting_row(page, "Chime volume", text_font);
+  make_inline_slider(rc, text_font, symbol_font, btn_size, &out.chime_vol_minus,
+                     &out.chime_vol_slider, &out.chime_vol_value, &out.chime_vol_plus);
 
-  lv_obj_t* rp = make_setting_row(page, "Performance overlay", text_font);
-  out.perf_overlay_switch = lv_switch_create(rp);
-  lv_obj_set_size(out.perf_overlay_switch, btn_size + ui::dp(8), btn_size / 2 + ui::dp(6));
+  lv_obj_t* rs = make_setting_row(page, "Button sounds", text_font);
+  out.click_sound_switch = lv_switch_create(rs);
+  lv_obj_set_size(out.click_sound_switch, btn_size + ui::dp(8), btn_size / 2 + ui::dp(6));
 }
 
 // A bare dropdown for a time/date field: tier font on the button AND the popup
@@ -375,15 +400,34 @@ void build_device_time_rows(lv_obj_t* page, const lv_font_t* text_font,
                             int btn_size, bool compact,
                             ui::SettingsWidgets& out) {
   lv_obj_t* rt = make_setting_row(page, "Time", text_font);
+  out.time_row = rt;
   lv_obj_t* tg = make_field_group(rt);
   out.hour_dd = make_field_dropdown(tg, text_font, ui::dp(compact ? 92 : 128), compact);
   out.minute_dd = make_field_dropdown(tg, text_font, ui::dp(compact ? 66 : 92), compact);
 
   lv_obj_t* rd = make_setting_row(page, "Date", text_font);
+  out.date_row = rd;
   lv_obj_t* dg = make_field_group(rd);
   out.month_dd = make_field_dropdown(dg, text_font, ui::dp(compact ? 74 : 100), compact);
   out.day_dd = make_field_dropdown(dg, text_font, ui::dp(compact ? 62 : 84), compact);
   out.year_dd = make_field_dropdown(dg, text_font, ui::dp(compact ? 82 : 112), compact);
+
+  // Shown INSTEAD of the two rows above once Auto time has set the clock: NTP
+  // would overwrite anything picked by hand, so the pickers only invite a
+  // change that can't stick. App swaps them (App::sync_time_rows).
+  out.time_auto_note = lv_label_create(page);
+  lv_label_set_text(out.time_auto_note,
+                    "Time and date are set automatically over WiFi. Turn off Auto "
+                    "time (WiFi page) to set them by hand.");
+  lv_obj_set_width(out.time_auto_note, lv_pct(100));
+  lv_label_set_long_mode(out.time_auto_note, LV_LABEL_LONG_WRAP);
+  lv_obj_set_style_text_color(out.time_auto_note, lv_color_hex(ui::theme::muted()), 0);
+  lv_obj_set_style_text_font(out.time_auto_note, text_font, 0);
+  if (g_round) {
+    lv_obj_set_style_text_align(out.time_auto_note, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_style_pad_hor(out.time_auto_note, ui::dp(26), 0);
+  }
+  lv_obj_add_flag(out.time_auto_note, LV_OBJ_FLAG_HIDDEN);
 
   lv_obj_t* rc = make_setting_row(page, "24-hour", text_font);
   out.clock_mode_switch = lv_switch_create(rc);
@@ -540,6 +584,57 @@ void root_entry(lv_obj_t* menu, lv_obj_t* root_page, lv_obj_t* target,
       cont, [](lv_event_t*) { ui::play_button_press(); }, LV_EVENT_PRESSED, nullptr);
 }
 
+// Round glass: a pill row that shows a value and opens a sheet when tapped
+// ("Brew temperature   93.0 °C  >"). The value is a small stack (value + an
+// optional second line) so App's existing label writers fill it unchanged;
+// App wires the tap and greys the row while the machine is offline.
+lv_obj_t* value_nav_row(lv_obj_t* page, const char* label, const lv_font_t* font,
+                        lv_obj_t** out_value, lv_obj_t** out_sub) {
+  lv_obj_t* row = make_setting_row(page, label, font);
+  lv_obj_add_flag(row, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_set_style_bg_opa(row, 64, LV_STATE_PRESSED);  // it IS a button, unlike a row
+  lv_obj_set_style_opa(row, LV_OPA_40, LV_STATE_DISABLED);
+  lv_obj_set_style_pad_right(row, ui::dp(26), 0);
+  lv_obj_add_event_cb(
+      row, [](lv_event_t*) { ui::play_button_press(); }, LV_EVENT_PRESSED, nullptr);
+
+  lv_obj_t* right = lv_obj_create(row);
+  lv_obj_remove_style_all(right);
+  lv_obj_remove_flag(right, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_remove_flag(right, LV_OBJ_FLAG_CLICKABLE);  // taps land on the row
+  lv_obj_set_size(right, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+  lv_obj_set_flex_flow(right, LV_FLEX_FLOW_ROW);
+  lv_obj_set_flex_align(right, LV_FLEX_ALIGN_END, LV_FLEX_ALIGN_CENTER,
+                        LV_FLEX_ALIGN_CENTER);
+  lv_obj_set_style_pad_column(right, ui::dp(12), 0);
+
+  lv_obj_t* stack = lv_obj_create(right);
+  lv_obj_remove_style_all(stack);
+  lv_obj_remove_flag(stack, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_remove_flag(stack, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_set_size(stack, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+  lv_obj_set_flex_flow(stack, LV_FLEX_FLOW_COLUMN);
+  lv_obj_set_flex_align(stack, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_END,
+                        LV_FLEX_ALIGN_END);
+
+  *out_value = lv_label_create(stack);
+  lv_label_set_text(*out_value, "--");
+  lv_obj_set_style_text_color(*out_value, lv_color_hex(ui::theme::text()), 0);
+  lv_obj_set_style_text_font(*out_value, font, 0);
+  if (out_sub != nullptr) {
+    *out_sub = lv_label_create(stack);
+    lv_label_set_text(*out_sub, "");
+    lv_obj_set_style_text_color(*out_sub, lv_color_hex(ui::theme::muted()), 0);
+    lv_obj_set_style_text_font(*out_sub, ui::font_dp(16), 0);
+  }
+
+  lv_obj_t* chev = lv_label_create(right);
+  lv_label_set_text(chev, LV_SYMBOL_RIGHT);
+  lv_obj_set_style_text_color(chev, lv_color_hex(ui::theme::muted()), 0);
+  lv_obj_set_style_text_font(chev, font, 0);
+  return row;
+}
+
 // Device > Backup: settings to/from the removable card. The card carries the
 // shot history already; NVS is what a hardware swap loses, so this is the one
 // place that copies it. Both directions are explicit — the status line says
@@ -627,6 +722,16 @@ void build_settings_tab(lv_obj_t* parent, const ScreenProfile& screen,
   out.scale_last_count = -1;
   out.scale_last_scanning = false;
   out.scale_scan_done = false;
+  // Optional widgets: only some boards/screens build them. Null them up front
+  // so a branch that doesn't run can never leave a pointer from a previous
+  // build behind (`out` outlives the widget tree).
+  out.device_sound_page = out.device_backup_page = nullptr;
+  out.chime_vol_minus = out.chime_vol_slider = out.chime_vol_value = nullptr;
+  out.chime_vol_plus = out.chime_mel_btn = out.chime_mel_value = nullptr;
+  out.click_sound_switch = nullptr;
+  out.brew_open_row = out.steam_open_row = nullptr;
+  out.brew_minus = out.brew_plus = out.steam_switch = nullptr;
+  out.boiler_minus = out.boiler_plus = out.boiler_sub = nullptr;
 
   lv_obj_t* menu = lv_menu_create(parent);
   out.menu = menu;
@@ -721,8 +826,10 @@ void build_settings_tab(lv_obj_t* parent, const ScreenProfile& screen,
   out.micra_controls_page = lv_menu_page_create(menu, "Controls");
   out.scale_bt_page = lv_menu_page_create(menu, "Bluetooth");
   out.scale_settings_page = lv_menu_page_create(menu, "Shot settings");
+  out.scale_graph_page = lv_menu_page_create(menu, "Graph");
   out.scale_device_page = lv_menu_page_create(menu, "Device settings");
   out.device_display_page = lv_menu_page_create(menu, "Display");
+  if (with_sound) out.device_sound_page = lv_menu_page_create(menu, "Sound");
   out.device_time_page = lv_menu_page_create(menu, "Time & date");
   out.device_wifi_page = lv_menu_page_create(menu, "WiFi");
   if (with_backup) out.device_backup_page = lv_menu_page_create(menu, "Backup");
@@ -730,8 +837,10 @@ void build_settings_tab(lv_obj_t* parent, const ScreenProfile& screen,
   page_column(out.micra_controls_page, compact);
   page_column(out.scale_bt_page, compact);
   page_column(out.scale_settings_page, compact);
+  page_column(out.scale_graph_page, compact);
   page_column(out.scale_device_page, compact);
   page_column(out.device_display_page, compact);
+  if (out.device_sound_page != nullptr) page_column(out.device_sound_page, compact);
   page_column(out.device_time_page, compact);
   page_column(out.device_wifi_page, compact);
   if (out.device_backup_page != nullptr) page_column(out.device_backup_page, compact);
@@ -752,7 +861,8 @@ void build_settings_tab(lv_obj_t* parent, const ScreenProfile& screen,
     out.auto_connect_switch = lv_switch_create(ra);
     lv_obj_set_size(out.auto_connect_switch, btn_size + ui::dp(8), btn_size / 2 + ui::dp(6));
   }
-  // Micra > Controls: how the machine behaves + brew + steam boiler
+  // Micra > Controls: how the machine is wired + brew + steam boiler. (The
+  // warm-up chime lives on Device > Sound with the rest of the speaker.)
   {
     // Paddle harness in use. OFF = "unwired": shots are detected from the
     // scale's weight stream instead of paddle edges. Only offered where the
@@ -763,32 +873,6 @@ void build_settings_tab(lv_obj_t* parent, const ScreenProfile& screen,
       lv_obj_set_size(out.wired_paddle_switch, btn_size + ui::dp(8), btn_size / 2 + ui::dp(6));
     } else {
       out.wired_paddle_switch = nullptr;
-    }
-    // Chime when the machine reaches temperature (audio boards only): the
-    // melody row picks WHICH tune (Off / Blue / Pink / ...), the volume row
-    // its level (Off / 25% / 50% / 75% / 100%); both audition as you tap so
-    // the choice is made by ear.
-    if (with_sound) {
-      lv_obj_t* rm = make_setting_row(out.micra_controls_page, "Chime melody", font);
-      out.chime_mel_btn = ui::make_button(rm);
-      lv_obj_set_height(out.chime_mel_btn, btn_size);
-      lv_obj_set_style_pad_hor(out.chime_mel_btn, ui::dp(14), 0);
-      lv_obj_set_style_bg_color(out.chime_mel_btn, lv_color_hex(ui::theme::card()), 0);
-      out.chime_mel_value = lv_label_create(out.chime_mel_btn);
-      lv_obj_set_style_text_color(out.chime_mel_value, lv_color_hex(ui::theme::text()), 0);
-      lv_obj_set_style_text_font(out.chime_mel_value, font, 0);
-      lv_obj_center(out.chime_mel_value);
-      // Chime volume: slider + [-]/[+] + readout. The scale is a plain linear
-      // 0-100; sound.cpp turns it into amplitude on a dB curve, so equal steps
-      // here are equal steps by ear (see kChimeRangeDb).
-      lv_obj_t* rc = make_setting_row(out.micra_controls_page, "Chime volume", font);
-      make_inline_slider(rc, font, symbol_font, btn_size, &out.chime_vol_minus,
-                         &out.chime_vol_slider, &out.chime_vol_value,
-                         &out.chime_vol_plus);
-    } else {
-      out.chime_vol_minus = out.chime_vol_slider = nullptr;
-      out.chime_vol_value = out.chime_vol_plus = nullptr;
-      out.chime_mel_btn = out.chime_mel_value = nullptr;
     }
   }
   // Micra > Cleaning: everything that runs water through the group on purpose —
@@ -829,14 +913,20 @@ void build_settings_tab(lv_obj_t* parent, const ScreenProfile& screen,
     out.backflush_btn = nullptr;
   }
 
-  section_label(out.micra_controls_page, "Brew", font);
-  {
+  if (g_round) {
+    // Round glass: Home's temperature dial and steam sheet are THE controls
+    // for these; Settings keeps a way in (one tap opens the same sheet)
+    // rather than a second, different set of steppers.
+    out.brew_open_row = value_nav_row(out.micra_controls_page, "Brew temperature", font,
+                                      &out.brew_value, nullptr);
+    out.steam_open_row = value_nav_row(out.micra_controls_page, "Steam boiler", font,
+                                       &out.boiler_value, &out.boiler_sub);
+  } else {
+    section_label(out.micra_controls_page, "Brew", font);
     lv_obj_t* r = make_setting_row(out.micra_controls_page, "Temperature", font);
     make_inline_stepper(r, font, symbol_font, btn_size, &out.brew_minus,
                         &out.brew_value, &out.brew_plus, nullptr);
-  }
-  section_label(out.micra_controls_page, "Steam Boiler", font);
-  {
+    section_label(out.micra_controls_page, "Steam Boiler", font);
     lv_obj_t* r1 = make_setting_row(out.micra_controls_page, "Enable", font);
     out.steam_switch = lv_switch_create(r1);
     lv_obj_set_size(out.steam_switch, btn_size + ui::dp(8), btn_size / 2 + ui::dp(6));
@@ -851,7 +941,9 @@ void build_settings_tab(lv_obj_t* parent, const ScreenProfile& screen,
                          &out.scale_connect_label, &out.scale_forget_btn, nullptr,
                          &out.scale_scan_btn, &out.scale_status, &out.scale_list,
                          "Tap Scan to find your scale");
-  // Scale > Settings: target weight + flow-graph options
+  // Scale > Shot settings: what a shot is (target, review hold, lead-in); the
+  // graph's line tuning sits one level down on Graph — set once, rarely
+  // revisited, and it was most of this page.
   {
     lv_obj_t* r = make_setting_row(out.scale_settings_page, "Target", font);
     make_inline_stepper(r, font, symbol_font, btn_size, &out.target_minus,
@@ -866,7 +958,7 @@ void build_settings_tab(lv_obj_t* parent, const ScreenProfile& screen,
     make_inline_stepper(rl, font, symbol_font, btn_size, &out.lead_minus,
                         &out.lead_value, &out.lead_plus, nullptr);
     // Shot-graph line smoothing: tap cycles Off / Light / Medium / Strong.
-    lv_obj_t* rs2 = make_setting_row(out.scale_settings_page, "Smoothing", font);
+    lv_obj_t* rs2 = make_setting_row(out.scale_graph_page, "Smoothing", font);
     out.smooth_btn = ui::make_button(rs2);
     lv_obj_set_height(out.smooth_btn, btn_size);
     lv_obj_set_style_pad_hor(out.smooth_btn, ui::dp(14), 0);
@@ -875,14 +967,14 @@ void build_settings_tab(lv_obj_t* parent, const ScreenProfile& screen,
     lv_obj_set_style_text_color(out.smooth_value, lv_color_hex(ui::theme::text()), 0);
     lv_obj_set_style_text_font(out.smooth_value, font, 0);
     lv_obj_center(out.smooth_value);
-    lv_obj_t* rn = make_setting_row(out.scale_settings_page, "Drop negative g/s", font);
+    lv_obj_t* rn = make_setting_row(out.scale_graph_page, "Drop negative g/s", font);
     out.drop_neg_flow_switch = lv_switch_create(rn);
     lv_obj_set_size(out.drop_neg_flow_switch, btn_size + ui::dp(8), btn_size / 2 + ui::dp(6));
-    lv_obj_t* rs = make_setting_row(out.scale_settings_page, "Oscilloscope graph", font);
+    lv_obj_t* rs = make_setting_row(out.scale_graph_page, "Oscilloscope graph", font);
     out.scope_graph_switch = lv_switch_create(rs);
     lv_obj_set_size(out.scope_graph_switch, btn_size + ui::dp(8), btn_size / 2 + ui::dp(6));
     // Shot-graph X-window growth: tap cycles Snap / Smooth / Continuous.
-    lv_obj_t* rg = make_setting_row(out.scale_settings_page, "Window growth", font);
+    lv_obj_t* rg = make_setting_row(out.scale_graph_page, "Window growth", font);
     out.xgrow_btn = ui::make_button(rg);
     lv_obj_set_height(out.xgrow_btn, btn_size);
     lv_obj_set_style_pad_hor(out.xgrow_btn, ui::dp(14), 0);
@@ -891,7 +983,8 @@ void build_settings_tab(lv_obj_t* parent, const ScreenProfile& screen,
     lv_obj_set_style_text_color(out.xgrow_value, lv_color_hex(ui::theme::text()), 0);
     lv_obj_set_style_text_font(out.xgrow_value, font, 0);
     lv_obj_center(out.xgrow_value);
-
+    // The way down to them, last on Shot settings.
+    root_entry(menu, out.scale_settings_page, out.scale_graph_page, "Graph", font, btn_h);
   }
 
   // Scale > Device settings: the settings the scale itself stores. Built to
@@ -937,7 +1030,9 @@ void build_settings_tab(lv_obj_t* parent, const ScreenProfile& screen,
 
   // Device leaves
   build_device_display_rows(out.device_display_page, font, symbol_font, btn_size,
-                            with_brightness, with_sound, out);
+                            with_brightness, out);
+  if (out.device_sound_page != nullptr)
+    build_device_sound_rows(out.device_sound_page, font, symbol_font, btn_size, out);
   build_device_time_rows(out.device_time_page, font, btn_size, compact, out);
   build_device_wifi_rows(out.device_wifi_page, font, btn_size, out);
   if (out.device_backup_page != nullptr)
@@ -958,6 +1053,8 @@ void build_settings_tab(lv_obj_t* parent, const ScreenProfile& screen,
   root_entry(menu, out.scale_page, out.scale_settings_page, "Shot settings", font, btn_h);
   root_entry(menu, out.scale_page, out.scale_device_page, "Device settings", font, btn_h);
   root_entry(menu, out.device_page, out.device_display_page, "Display", font, btn_h);
+  if (out.device_sound_page != nullptr)
+    root_entry(menu, out.device_page, out.device_sound_page, "Sound", font, btn_h);
   root_entry(menu, out.device_page, out.device_time_page, "Time & date", font, btn_h);
   root_entry(menu, out.device_page, out.device_wifi_page, "WiFi", font, btn_h);
   if (out.device_backup_page != nullptr)
@@ -1004,6 +1101,8 @@ lv_obj_t* settings_section_page(const SettingsWidgets& w, int section) {
     case kSectionDeviceTime:    return w.device_time_page;
     case kSectionDeviceWifi:    return w.device_wifi_page;
     case kSectionDeviceBackup:  return w.device_backup_page;
+    case kSectionDeviceSound:   return w.device_sound_page;
+    case kSectionScaleGraph:    return w.scale_graph_page;
     default:                    return w.root_page;
   }
 }

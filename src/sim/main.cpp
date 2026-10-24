@@ -197,6 +197,14 @@ int main() {
     ok &= r(rd, "renders/round_device_display_800x800.png", 1, ui::kSectionDeviceDisplay);
     ok &= r(rd, "renders/round_micra_bt_800x800.png", 1, ui::kSectionMicraBt);
     ok &= r(rd, "renders/round_device_wifi_800x800.png", 1, ui::kSectionDeviceWifi);
+    ok &= r(rd, "renders/round_device_sound_800x800.png", 1, ui::kSectionDeviceSound);
+    ok &= r(rd, "renders/round_device_800x800.png", 1, ui::kSectionDevice);
+    ok &= r(rd, "renders/round_scale_settings_800x800.png", 1, ui::kSectionScaleSettings);
+    ok &= r(rd, "renders/round_scale_graph_800x800.png", 1, ui::kSectionScaleGraph);
+    ok &= r(rd, "renders/round_device_time_800x800.png", 1, ui::kSectionDeviceTime);
+    network.set_ntp_seconds_since_sync(42);  // Auto time has set the clock
+    ok &= r(rd, "renders/round_device_time_auto_800x800.png", 1, ui::kSectionDeviceTime);
+    network.set_ntp_seconds_since_sync(-1);
     ok &= r(rd, "renders/round_stats_800x800.png", 2, -1, false, 0, ui::kStatsBrew);
     ok &= r(rd, "renders/round_stats_steam_800x800.png", 2, -1, false, 0, ui::kStatsBoiler);
     ok &= r(rd, "renders/round_stats_info_800x800.png", 2, -1, false, 0, ui::kStatsInfo);
@@ -362,6 +370,8 @@ int main() {
   brew.set_flush_s(0);
   ok &= r({320, 240}, "renders/scale_settings_320x240.png", 1, ui::kSectionScaleSettings);
   ok &= r({800, 480}, "renders/scale_settings_800x480.png", 1, ui::kSectionScaleSettings);
+  ok &= r({320, 240}, "renders/scale_graph_320x240.png", 1, ui::kSectionScaleGraph);
+  ok &= r({800, 480}, "renders/scale_graph_800x480.png", 1, ui::kSectionScaleGraph);
   // Scale > Device settings (stored on the scale): live values, and the
   // link-down state where the rows disable ("--") behind a Connect prompt.
   ok &= r({800, 480}, "renders/scale_device_800x480.png", 1, ui::kSectionScaleDevice);
@@ -385,6 +395,12 @@ int main() {
   ok &= r({800, 480}, "renders/device_display_800x480.png", 1, ui::kSectionDeviceDisplay);
   ok &= r({800, 480}, "renders/device_time_800x480.png", 1, ui::kSectionDeviceTime);
   ok &= r({800, 480}, "renders/device_wifi_800x480.png", 1, ui::kSectionDeviceWifi);
+  ok &= r({320, 240}, "renders/device_sound_320x240.png", 1, ui::kSectionDeviceSound);
+  ok &= r({800, 480}, "renders/device_sound_800x480.png", 1, ui::kSectionDeviceSound);
+  // Time & date once Auto time has set the clock: the pickers give way to a note.
+  network.set_ntp_seconds_since_sync(42);
+  ok &= r({800, 480}, "renders/device_time_auto_800x480.png", 1, ui::kSectionDeviceTime);
+  network.set_ntp_seconds_since_sync(-1);
 
   // Settings > Apollo > Backup: the page in its three card states, then the two
   // confirmations (the whole point of the flow is what those two say).

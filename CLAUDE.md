@@ -249,7 +249,13 @@ env adds `-DBOARD_P4_SILICON_REV3`), panel table `BOARD_DSI_PANEL_JD9365_RD34`
   lv_menu tree and SettingsWidgets wiring but builds into a 520-wide column
   (y 116..640) of glass pill rows (fixed 66 px — flex only centres controls in
   a definite height), a round glass back chevron, amber switches/sliders
-  (`round_controls_walk`). STATS on round is its own full-page build
+  (`round_controls_walk`). No Theme row on round: App pins the Midnight
+  palette there (`kRoundThemeIndex`; the stored theme is left untouched).
+  Micra > Controls shows brew/steam as single rows that OPEN the Home dial /
+  steam sheet (`brew_open_row`/`steam_open_row`) — on round the stepper +
+  steam-switch pointers in SettingsWidgets are nullptr, so App null-guards
+  them. LVGL's perf-overlay label (bottom-right = off the glass) is moved to
+  the top centre on round (`apply_perf_overlay`). STATS on round is its own full-page build
   (`build_round_stats`): a glass segmented capsule, a RADIAL temperature chart
   (time = angle over Home's 300 deg sweep, temperature = radius; the lv_chart
   still holds App's data, its own drawing is off and `round_chart_overlay_cb`

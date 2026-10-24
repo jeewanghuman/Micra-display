@@ -508,10 +508,10 @@ void on_scope_graph_switch(lv_event_t* e) {
   auto* sw = static_cast<lv_obj_t*>(lv_event_get_target(e));
   app->set_scope_graph(lv_obj_has_state(sw, LV_STATE_CHECKED));
 }
-void on_perf_overlay_switch(lv_event_t* e) {
-  auto* app = static_cast<ui::App*>(lv_event_get_user_data(e));
-  auto* sw = static_cast<lv_obj_t*>(lv_event_get_target(e));
-  app->set_perf_overlay(lv_obj_has_state(sw, LV_STATE_CHECKED));
+// Long-press on Stats > Info's Firmware row: the performance overlay is a
+// developer aid, so it sits behind a gesture rather than in Settings.
+void on_fw_row_long_pressed(lv_event_t* e) {
+  static_cast<ui::App*>(lv_event_get_user_data(e))->toggle_perf_overlay();
 }
 void on_click_sound_switch(lv_event_t* e) {
   auto* app = static_cast<ui::App*>(lv_event_get_user_data(e));
@@ -634,6 +634,9 @@ void set_flush_delay_label(ui::SettingsWidgets& s, int delay_s) {
 // Graph smoothing levels (IDisplaySettings::flow_smooth 0..3). The kernels
 // themselves live with the painters in home_tab.cpp (kSmoothLevels).
 constexpr const char* kSmoothName[] = {"Off", "Light", "Medium", "Strong"};
+// Round glass's fixed palette: Midnight (index 0; the palette list in
+// theme.cpp is append-only, so the index is stable).
+constexpr int kRoundThemeIndex = 0;
 // Shot-graph X-window growth (IDisplaySettings::shot_window_growth 0..2); the
 // mapping itself lives in home_tab.cpp (shot_live_mapping).
 constexpr const char* kWindowGrowthName[] = {"Snap", "Smooth", "Continuous"};
@@ -792,12 +795,23 @@ void on_wifi_setup_cancel(lv_event_t* e) {
 }
 // Show/hide LVGL's performance monitor (FPS/CPU) on the default display. Compiled
 // out when the sysmon isn't built, so the toggle just persists a no-op preference.
-void apply_perf_overlay(bool on) {
+// LVGL parks the label bottom-right (LV_USE_PERF_MONITOR_POS), which is off the
+// glass on the round panel: there it moves to the top centre, above the tray.
+// (It's the only label on the system layer — LVGL's own object, no new memory.)
+void apply_perf_overlay(bool on, bool round) {
 #if LV_USE_PERF_MONITOR
   if (on) lv_sysmon_show_performance(nullptr);
   else lv_sysmon_hide_performance(nullptr);
+  if (on && round) {
+    lv_obj_t* sys = lv_layer_sys();
+    for (uint32_t i = 0; i < lv_obj_get_child_count(sys); ++i) {
+      lv_obj_t* c = lv_obj_get_child(sys, static_cast<int32_t>(i));
+      if (lv_obj_check_type(c, &lv_label_class)) lv_obj_align(c, LV_ALIGN_TOP_MID, 0, ui::dp(30));
+    }
+  }
 #else
   (void)on;
+  (void)round;
 #endif
 }
 // lv_menu fires VALUE_CHANGED on every page navigation; re-seed the clock steppers
@@ -899,6 +913,10 @@ void set_temp_controls_enabled(ui::SettingsWidgets& s, bool connected) {
   const bool boiler_en = connected && s.steam_enabled;  // can't set level when off
   set_clickable(s.boiler_minus, boiler_en && boiler_can_dec(s));
   set_clickable(s.boiler_plus, boiler_en && boiler_can_inc(s));
+  // Round glass rows: the dial / sheet need a machine to talk to (the sheet
+  // has its own On/Off, so steam-off doesn't grey its row).
+  set_clickable(s.brew_open_row, connected);
+  set_clickable(s.steam_open_row, connected);
 }
 
 }  // namespace
@@ -955,7 +973,11 @@ void App::build(core::IMachine& machine, core::IProvisioner& provisioner,
   const bool round = is_round(screen);
   const ui::Band band = ui::round_band(screen);
 
-  ui::theme::set_active(display_->theme());  // pick the palette before any widget is colored
+  // Pick the palette before any widget is colored. Round glass draws its own
+  // glass colours over black and was designed on Midnight, so it has no Theme
+  // row and pins that palette; the stored choice is untouched (a settings
+  // backup restored onto a rectangular board still carries it).
+  ui::theme::set_active(round ? kRoundThemeIndex : display_->theme());
 
   // Button-press click on audio boards. The hook is read at event time and
   // checks the cached setting, so the switch takes effect immediately.
@@ -1265,11 +1287,26 @@ void App::build(core::IMachine& machine, core::IProvisioner& provisioner,
     lv_obj_add_event_cb(settings_.xgrow_btn, on_xgrow_clicked, LV_EVENT_CLICKED, this);
   }
   lv_obj_add_event_cb(settings_.target_plus, on_target_plus, LV_EVENT_CLICKED, this);
-  lv_obj_add_event_cb(settings_.brew_minus, on_brew_minus, LV_EVENT_ALL, this);
-  lv_obj_add_event_cb(settings_.brew_plus, on_brew_plus, LV_EVENT_ALL, this);
-  lv_obj_add_event_cb(settings_.boiler_minus, on_boiler_minus, LV_EVENT_CLICKED, this);
-  lv_obj_add_event_cb(settings_.boiler_plus, on_boiler_plus, LV_EVENT_CLICKED, this);
-  lv_obj_add_event_cb(settings_.steam_switch, on_steam_switch, LV_EVENT_VALUE_CHANGED, this);
+  if (settings_.brew_minus != nullptr) {  // steppers (every layout but round glass)
+    lv_obj_add_event_cb(settings_.brew_minus, on_brew_minus, LV_EVENT_ALL, this);
+    lv_obj_add_event_cb(settings_.brew_plus, on_brew_plus, LV_EVENT_ALL, this);
+    lv_obj_add_event_cb(settings_.boiler_minus, on_boiler_minus, LV_EVENT_CLICKED, this);
+    lv_obj_add_event_cb(settings_.boiler_plus, on_boiler_plus, LV_EVENT_CLICKED, this);
+    lv_obj_add_event_cb(settings_.steam_switch, on_steam_switch, LV_EVENT_VALUE_CHANGED, this);
+  }
+  // Round glass: the Controls rows open Home's own dial / steam sheet.
+  if (settings_.brew_open_row != nullptr)
+    lv_obj_add_event_cb(
+        settings_.brew_open_row,
+        [](lv_event_t* e) { static_cast<ui::App*>(lv_event_get_user_data(e))->open_brew_dial(); },
+        LV_EVENT_CLICKED, this);
+  if (settings_.steam_open_row != nullptr)
+    lv_obj_add_event_cb(
+        settings_.steam_open_row,
+        [](lv_event_t* e) {
+          static_cast<ui::App*>(lv_event_get_user_data(e))->open_steam_sheet();
+        },
+        LV_EVENT_CLICKED, this);
   if (settings_.brightness_minus != nullptr) {  // absent on boards that can't dim
     lv_obj_add_event_cb(settings_.brightness_minus, on_brightness_minus, LV_EVENT_CLICKED, this);
     lv_obj_add_event_cb(settings_.brightness_plus, on_brightness_plus, LV_EVENT_CLICKED, this);
@@ -1316,8 +1353,6 @@ void App::build(core::IMachine& machine, core::IProvisioner& provisioner,
   }
   if (settings_.backflush_btn != nullptr)  // paddle-capable boards only
     lv_obj_add_event_cb(settings_.backflush_btn, on_backflush_open, LV_EVENT_CLICKED, this);
-  lv_obj_add_event_cb(settings_.perf_overlay_switch, on_perf_overlay_switch,
-                      LV_EVENT_VALUE_CHANGED, this);
   if (settings_.click_sound_switch != nullptr) {
     if (click_sound_on_) lv_obj_add_state(settings_.click_sound_switch, LV_STATE_CHECKED);
     lv_obj_add_event_cb(settings_.click_sound_switch, on_click_sound_switch,
@@ -1374,6 +1409,13 @@ void App::build(core::IMachine& machine, core::IProvisioner& provisioner,
   }
   if (stats_.info_log_btn != nullptr)
     lv_obj_add_event_cb(stats_.info_log_btn, on_info_log_row, LV_EVENT_CLICKED, this);
+  // The performance overlay (LVGL FPS/CPU) toggles on a long-press of the
+  // Firmware row — a developer aid kept out of Settings.
+  if (stats_.info_val[0] != nullptr) {
+    lv_obj_t* fw_row = lv_obj_get_parent(stats_.info_val[0]);
+    lv_obj_add_flag(fw_row, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_event_cb(fw_row, on_fw_row_long_pressed, LV_EVENT_LONG_PRESSED, this);
+  }
   if (stats_.update_btn != nullptr) {
     if (updates_ != nullptr)
       lv_obj_add_event_cb(stats_.update_btn, on_manual_check_clicked,
@@ -1415,9 +1457,8 @@ void App::build(core::IMachine& machine, core::IProvisioner& provisioner,
   const bool scope = display_->scope_graph();
   if (scope) lv_obj_add_state(settings_.scope_graph_switch, LV_STATE_CHECKED);
   home_.flow_scope_mode = scope;
-  const bool perf = display_->perf_overlay();
-  if (perf) lv_obj_add_state(settings_.perf_overlay_switch, LV_STATE_CHECKED);
-  apply_perf_overlay(perf);  // match the saved preference (LVGL auto-shows it at init)
+  // Match the saved preference (LVGL auto-shows the overlay at init).
+  apply_perf_overlay(display_->perf_overlay(), round);
   if (network_ != nullptr) {
     if (network_->enabled()) lv_obj_add_state(settings_.wifi_switch, LV_STATE_CHECKED);
     if (network_->ntp_enabled()) lv_obj_add_state(settings_.ntp_switch, LV_STATE_CHECKED);
@@ -1445,6 +1486,7 @@ void App::build(core::IMachine& machine, core::IProvisioner& provisioner,
   }
   ui::apply_flow_xaxis_labels(home_);  // initial x-axis label set (no plot reset)
   seed_time_controls();
+  sync_time_rows();
 
   settings_.theme_index = ui::theme::active_index();
   set_theme_label(settings_);
@@ -1654,10 +1696,31 @@ void App::seed_time_controls() {
 void App::on_settings_page_shown() {
   // Re-seed the Hour/Minute steppers from the live clock whenever the Time & date
   // page is opened, so they reflect the current time instead of the boot-time seed.
+  // The pickers vs "set automatically" swap is decided here too: it can only
+  // change between visits, and deciding it on entry never moves a row out from
+  // under a finger.
   if (settings_.menu != nullptr &&
       lv_menu_get_cur_main_page(settings_.menu) == settings_.device_time_page) {
     seed_time_controls();
+    sync_time_rows();
   }
+}
+
+void App::sync_time_rows() {
+  if (settings_.time_row == nullptr || settings_.time_auto_note == nullptr) return;
+  // Automatic = Auto time is on AND it has actually set the clock this session.
+  // Until then (no WiFi, no internet) the pickers are the only way to a real
+  // date, so they stay.
+  const bool automatic = network_ != nullptr && network_->ntp_enabled() &&
+                         network_->ntp_seconds_since_sync() >= 0;
+  auto show = [](lv_obj_t* o, bool on) {
+    if (o == nullptr || on != lv_obj_has_flag(o, LV_OBJ_FLAG_HIDDEN)) return;
+    if (on) lv_obj_remove_flag(o, LV_OBJ_FLAG_HIDDEN);
+    else lv_obj_add_flag(o, LV_OBJ_FLAG_HIDDEN);
+  };
+  show(settings_.time_row, !automatic);
+  show(settings_.date_row, !automatic);
+  show(settings_.time_auto_note, automatic);
 }
 
 void App::hour_select(int idx) {
@@ -1791,7 +1854,14 @@ void App::ready_chime_vol_adjust(int dir) {
 
 void App::set_perf_overlay(bool on) {
   if (display_ != nullptr) display_->set_perf_overlay(on);  // persist
-  apply_perf_overlay(on);  // show/hide the LVGL sysmon label now
+  apply_perf_overlay(on, ui::is_round(screen_));  // show/hide the LVGL sysmon label now
+}
+
+void App::toggle_perf_overlay() {
+  if (display_ == nullptr) return;
+  const bool on = !display_->perf_overlay();
+  set_perf_overlay(on);
+  show_toast(on ? "Performance overlay on" : "Performance overlay off");
 }
 
 void App::theme_select(int idx) {
@@ -1876,8 +1946,13 @@ void App::update_temp_panels(const core::MachineSnapshot& s) {
     } else if (s.steam_enabled == settings_.steam_enabled) {
       settings_.steam_enable_dirty = false;  // machine confirmed the toggle
     }
-    if (settings_.steam_enabled) lv_obj_add_state(settings_.steam_switch, LV_STATE_CHECKED);
-    else lv_obj_remove_state(settings_.steam_switch, LV_STATE_CHECKED);
+    if (settings_.steam_switch == nullptr) {
+      // round glass: no switch; the Steam row's value reads "Off" instead
+    } else if (settings_.steam_enabled) {
+      lv_obj_add_state(settings_.steam_switch, LV_STATE_CHECKED);
+    } else {
+      lv_obj_remove_state(settings_.steam_switch, LV_STATE_CHECKED);
+    }
 
     // Track the machine's value unless we have an unconfirmed local edit; clear
     // the edit once the machine reports it back (then resume tracking).

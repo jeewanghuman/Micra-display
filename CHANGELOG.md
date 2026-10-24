@@ -14,6 +14,12 @@ maps — plain ASCII plus `— – → … × ' "` — or they render as empty b
 - **Updates from this fork.** The display now checks
   jeewanghuman.github.io/Micra-display for new versions instead of the
   original Apollo 2 site.
+- **Tidier settings.** The chime and button sounds share a new Sound page, the
+  shot graph options moved to Shot settings → Graph, and Time & date hides its
+  pickers once WiFi has set the clock. On the round display, brew and steam
+  settings open the same dial and sheet as Home.
+- **Performance overlay** is now a long-press on the Firmware row in
+  Stats → Info.
 
 ## v0.14.2
 

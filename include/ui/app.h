@@ -164,9 +164,10 @@ class App {
   void set_use_fahrenheit(bool on);      // Device "Fahrenheit" switch
   void set_drop_negative_flow(bool on);  // Scale "Drop negative g/s" switch
   void set_scope_graph(bool on);         // Scale "Oscilloscope graph" switch
-  void set_perf_overlay(bool on);        // Device "Performance overlay" switch
-  void set_click_sound(bool on);         // Device "Button sounds" switch
-  // Micra "Chime volume": linear 0-100 (0 = Off), slider + [-]/[+]. sound.cpp
+  void set_perf_overlay(bool on);        // LVGL FPS/CPU overlay (persisted)
+  void toggle_perf_overlay();            // long-press on Stats > Info's Firmware row
+  void set_click_sound(bool on);         // Device > Sound "Button sounds" switch
+  // Sound "Chime volume": linear 0-100 (0 = Off), slider + [-]/[+]. sound.cpp
   // maps it onto a dB curve so the steps are even by ear.
   void set_ready_chime_vol(int percent, bool audition);
   void ready_chime_vol_adjust(int dir);  // one step per [-]/[+] tap
@@ -241,6 +242,9 @@ class App {
   void sync_home_setpoints(bool connected);  // mirror set-points to the Home steppers
   void update_battery_runtime(const core::BatteryState& b);  // track drain for the estimate
   void seed_time_controls();   // load the clock into the time/date dropdowns
+  // Time & date: hide the Time/Date pickers (show a note instead) once Auto
+  // time has set the clock this session — NTP would overwrite a manual pick.
+  void sync_time_rows();
   void apply_date_selection(); // clamp day, resize its options, write set_date
   // Re-derive the inferred Heating state (hysteresis bit = heating_) and
   // start/stop the status-dot pulse. Call once per machine-snapshot pass,

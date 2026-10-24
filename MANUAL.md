@@ -13,9 +13,9 @@ your board.
 - [Where everything lives](#nav-map) — a map of every screen and setting
 - [Home](#home) — MICRA card · SCALE card · Flow graph · Shot lifecycle
 - [Settings → Micra](#settings-micra) — Bluetooth · Controls · Cleaning
-- [Settings → Scale](#settings-scale) — Bluetooth · Shot settings · Device
-  settings · Per‑scale nuances
-- [Settings → Apollo](#settings-device) — Display · Time & date · WiFi ·
+- [Settings → Scale](#settings-scale) — Bluetooth · Shot settings (→ Graph) ·
+  Device settings · Per‑scale nuances
+- [Settings → Apollo](#settings-device) — Display · Sound · Time & date · WiFi ·
   Backup · Root page
 - [Stats](#stats-section) — Brew/Boiler graphs · History · Info
 - [Brew‑by‑weight quick reference](#bbw-reference)
@@ -44,18 +44,19 @@ Home
 Settings
 ├─ Micra
 │  ├─ Bluetooth — Scan · saved machine (Setup / Connect / Forget) · Auto connect
-│  ├─ Controls  — Wired paddle* · Chime melody* · Chime volume*
-│  │             · Brew Temperature · Steam Enable + Temperature
+│  ├─ Controls  — Wired paddle* · Brew Temperature · Steam Enable + Temperature
 │  └─ Cleaning* — Auto flush · Flush delay · Backflush cleaning  → cleaning mode
 ├─ Scale
 │  ├─ Bluetooth       — Scan · saved scale (Connect / Forget)
-│  ├─ Shot settings   — Target · Review hold · Detect lead-in · Smoothing
-│  │                    · Drop negative g/s · Oscilloscope graph · Window growth
+│  ├─ Shot settings   — Target · Review hold · Detect lead-in
+│  │  └─ Graph        — Smoothing · Drop negative g/s · Oscilloscope graph
+│  │                    · Window growth
 │  └─ Device settings — the scale's own settings (Beep · Auto-off/sleep · Unit …)
 ├─ Apollo
 │  ├─ Display     — Brightness* · Screen timeout · Idle screen (Lion/Apollo/Alternate/Dim/Off)
-│  │               · Theme · Fahrenheit · Button sounds* · Performance overlay
-│  ├─ Time & date — Time · Date · 24-hour · Timezone
+│  │               · Theme · Fahrenheit
+│  ├─ Sound*      — Chime melody · Chime volume · Button sounds
+│  ├─ Time & date — Time · Date (until Auto time sets them) · 24-hour · Timezone
 │  ├─ WiFi        — Enable · Status · Set up WiFi → QR portal · Forget
 │  │               · Auto time (NTP) · Check for updates (Off/Boot/Daily/Hourly)
 │  │                 → notice → Install now · Beta updates
@@ -66,8 +67,8 @@ Stats
 ├─ Brew | Boiler — temperature history graphs (+/− zoom)
 ├─ History — headline stats (tap → reset) · month filter · shot list
 │            └─ tap a shot → full-screen shot card (with delete)
-└─ Info — firmware (→ Check for updates) · uptime · IP · NTP synced · Diagnostic log
-          (tap → viewer) · Micra details
+└─ Info — firmware (→ Check for updates; long-press → performance overlay) · uptime
+          · IP · NTP synced · Diagnostic log (tap → viewer) · Micra details
 
   * = only on boards whose hardware supports it (see the note above)
 ```
@@ -96,7 +97,7 @@ Without a scale, the MICRA card fills the screen as a single hero:
   thermostat works to about that tolerance — a steam boiler set to 128 °C
   routinely settles at 127 °C and stops heating there. Boards with a speaker
   can also chime when it turns `Ready` — see
-  [Settings → Micra → Controls](#controls).
+  [Settings → Apollo → Sound](#sound).
 - ② ③ **BREW / STEAM** — live boiler temperatures. On larger screens each has a
   **−/+** stepper that edits the set‑point directly; the small grey number is
   the current target. Edits are written to the machine as you tap.
@@ -221,32 +222,14 @@ Plots the live flow rate (or weight) from the scale.
   the paddle harness is physically wired. This enables the **Auto shot** mode
   and the auto‑flush. Off, the board behaves like an unwired one (Shot detect
   / Manual only). Flipping it mid‑shot cancels the shot.
-- ② **Chime melody** *(boards with a speaker; Off / Blue / Pink / Human /
-  Gold / White / Autumn / Random, default Blue)* — which tune announces the end of a warm‑up. Each tap
-  cycles to the next melody and auditions it; **Random** picks a different
-  tune each time the machine warms up; `Off` silences the chime regardless of
-  the volume below.
-- ③ **Chime volume** *(boards with a speaker; 0–100 %, default 80 %)* — the
-  warm‑up chime's level, so you can walk away and be called back. Drag the
-  slider to get close, or tap **–** / **+** to nudge it 5 % at a time; either
-  way it **plays a note at the new level** so you can set it by ear. `0 %`
-  shows as `Off` and silences it. The scale is even *to the ear* rather than
-  arithmetically — each step is the same size in loudness, so the lower half
-  is as useful as the upper half.
-
-  The chime marks the *end of a warm‑up*, not every moment the boilers are at
-  temperature, so it sounds **at most once per turn‑on** and then stays quiet
-  through everything the session brings — the small dips and reheats that hold
-  the temperature, heavy steaming, refills, steam boiler toggles. It re‑arms
-  only when the machine goes to standby (or off, or disconnects), so the next
-  turn‑on's warm‑up chimes again. With the steam boiler **off** the chime
-  follows the coffee boiler alone; with it **on**, both boilers have to be
-  there.
-- ④ **Brew → Temperature** — coffee boiler set‑point stepper (0.1 °C steps;
+- ② **Brew → Temperature** — coffee boiler set‑point stepper (0.1 °C steps;
   long‑press for 0.5 °C).
-- ⑤ **Steam Boiler → Enable** — steam boiler on/off.
-- ⑥ **Steam Boiler → Temperature** — one of the Micra's three steam levels
+- ③ **Steam Boiler → Enable** — steam boiler on/off.
+- ④ **Steam Boiler → Temperature** — one of the Micra's three steam levels
   (shown as Level 1–3 with the temperature underneath).
+
+(The warm‑up chime used to live here; it's on
+[Settings → Apollo → Sound](#sound) now, with the rest of the speaker.)
 
 ### Cleaning *(paddle‑capable boards)*
 
@@ -314,18 +297,28 @@ needs the paddle harness, since that's what drives it.
   started the shot. Adjust it to match your machine's preinfusion setting as
   needed (roughly your typical paddle‑to‑first‑drip time); 0 starts the shot
   at the first drip.
-- ④ **Smoothing** *(Off / Light / Medium / Strong, default Light)* — smoothing on
-  the shot graph's line. Purely visual; detection and auto‑stop use the raw
-  stream.
-- ⑤ **Drop negative g/s** *(default on)* — clamps negative flow readings (cup
+- ④ **Graph** — opens the shot graph's display options (below).
+
+<a id="graph"></a>
+
+#### Graph
+
+![Graph settings](docs/img/manual/scale-graph.png)
+
+How the flow graph on Home draws a shot. All of it is purely visual —
+detection, the timer and auto‑stop always use the scale's raw readings.
+
+- ① **Smoothing** *(Off / Light / Medium / Strong, default Light)* — smoothing on
+  the shot graph's line.
+- ② **Drop negative g/s** *(default on)* — clamps negative flow readings (cup
   bumps, scale noise) to zero on the graph.
-- ⑥ **Oscilloscope graph** *(default on)* — the shot graph sweeps left→right and
+- ③ **Oscilloscope graph** *(default on)* — the shot graph sweeps left→right and
   wraps, oscilloscope style. Off, it scrolls continuously instead.
-- ⑦ **Window growth** *(Snap / Smooth / Continuous, default Continuous)* — how
+- ④ **Window growth** *(Snap / Smooth / Continuous, default Continuous)* — how
   the shot graph's time window widens as a shot runs on past 15 s.
   **Continuous** keeps the whole shot filling the width, squeezing the trace
   as it lengthens. **Snap** jumps to 30, 45 and 60 s instead. **Smooth** makes
-  the same jumps but eases each one over a second or so. Purely visual.
+  the same jumps but eases each one over a second or so.
 
 ### Device settings
 
@@ -399,8 +392,9 @@ machine is already warming up when you arrive.
 
 ## Settings → Apollo
 
-Three short sub‑pages — **Display**, **Time & date**, and **WiFi** — so each
-page fits on screen with little to no scrolling.
+Short sub‑pages — **Display**, **Sound** *(boards with a speaker)*, **Time &
+date**, **WiFi** and **Backup** *(boards with a card slot)* — so each page fits
+on screen with little to no scrolling.
 
 ### Display
 
@@ -434,13 +428,38 @@ page fits on screen with little to no scrolling.
   blue, Monaco the navy, Ivory the creme.
 - ⑤ **Fahrenheit** *(default off)* — display unit for temperatures. Set‑points
   are still stored in Celsius.
-- ⑥ **Button sounds** *(boards with a speaker; default on)* — click on button
-  presses. (The other sound, the warm‑up chime, is under
-  [Settings → Micra → Controls](#controls) since it's about the machine.) With
-  button sounds off *and* the chime volume `Off`, the audio hardware stays
-  powered down until the next restart.
-- ⑦ **Performance overlay** *(default off)* — LVGL FPS/CPU overlay, for
-  debugging.
+
+<a id="sound"></a>
+
+### Sound *(boards with a speaker)*
+
+![Sound settings](docs/img/manual/device-sound.png)
+
+Everything the speaker does, on one page.
+
+- ① **Chime melody** *(Off / Blue / Pink / Human / Gold / White / Autumn /
+  Random, default Blue)* — which tune announces the end of a warm‑up. Each tap
+  cycles to the next melody and auditions it; **Random** picks a different
+  tune each time the machine warms up; `Off` silences the chime regardless of
+  the volume below.
+- ② **Chime volume** *(0–100 %, default 80 %)* — the warm‑up chime's level, so
+  you can walk away and be called back. Drag the slider to get close, or tap
+  **–** / **+** to nudge it 5 % at a time; either way it **plays a note at the
+  new level** so you can set it by ear. `0 %` shows as `Off` and silences it.
+  The scale is even *to the ear* rather than arithmetically — each step is the
+  same size in loudness, so the lower half is as useful as the upper half.
+
+  The chime marks the *end of a warm‑up*, not every moment the boilers are at
+  temperature, so it sounds **at most once per turn‑on** and then stays quiet
+  through everything the session brings — the small dips and reheats that hold
+  the temperature, heavy steaming, refills, steam boiler toggles. It re‑arms
+  only when the machine goes to standby (or off, or disconnects), so the next
+  turn‑on's warm‑up chimes again. With the steam boiler **off** the chime
+  follows the coffee boiler alone; with it **on**, both boilers have to be
+  there.
+- ③ **Button sounds** *(default on)* — click on button presses. With button
+  sounds off *and* the chime volume `Off`, the audio hardware stays powered
+  down until the next restart.
 
 ### Time & date
 
@@ -455,6 +474,12 @@ page fits on screen with little to no scrolling.
 - ③ **24‑hour** *(default on)* — clock format.
 - ④ **Timezone** — city picker (handles daylight saving). Governs how all
   times display and how NTP time is converted.
+
+Once **Auto time** (on the WiFi page) has set the clock, the **Time** and
+**Date** rows give way to a line saying so — the next sync would overwrite
+anything picked by hand. To set them yourself, turn Auto time off. Until the
+first sync (no WiFi, or no internet), the pickers stay, so a date for shot
+history is always reachable.
 
 ### WiFi
 
@@ -643,6 +668,9 @@ action lives directly on the root:
     releases site right now (needs WiFi + NTP). It reports back either an
     update notice or "You're on the latest firmware" — the same check the boot
     option runs, on demand.
+  - **Performance overlay** — a developer aid: **long‑press the Firmware row**
+    to show or hide LVGL's live FPS / CPU readout (a short message confirms
+    which). It stays as you left it across restarts.
   - ① **Diagnostic log** — tap **View** for the recent diagnostic log (the same
     messages the USB serial console prints), each line stamped with the time
     (or seconds‑since‑boot before the clock is set). The log lives in RAM:
