@@ -11,6 +11,9 @@ maps — plain ASCII plus `— – → … × ' "` — or they render as empty b
 
 - **Cleaner buttons.** The bright line along the top of buttons and panels,
   and the dark corners behind the steam sheet's buttons, are gone.
+- **Low brightness stays on.** Brightness 30 % and below used to switch the
+  screen off. The whole 10–100 % range now stays lit, and so do the Dim,
+  Lion, Apollo and Clock idle screens.
 
 ## v1.1.0
 

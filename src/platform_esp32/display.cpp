@@ -2029,6 +2029,13 @@ int Display::height() const { return g_gfx ? g_gfx->height() : 0; }
 void Display::set_brightness(int percent) {
   if (percent < 0) percent = 0;
   if (percent > 100) percent = 100;
+  // A board whose backlight goes dark above 0% (the 3.4C) gets 1..100 mapped
+  // onto its lit range, so the dimmest setting and the Dim idle screen never
+  // read as off. 0 stays a true off (the Off idle screen).
+  if (percent > 0 && board::kBacklightFloorPercent > 0) {
+    percent = board::kBacklightFloorPercent +
+              (100 - board::kBacklightFloorPercent) * percent / 100;
+  }
 #if defined(BOARD_DISPLAY_RGB)
   // (DSI boards fall through to the LEDC path below with the SPI boards.)
   // Backlight dim is purely the IO-extension PWM register here. This board's PWM

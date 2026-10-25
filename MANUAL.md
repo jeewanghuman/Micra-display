@@ -438,7 +438,8 @@ scrolling.
 
 ![Display settings](docs/img/manual/device-display.png)
 
-- ① **Brightness** — backlight level.
+- ① **Brightness** *(10–100 % in steps of 10, default 100 %)* — backlight
+  level. 10 % is the dimmest the panel shows; no setting turns it off.
 - ② **Screen timeout** *(Off / 1 / 5 / 15 / 30 min, default 30 min)* — after
   this idle time the idle screen starts (see the next row); any touch wakes the
   screen. A shot in progress never counts as idle, so the idle screen won't
@@ -446,8 +447,8 @@ scrolling.
   when the shot ends.
 - ③ **Idle screen** *(Lion / Apollo / Alternate / Dim / Off / Clock, default
   Lion; shown while Screen timeout is on)* — what the timeout shows. **Lion**
-  and **Apollo** turn the backlight down to 5 % (low enough to read as asleep,
-  high enough that the panel isn't mistaken for switched off) and bounce that
+  and **Apollo** turn the backlight down to its dimmest (low enough to read as
+  asleep, high enough that the panel isn't mistaken for switched off) and bounce that
   drawing around a black screen, changing color at every wall it hits — the
   La Marzocco lion, or Apollo sipping an espresso. **Alternate** does the
   same, starting on either one and switching to the other every three

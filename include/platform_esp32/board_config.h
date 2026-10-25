@@ -860,7 +860,16 @@ inline constexpr char kUpdateSlug[] = "p4-wifi6-touch-lcd-3.4c";
 // Round glass: the UI picks its round layout from this (ui::ScreenProfile).
 #define BOARD_DISPLAY_ROUND
 constexpr bool kSupportsBrightness = true;  // LEDC PWM backlight (dimmable)
-// Screensaver Dim floor (SaverMode::kDim). Historical 5%, untested low end.
+// The backlight goes DARK well above 0% (HW, owner 2026-10-25: Brightness
+// 30% and lower = panel off, 40% lit). The PWM is RC-filtered into the
+// AP3032's feedback node (see the Backlight note below), so it sets the LED
+// current, and once the injected bias passes the FB reference the current
+// is zero — somewhere between 30% and 40% here. Display::set_brightness maps
+// every non-zero level onto 40..100% so the dimmest setting stays lit; 0 is
+// still a true off.
+#define BOARD_BACKLIGHT_FLOOR_PERCENT 40
+// Screensaver Dim floor (SaverMode::kDim): 5% of the lit range above, so
+// ~43% duty — the dimmest the panel shows, never off.
 constexpr int kSaverDimPercent = 5;
 
 // UI zoom: none (1.0). 800 px across 3.4" is ~235 ppi, close to the released
@@ -968,5 +977,14 @@ constexpr int kSdLdoChannel = 4;
 #define BOARD_UI_SCALE 1.0f
 #endif
 constexpr float kUiScale = BOARD_UI_SCALE;
+
+// Lowest backlight level (percent) that still lights the panel. Boards whose
+// backlight goes dark above 0% define BOARD_BACKLIGHT_FLOOR_PERCENT in their
+// block, and Display::set_brightness maps 1..100 onto FLOOR..100; everyone
+// else drives the backlight 1:1.
+#ifndef BOARD_BACKLIGHT_FLOOR_PERCENT
+#define BOARD_BACKLIGHT_FLOOR_PERCENT 0
+#endif
+constexpr int kBacklightFloorPercent = BOARD_BACKLIGHT_FLOOR_PERCENT;
 
 }  // namespace board

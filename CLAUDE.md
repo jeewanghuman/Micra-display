@@ -332,7 +332,12 @@ env adds `-DBOARD_P4_SILICON_REV3`), panel table `BOARD_DSI_PANEL_JD9365_RD34`
   The artworks still bounce inside the band on round.
 - HW bring-up (rev v1.3 unit, 2026-10): boots, panel + GT911 + hosted radio
   up, UI visible. Backlight is ACTIVE-LOW like the 4.3 (normal polarity =
-  dark panel + POWERON reset loop). Orientation (default MADCTL) and the
+  dark panel + POWERON reset loop), and it goes DARK at Brightness <= 30%
+  (owner, 2026-10-25): the PWM biases the AP3032's feedback node, so it sets
+  LED current, which hits zero between 30% and 40%. The block's
+  BOARD_BACKLIGHT_FLOOR_PERCENT 40 makes Display::set_brightness map 1..100
+  onto 40..100 (0 stays off), which keeps kSaverDimPercent's idle screens lit
+  too. Orientation (default MADCTL) and the
   touch mapping (swap XY + mirror Y, as committed) are correct as-is.
   Not yet confirmed on the unit: paddle pins (J8 7/9/11 = GPIO52/GND/51 per
   the schematic), audio, SD. No battery circuit: the block defines
