@@ -317,9 +317,8 @@ void on_reset_stats_cancel(lv_event_t* e) {
 void on_stats_segment(lv_event_t* e) {
   auto* app = static_cast<ui::App*>(lv_event_get_user_data(e));
   auto* btn = static_cast<lv_obj_t*>(lv_event_get_target(e));
-  // The section is the button's position among its BUTTON siblings: the round
-  // glass capsule also holds its specular-rim child at index 0, so a raw
-  // lv_obj_get_index would select the section to the right of the tapped one.
+  // The section is the button's position among its BUTTON siblings, so a
+  // non-button child in the capsule can never shift the mapping.
   lv_obj_t* row = lv_obj_get_parent(btn);
   int section = 0;
   for (uint32_t i = 0; i < lv_obj_get_child_count(row); ++i) {
@@ -5017,7 +5016,6 @@ void App::open_steam_sheet() {
     lv_obj_t* r = lv_obj_create(parent);
     lv_obj_remove_style_all(r);
     lv_obj_remove_flag(r, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_add_flag(r, LV_OBJ_FLAG_OVERFLOW_VISIBLE);
     lv_obj_set_size(r, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
     lv_obj_set_flex_flow(r, LV_FLEX_FLOW_ROW);
     lv_obj_set_style_pad_column(r, at(12), 0);

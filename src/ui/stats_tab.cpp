@@ -474,13 +474,11 @@ void build_round_stats(lv_obj_t* parent, const ScreenProfile& screen, StatsWidge
                         LV_FLEX_ALIGN_CENTER);
   lv_obj_set_style_pad_all(seg_row, ui::dp(5), 0);
   lv_obj_set_style_pad_column(seg_row, ui::dp(4), 0);
-  lv_obj_set_style_shadow_width(seg_row, 0, 0);
   const char* labels[kStatsCount] = {"Brew", "Steam", "History", "Info"};
   for (int i = 0; i < kStatsCount; ++i) {
     out.seg[i] = ui::glass::make_button(seg_row, LV_RADIUS_CIRCLE, ui::glass::Tone::kClear);
     lv_obj_set_flex_grow(out.seg[i], 1);
     lv_obj_set_height(out.seg[i], lv_pct(100));
-    lv_obj_set_style_shadow_width(out.seg[i], 0, 0);
     lv_obj_t* l = lv_label_create(out.seg[i]);
     lv_label_set_text(l, labels[i]);
     lv_obj_set_style_text_font(l, ui::font_dp(16), 0);
@@ -542,7 +540,6 @@ void build_round_stats(lv_obj_t* parent, const ScreenProfile& screen, StatsWidge
                                          ui::glass::Tone::kClear);
   lv_obj_set_size(zoom, ui::dp(250), ui::dp(50));
   lv_obj_align(zoom, LV_ALIGN_TOP_MID, 0, ui::dp(408));
-  lv_obj_set_style_shadow_width(zoom, 0, 0);
   lv_obj_set_style_pad_all(zoom, ui::dp(4), 0);
   lv_obj_set_flex_flow(zoom, LV_FLEX_FLOW_ROW);
   lv_obj_set_flex_align(zoom, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER,
@@ -550,14 +547,12 @@ void build_round_stats(lv_obj_t* parent, const ScreenProfile& screen, StatsWidge
   const int zsz = ui::dp(42);
   out.zoom_out = ui::glass::make_button(zoom, LV_RADIUS_CIRCLE, ui::glass::Tone::kClear);
   lv_obj_set_size(out.zoom_out, zsz, zsz);
-  lv_obj_set_style_shadow_width(out.zoom_out, 0, 0);
   out.window_label = lv_label_create(zoom);
   lv_label_set_text(out.window_label, "");
   lv_obj_set_style_text_color(out.window_label, lv_color_hex(0xFFFFFF), 0);
   lv_obj_set_style_text_font(out.window_label, font, 0);
   out.zoom_in = ui::glass::make_button(zoom, LV_RADIUS_CIRCLE, ui::glass::Tone::kClear);
   lv_obj_set_size(out.zoom_in, zsz, zsz);
-  lv_obj_set_style_shadow_width(out.zoom_in, 0, 0);
   const char* zl[2] = {LV_SYMBOL_MINUS, LV_SYMBOL_PLUS};
   lv_obj_t* zb[2] = {out.zoom_out, out.zoom_in};
   for (int i = 0; i < 2; ++i) {
@@ -596,7 +591,6 @@ void build_round_stats(lv_obj_t* parent, const ScreenProfile& screen, StatsWidge
       lv_obj_set_flex_grow(card, 1);
       lv_obj_set_height(card, LV_SIZE_CONTENT);
       lv_obj_set_style_pad_ver(card, ui::dp(10), 0);
-      lv_obj_set_style_shadow_width(card, 0, 0);
       lv_obj_set_flex_flow(card, LV_FLEX_FLOW_COLUMN);
       lv_obj_set_flex_align(card, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER,
                             LV_FLEX_ALIGN_CENTER);
@@ -692,7 +686,6 @@ void build_round_stats(lv_obj_t* parent, const ScreenProfile& screen, StatsWidge
   {
     lv_obj_t* row = lv_obj_get_parent(out.info_val[0]);
     out.update_btn = ui::glass::make_button(row, LV_RADIUS_CIRCLE, ui::glass::Tone::kClear);
-    lv_obj_set_style_shadow_width(out.update_btn, 0, 0);
     lv_obj_set_style_pad_hor(out.update_btn, ui::dp(14), 0);
     lv_obj_set_style_pad_ver(out.update_btn, ui::dp(6), 0);
     lv_obj_t* lbl = lv_label_create(out.update_btn);

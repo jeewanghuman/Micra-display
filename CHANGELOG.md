@@ -7,6 +7,11 @@ for someone reading the diff. These notes are also shown ON THE DEVICE, whose
 fonts are ASCII-only: stick to characters `sanitize_notes()` (src/ui/app.cpp)
 maps — plain ASCII plus `— – → … × ' "` — or they render as empty boxes.
 
+## Unreleased
+
+- **Cleaner buttons.** The bright line along the top of buttons and panels,
+  and the dark corners behind the steam sheet's buttons, are gone.
+
 ## v1.1.0
 
 - **New name: Tondo.** The firmware is now called Tondo: Settings → Tondo,

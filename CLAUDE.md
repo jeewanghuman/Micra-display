@@ -305,13 +305,22 @@ env adds `-DBOARD_P4_SILICON_REV3`), panel table `BOARD_DSI_PANEL_JD9365_RD34`
   it read as muddy and busy behind the numerals and graph; owner dropped it.
   Don't bring a gradient backdrop back without asking.) The tab dock lives INSIDE the
   tab bar at index 0 (tabview finds buttons by class) so it hides with it.
-  `ui/glass.*`: flat fills only — gradients band in RGB565.
+  `ui/glass.*`: flat fills only — gradients band in RGB565. And NO drop
+  shadows or brighter top "specular" rim on glass pieces (removed
+  2026-10-25 after the owner saw lines on the buttons): a black shadow is
+  invisible on the black backdrop, while over a glass card RGB565 steps its
+  soft edge into a hard dark one, and LVGL 9.6 clips children to the
+  parent's coords + the PARENT's ext draw size (LV_OBJ_FLAG_OVERFLOW_VISIBLE
+  alone doesn't help), so a shadow in a content-sized row is cut square. The
+  sim reproduces these — zoom into renders/glass/ before trusting a glass
+  effect. The only shadows left are deliberate glows: the bezel-arc and
+  dial knobs, the stats bead, the clock orb.
   Costs (owner-visible, see Memory budget rule): no backdrop buffer (black
   fill); hero font
   `src/ui/fonts/font_outfit_hero.c` ~38 KB flash (Outfit, OFL; digits . - g
   deg; regenerate with tools/gen_hero_font.sh); ~40 extra LVGL objects on
   Home, the dial/sheet only while open. Not yet measured on hardware: frame
-  times (shadows, the glassify walk).
+  times (the glassify walk).
   CLOCK IDLE SCREEN (`kSaverClock`, round only — the cycle skips it and a
   restored Clock falls back to Lion on rectangular boards): its own screen
   like the artworks (`App::start_clock_saver` / `clock_saver_tick`, 10 Hz):

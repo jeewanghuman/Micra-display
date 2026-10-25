@@ -102,8 +102,6 @@ lv_obj_t* make_round_action(lv_obj_t* parent, int size, const char* glyph,
   lv_obj_set_flex_align(col, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER,
                         LV_FLEX_ALIGN_CENTER);
   lv_obj_set_style_pad_row(col, ui::dp(10), 0);
-  // Room for the button's drop shadow, which would otherwise be clipped.
-  lv_obj_add_flag(col, LV_OBJ_FLAG_OVERFLOW_VISIBLE);
 
   lv_obj_t* btn = ui::glass::make_button(col, LV_RADIUS_CIRCLE, ui::glass::Tone::kClear);
   lv_obj_set_size(btn, size, size);
@@ -256,7 +254,6 @@ void build_round_home(lv_obj_t* page, const ScreenProfile& screen, bool scale_en
   lv_obj_t* caps = lv_obj_create(idle);
   lv_obj_remove_style_all(caps);
   lv_obj_remove_flag(caps, LV_OBJ_FLAG_SCROLLABLE);
-  lv_obj_add_flag(caps, LV_OBJ_FLAG_OVERFLOW_VISIBLE);
   lv_obj_set_size(caps, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
   lv_obj_set_flex_flow(caps, LV_FLEX_FLOW_ROW);
   lv_obj_set_style_pad_column(caps, at(14), 0);
@@ -273,7 +270,6 @@ void build_round_home(lv_obj_t* page, const ScreenProfile& screen, bool scale_en
   lv_obj_t* row = lv_obj_create(idle);
   lv_obj_remove_style_all(row);
   lv_obj_remove_flag(row, LV_OBJ_FLAG_SCROLLABLE);
-  lv_obj_add_flag(row, LV_OBJ_FLAG_OVERFLOW_VISIBLE);
   lv_obj_set_size(row, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
   lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
   lv_obj_set_style_pad_column(row, at(scale_enabled ? 52 : 76), 0);

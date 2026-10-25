@@ -6,9 +6,9 @@
 // LVGL styles, no backdrop blur — the panel can't afford a live blur, so the
 // look is faked the way the design mockups describe it:
 //   - a translucent white fill (flat — a faint gradient bands in RGB565),
-//   - a thin white rim plus a brighter specular arc along the top edge,
-//   - a soft drop shadow so the piece floats,
-//   - drawn over a plain black backdrop (kBackdropBase).
+//   - a thin white rim,
+//   - drawn over a plain black backdrop (kBackdropBase). No drop shadow and
+//     no brighter top rim: on this panel both drew lines (see glass.cpp).
 
 namespace ui::glass {
 
@@ -19,8 +19,8 @@ enum class Tone : uint8_t {
 };
 
 // A glass button: an lv_button with every theme style removed and the glass
-// styles applied, `radius` (LV_RADIUS_CIRCLE for round), the specular rim as
-// a non-clickable child. Press feedback (ui::play_button_press) is wired.
+// styles applied, `radius` (LV_RADIUS_CIRCLE for round). Press feedback
+// (ui::play_button_press) is wired.
 lv_obj_t* make_button(lv_obj_t* parent, int radius, Tone tone);
 
 // A non-interactive glass panel (capsules, the tab-bar dock): same styles,

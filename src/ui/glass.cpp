@@ -21,7 +21,7 @@ ToneStyle tone_style(Tone tone) {
   switch (tone) {
     // Flat fills (top == bottom): a faint top-to-bottom gradient is what the
     // mockup draws, but at these opacities RGB565 can only step it in a few
-    // visible bands. The specular top rim carries the "lit from above" cue.
+    // visible bands.
     case Tone::kBright: return {0xFFFFFF, 72, 0xFFFFFF, 72, 130};
     case Tone::kAmber:  return {0xE8944A, 190, 0xE8944A, 190, 110};
     case Tone::kClear:
@@ -41,34 +41,22 @@ void apply_tone(lv_obj_t* obj, Tone tone) {
   lv_obj_set_user_data(obj, reinterpret_cast<void*>(static_cast<uintptr_t>(tone) + 1));
 }
 
-// Shared base: the shape, rim, shadow and the specular highlight child.
+// Shared base: the shape and the rim. No drop shadow and no brighter top
+// "specular" rim (both were here until 2026-10-25, and both drew lines on
+// the panel): a black shadow is invisible over the black backdrop, and over
+// a glass card RGB565 steps its soft edge into a hard dark one — clipped to
+// the parent's box besides, since LVGL 9.6 lets children overflow only by
+// the parent's own ext draw size. The top rim was a child sized 100% of the
+// CONTENT box, so on a padded panel it floated inside the edge, and on a
+// translucent pill it showed as a bar ending short of the rounded ends.
 void style_base(lv_obj_t* obj, int radius, Tone tone) {
   lv_obj_remove_style_all(obj);
   lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_set_style_radius(obj, radius, 0);
   lv_obj_set_style_border_width(obj, ui::dp(2), 0);
   lv_obj_set_style_border_color(obj, lv_color_hex(0xFFFFFF), 0);
-  lv_obj_set_style_shadow_width(obj, ui::dp(26), 0);
-  lv_obj_set_style_shadow_offset_y(obj, ui::dp(8), 0);
-  lv_obj_set_style_shadow_color(obj, lv_color_hex(0x000000), 0);
-  lv_obj_set_style_shadow_opa(obj, 55, 0);
   lv_obj_set_style_text_color(obj, lv_color_hex(0xFFFFFF), 0);
   apply_tone(obj, tone);
-
-  // Specular rim: the top edge catches the light. A second, brighter border
-  // drawn on the top side only, as a child so the parent keeps one style set.
-  // Not clickable (taps fall through to the button) and out of any layout.
-  lv_obj_t* spec = lv_obj_create(obj);
-  lv_obj_remove_style_all(spec);
-  lv_obj_add_flag(spec, LV_OBJ_FLAG_IGNORE_LAYOUT);
-  lv_obj_remove_flag(spec, LV_OBJ_FLAG_CLICKABLE);
-  lv_obj_remove_flag(spec, LV_OBJ_FLAG_SCROLLABLE);
-  lv_obj_set_size(spec, lv_pct(100), lv_pct(100));
-  lv_obj_set_style_radius(spec, radius, 0);
-  lv_obj_set_style_border_side(spec, LV_BORDER_SIDE_TOP, 0);
-  lv_obj_set_style_border_width(spec, ui::dp(2), 0);
-  lv_obj_set_style_border_color(spec, lv_color_hex(0xFFFFFF), 0);
-  lv_obj_set_style_border_opa(spec, 220, 0);
 }
 
 void on_glass_pressed(lv_event_t*) { ui::play_button_press(); }
