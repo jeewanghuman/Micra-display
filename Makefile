@@ -3,7 +3,7 @@
 # Board targets are named <chip>-<panel>, mirroring the Waveshare product names
 # (ESP32-S3-Touch-LCD-4.3C -> s3-4-3c, ESP32-P4-WIFI6-Touch-LCD-4.3 -> p4-4-3).
 #
-# THIS FORK (jeewanghuman/tondo) RELEASES ONE board, the round
+# THIS FORK (jeewanghuman/Tondo) RELEASES ONE board, the round
 # P4-WIFI6-Touch-LCD-3.4C (marked [rel] below). Every other env builds fine but
 # is unpublished here - upstream's four released boards included. See the
 # "Fork releases" section of CLAUDE.md.

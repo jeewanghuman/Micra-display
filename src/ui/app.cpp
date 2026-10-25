@@ -2564,7 +2564,7 @@ void App::open_update_modal() {
   lv_obj_set_style_text_font(hint, ui::font_dp(12), 0);
   lv_label_set_text(hint,
                     "Or install from a computer at "
-                    "jeewanghuman.github.io/tondo - settings are kept. "
+                    "jeewanghuman.github.io/Tondo - settings are kept. "
                     "Turn these notices off under Settings > Tondo > WiFi.");
 
   // Install now downloads the image and reboots into it (both BLE links are

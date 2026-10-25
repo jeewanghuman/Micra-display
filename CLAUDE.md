@@ -331,7 +331,7 @@ env adds `-DBOARD_P4_SILICON_REV3`), panel table `BOARD_DSI_PANEL_JD9365_RD34`
   the UI drops the tray power indicator and the Stats > Info Runtime row
   (the sim poses this for every round render via FakeBattery::set_hw).
 
-## Fork releases (jeewanghuman/tondo)
+## Fork releases (jeewanghuman/Tondo)
 
 THIS REPO IS A FORK of mlsorensen/Apollo2 whose only product is the round
 3.4C, named TONDO (renamed from "Apollo 2" on 2026-10-24; the repo was
@@ -345,10 +345,11 @@ folder is `/Tondo` (core::kShotDirName); ShotStore::try_mount's
 adopt_legacy_dir() renames a card's `/Apollo2` to `/Tondo` once, only when
 `/Tondo` doesn't exist (core::kLegacyShotDirName). Backups say "# Tondo
 settings backup" — restore keys on `format=`, so Apollo-era files still load.
-The repo's name is lowercase `tondo`, so every URL (OTA site, flasher,
-github.com links, the update-modal hint) says `/tondo` — Pages paths may be
-case-sensitive; the product name stays "Tondo" and the SD folder `/Tondo`.
-Its OTA site is `https://jeewanghuman.github.io/tondo`
+The repo's name is `Tondo` (capital T), and every URL (OTA site, flasher,
+github.com links, the update-modal hint) must match that case exactly —
+Pages paths may be case-sensitive, and the firmware's kSiteBase can't be
+patched on a unit that can no longer reach its update site.
+Its OTA site is `https://jeewanghuman.github.io/Tondo`
 (`kSiteBase` in update_check.cpp AND install_mode.cpp — keep them equal; the
 update-modal hint in app.cpp names it too). The release workflow's matrix
 builds ONLY `esp32-p4-micra-3-4c` (slug `p4-wifi6-touch-lcd-3.4c`, rev v1.x —

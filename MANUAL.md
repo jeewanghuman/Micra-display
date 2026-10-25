@@ -562,7 +562,7 @@ history is always reachable.
   writes, then it restarts on the new version. Your settings, the paired
   machine, and shot history are kept, and a firmware that fails to boot rolls
   back to the old one automatically. The
-  [web flasher](https://jeewanghuman.github.io/tondo/) remains the
+  [web flasher](https://jeewanghuman.github.io/Tondo/) remains the
   fallback for recovery and for the very first flash.
 
 - ⑥ **Beta updates** *(default off; shown only while checks are on)* — also
@@ -576,7 +576,7 @@ history is always reachable.
   back on its own — the device stays on that build until a stable release is
   newer than it (`0.15.0` supersedes `0.15.0-beta.2`), which is usually days.
   To go back sooner, reflash the stable release from the
-  [web flasher](https://jeewanghuman.github.io/tondo/); your settings
+  [web flasher](https://jeewanghuman.github.io/Tondo/); your settings
   and history are kept.
 
 ### Backup
