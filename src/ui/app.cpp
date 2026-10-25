@@ -1111,6 +1111,10 @@ void App::build(core::IMachine& machine, core::IProvisioner& provisioner,
       lv_obj_set_style_border_color(tb, lv_color_hex(0xFFFFFF), LV_STATE_CHECKED);
       lv_obj_set_style_border_width(tb, ui::dp(2), LV_STATE_CHECKED);
       lv_obj_set_style_border_opa(tb, 120, LV_STATE_CHECKED);
+      // All the way round: the theme's selected-tab style limits the border to
+      // the BOTTOM side (its underline indicator), which on the pill drew a
+      // line along the bottom edge only.
+      lv_obj_set_style_border_side(tb, LV_BORDER_SIDE_FULL, LV_STATE_CHECKED);
     }
   }
 

@@ -314,7 +314,10 @@ env adds `-DBOARD_P4_SILICON_REV3`), panel table `BOARD_DSI_PANEL_JD9365_RD34`
   alone doesn't help), so a shadow in a content-sized row is cut square. The
   sim reproduces these — zoom into renders/glass/ before trusting a glass
   effect. The only shadows left are deliberate glows: the bezel-arc and
-  dial knobs, the stats bead, the clock orb.
+  dial knobs, the stats bead, the clock orb. Same trap for borders: the
+  default theme's selected-tab style is border_side BOTTOM (its underline),
+  so a rim on the round tab bubble needs LV_BORDER_SIDE_FULL or it draws a
+  line under the pill (fixed 2026-10-25).
   Costs (owner-visible, see Memory budget rule): no backdrop buffer (black
   fill); hero font
   `src/ui/fonts/font_outfit_hero.c` ~38 KB flash (Outfit, OFL; digits . - g
