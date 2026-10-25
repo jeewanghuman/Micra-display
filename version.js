@@ -1,1 +1,1 @@
-window.APOLLO2_VERSION = "v1.0.0";
+window.TONDO_VERSION = "v1.1.0";

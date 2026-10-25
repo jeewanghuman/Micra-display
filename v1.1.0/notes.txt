@@ -1,0 +1,8 @@
+
+- **New name: Tondo.** The firmware is now called Tondo: Settings → Tondo,
+  Stats → Info and the web flasher all say so. It is still built on Apollo 2.
+- **Card folder renamed.** The first time Tondo reads the SD card it renames
+  the Apollo2 folder to Tondo, so shot history and settings backups carry over.
+- **New address.** Updates and the web flasher move to
+  jeewanghuman.github.io/Tondo.
+
