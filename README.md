@@ -93,11 +93,11 @@ the [wiring guide](docs/WIRING.md).
 
 ### 2. Flash the firmware
 
-**No-toolchain option:** the [web flasher](https://jeewanghuman.github.io/Tondo/)
+**No-toolchain option:** the [web flasher](https://jeewanghuman.github.io/tondo/)
 flashes the board straight from Chrome, Edge, or Firefox over USB — click
 Install. Upgrading this way keeps your paired machine, Wi‑Fi and settings
 (unless you choose "Erase device"). Prebuilt images also live on the
-[Releases](https://github.com/jeewanghuman/Tondo/releases) page — those
+[Releases](https://github.com/jeewanghuman/tondo/releases) page — those
 are full images, so flashing one with `esptool` *does* clear saved settings.
 
 After the first flash Tondo updates itself over WiFi: it checks for new

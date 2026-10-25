@@ -22,7 +22,7 @@ namespace {
 
 // This fork publishes its own releases (the round 3.4C build) — see the
 // "Fork releases" note in CLAUDE.md. Upstream Apollo2 has no 3.4C image.
-constexpr char kSiteBase[] = "https://jeewanghuman.github.io/Tondo";
+constexpr char kSiteBase[] = "https://jeewanghuman.github.io/tondo";
 // Release indexes, both newest-first. The stable one lists releases ONLY and
 // its format is frozen: every fielded device reads it, including firmware whose
 // parser mistakes "0.14.0-beta.1" for 0.14.0 (see parse_version). The beta one

@@ -64,7 +64,7 @@ jobs:
           # board = user-facing name (Waveshare product, lowercased) used in
           # the artifact filename; env = the PlatformIO environment.
           - { env: esp32-p4-micra-3-4c,  board: p4-wifi6-touch-lcd-3.4c, chip: ESP32-P4 }
-          # THIS FORK (jeewanghuman/Tondo) publishes ONLY the round
+          # THIS FORK (jeewanghuman/tondo) publishes ONLY the round
           # 3.4C, rev v1.x silicon (the owner's unit is rev v1.3). Upstream
           # Apollo2's four released boards are built and published there, not
           # here. A rev3 3.4C would add a second row:
@@ -257,7 +257,7 @@ jobs:
           Waveshare board (bootloader + partitions + app combined; flash at
           offset 0).
 
-          **Easiest install: the [web flasher](https://jeewanghuman.github.io/Tondo/)** —
+          **Easiest install: the [web flasher](https://jeewanghuman.github.io/tondo/)** —
           plug the board in and flash from Chrome, no tools needed.
 
           The flasher upgrades in place: your paired machine, Wi-Fi and

@@ -14,7 +14,7 @@ maps — plain ASCII plus `— – → … × ' "` — or they render as empty b
 - **Card folder renamed.** The first time Tondo reads the SD card it renames
   the Apollo2 folder to Tondo, so shot history and settings backups carry over.
 - **New address.** Updates and the web flasher move to
-  jeewanghuman.github.io/Tondo.
+  jeewanghuman.github.io/tondo.
 
 ## v1.0.0
 
