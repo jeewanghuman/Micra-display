@@ -1,0 +1,19 @@
+
+- **A new look.** The round display now uses the Outfit typeface throughout,
+  with thin-line icons on Home and in the tab bar. Numbers keep a fixed width,
+  so readings no longer shift sideways as they change.
+- **A livelier Home.** The arcs glide to each new reading and fade in
+  standby, faint gauge marks sit inside them, and the temperature is warm
+  while heating, white when ready and grey in standby. The shot ring turns
+  green just before the target.
+- **Ready alert.** When the machine finishes warming up, the screen wakes,
+  turns green with a big check mark and pulses until you tap it — no speaker
+  needed. It clears itself when a shot starts, the machine leaves Ready, or
+  after 10 minutes.
+- **Fewer idle screens.** Apollo and Alternate are gone; the choice is now
+  Lion, Dim, Off or Clock. If you had picked either, the Lion takes its place.
+- **Paddle pins moved.** The paddle now uses the header pins printed 20, 21
+  and GND, which sit side by side, so a 3-pin screw terminal clips straight
+  on. The wiring guide's earlier pin numbers were wrong — follow the updated
+  guide.
+
