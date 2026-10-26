@@ -20,6 +20,8 @@ maps — plain ASCII plus `— – → … × ' "` — or they render as empty b
   turns green with a big check mark and pulses until you tap it — no speaker
   needed. It clears itself when a shot starts, the machine leaves Ready, or
   after 10 minutes.
+- **Fewer idle screens.** Apollo and Alternate are gone; the choice is now
+  Lion, Dim, Off or Clock. If you had picked either, the Lion takes its place.
 
 ## v1.1.1
 

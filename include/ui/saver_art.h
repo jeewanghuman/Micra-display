@@ -1,55 +1,38 @@
 #pragma once
 
-// The screensaver's bouncing artwork: which drawing, and the LVGL image
-// descriptor for it at a given screen tier. The maps themselves are the
-// GENERATED img_*.h headers (tools/logo/gen_logo.py); this is the hand-written
-// part that ties them to the Idle screen setting.
+// The screensaver's bouncing artwork -- the lion -- as an LVGL image
+// descriptor at a given screen tier. The maps themselves are the GENERATED
+// img_*.h headers (tools/logo/gen_logo.py); this is the hand-written part
+// that ties them to the Idle screen setting. (There were two artworks until
+// 2026-10-26, when this fork dropped Apollo; a second one would need a
+// selector here again, and a NEW ssart value -- see Config.)
 
 #include "lvgl.h"
 #include "ui/art_map.h"
-#include "ui/img_apollo.h"
 #include "ui/img_lion.h"
 
 namespace ui {
 
-// Order is the artwork index stored in NVS (`ssart`) -- append only.
-enum class SaverArt : int { kLion = 0, kApollo = 1 };
-inline constexpr int kSaverArtCount = 2;
-
-// Every artwork's height as tenths of the SCREEN height. Must match
+// The artwork's height as tenths of the SCREEN height. Must match
 // HEIGHT_TENTHS in tools/logo/gen_logo.py, which prescales the tiers to
-// exactly these heights. 6/10 (owner, 4.3C + P4-5 bench, 2026-09-17):
-// Apollo's hatching only reads at that size, and the lion grew to match so
-// the two styles feel like one saver. Affordable because the saver runs on
-// its own screen (see App::start_screensaver) -- at 4/10 on the top layer
-// the frame was already the composite beneath the drawing, not the drawing.
+// exactly these heights. 6/10 (owner, 4.3C + P4-5 bench, 2026-09-17): set
+// for the since-removed Apollo artwork, whose hatching only read at that
+// size; the lion grew to match. Affordable because the saver runs on its own
+// screen (see App::start_screensaver) -- at 4/10 on the top layer the frame
+// was already the composite beneath the drawing, not the drawing.
 inline constexpr int kSaverArtHeightTenths = 6;
 
 inline int saver_art_height(int screen_h) { return screen_h * kSaverArtHeightTenths / 10; }
 
-inline const ArtMap* saver_art_sizes(SaverArt art, int* count) {
-  switch (art) {
-    case SaverArt::kApollo:
-      *count = kApolloSizeCount;
-      return kApolloSizes;
-    case SaverArt::kLion:
-    default:
-      *count = kLionSizeCount;
-      return kLionSizes;
-  }
-}
-
-// The map of `art` whose height is closest to target_h (exact for every
-// board tier the generator lists, when target_h came from saver_art_height()).
-inline const ArtMap& saver_art_map(SaverArt art, int target_h) {
-  int count = 0;
-  const ArtMap* sizes = saver_art_sizes(art, &count);
+// The lion map whose height is closest to target_h (exact for every board
+// tier the generator lists, when target_h came from saver_art_height()).
+inline const ArtMap& saver_art_map(int target_h) {
   int best = 0;
-  for (int i = 1; i < count; ++i) {
-    const int d = sizes[i].h - target_h, b = sizes[best].h - target_h;
+  for (int i = 1; i < kLionSizeCount; ++i) {
+    const int d = kLionSizes[i].h - target_h, b = kLionSizes[best].h - target_h;
     if ((d < 0 ? -d : d) < (b < 0 ? -b : b)) best = i;
   }
-  return sizes[best];
+  return kLionSizes[best];
 }
 
 // ONE shared static descriptor, refilled on every call: the saver shows a

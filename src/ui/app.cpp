@@ -662,20 +662,16 @@ void set_dim_label(ui::SettingsWidgets& s) {
 // Idle-screen style (IDisplaySettings::screensaver_style): what the screen
 // timeout shows. Order is core::IDisplaySettings::SaverStyle (the device
 // splits it across two NVS keys, see Config::screensaver_style()).
-//   Lion / Apollo — backlight at the per-board dim floor, that artwork
-//          bouncing on black
-//   Alternate — the same, taking turns between the artworks every few minutes
+//   Lion — backlight at the per-board dim floor, the lion bouncing on black
 //   Dim  — backlight at the same dim floor, the live UI stays on screen (the
 //          original screensaver, from before the lion existed)
 //   Off  — backlight fully off (set_brightness(0) is a true off, not a minimum)
 //   Clock — round glass only: the time and a drifting glass orb with the
 //          machine's state, at the same dim floor (start_clock_saver)
-constexpr const char* kSaverName[] = {"Lion", "Apollo", "Alternate", "Dim", "Off", "Clock"};
+constexpr const char* kSaverName[] = {"Lion", "Dim", "Off", "Clock"};
 constexpr int kSaverCount = static_cast<int>(sizeof(kSaverName) / sizeof(kSaverName[0]));
 static_assert(kSaverCount == core::IDisplaySettings::kSaverStyleCount,
               "kSaverName must follow core::IDisplaySettings::SaverStyle");
-// Alternate style: how long each artwork stays up before the other takes over.
-constexpr uint32_t kSaverSwapMs = 3u * 60u * 1000u;
 void on_saver_clicked(lv_event_t* e) {
   static_cast<ui::App*>(lv_event_get_user_data(e))->cycle_screensaver_style();
 }
@@ -2177,9 +2173,9 @@ void App::screensaver_tick() {
   if (idle == screensaver_on_) return;  // touch resets LVGL's inactivity clock
   screensaver_on_ = idle;
   if (idle) {
-    // The artworks and Dim all keep the backlight at the per-board dim floor;
+    // Lion, Dim and Clock all keep the backlight at the per-board dim floor;
     // only Off drops it to zero. What covers the screen is start_screensaver's
-    // business (black + artwork, nothing, or black).
+    // business (black + lion, nothing, black, or the clock).
     const int style = settings_.screensaver_style;
     const bool lights_out = style == core::IDisplaySettings::kSaverOff;
     display_->set_screensaver(lights_out
@@ -2207,7 +2203,7 @@ void App::start_screensaver(int style) {
   }
   // A full-screen cover on the top layer. Its first job in every style is to
   // swallow the waking tap so it can't press whatever control happens to sit
-  // under the finger. The artworks and Off paint it opaque black; Dim leaves
+  // under the finger. Off paints it opaque black; Dim leaves
   // it fully transparent so the live UI stays readable at the dimmed
   // backlight -- that IS the screensaver as it was before the lion, and a
   // black screen with the backlight still burning would buy nothing over Off.
@@ -2224,13 +2220,14 @@ void App::start_screensaver(int style) {
     lv_obj_remove_flag(saver_layer_, LV_OBJ_FLAG_SCROLLABLE);
     return;
   }
-  // The artworks get their OWN SCREEN, loaded in place of the UI, rather than
+  // The lion gets its OWN SCREEN, loaded in place of the UI, rather than
   // a cover on the top layer. LVGL composites the active screen inside every
   // dirty rectangle before painting the top layer over it, so a top-layer
   // saver paid for the Home widgets beneath the drawing's box on every frame
   // -- and that, not the image blit, was the frame cost (4.3C, 2026-09-17:
-  // the 60% Apollo ran 13 fps / 60 ms whether blended per frame or blitted
-  // pre-baked). Invalidations on an inactive screen are dropped by LVGL, so
+  // the 60% Apollo artwork, since removed, ran 13 fps / 60 ms whether
+  // blended per frame or blitted pre-baked). Invalidations on an inactive
+  // screen are dropped by LVGL, so
   // the UI costs nothing while it is unloaded, and wake is one full redraw
   // -- the same as a tab switch.
   // DEAD END, do not retry: hiding the UI screen with LV_OBJ_FLAG_HIDDEN
@@ -2269,12 +2266,8 @@ void App::start_screensaver(int style) {
       saver_img_,
       [](lv_event_t* e) { *static_cast<int32_t*>(lv_event_get_param(e)) = 0; },
       LV_EVENT_REFR_EXT_DRAW_SIZE, nullptr);
-  // Alternate: whichever artwork the idle moment lands on, then take turns. The
-  // tick count at the instant the timeout fires is as good as a coin; the
-  // sim never poses Alternate, so its renders stay deterministic.
-  saver_alternate_ = style == core::IDisplaySettings::kSaverAlternate;
   saver_color_i_ = 0;
-  set_saver_art(saver_alternate_ ? static_cast<int>(lv_tick_get() & 1u) : style);
+  set_saver_art();
   const ui::Band box = saver_box();
   lv_obj_set_pos(saver_img_, box.x + box.w / 7, box.y + box.h / 5);
   // 1 px per frame on every board: at ~30 fps that is ~30 px/s -- a slow
@@ -2285,11 +2278,8 @@ void App::start_screensaver(int style) {
   saver_anim_ = lv_timer_create(on_saver_anim_timer, 33, this);
 }
 
-void App::set_saver_art(int art) {
+void App::set_saver_art() {
   if (saver_img_ == nullptr) return;
-  if (art < 0 || art >= ui::kSaverArtCount) art = 0;
-  saver_art_ = art;
-  saver_art_since_ = lv_tick_get();
   // Size the artwork to its share of the screen height (ui::saver_art_height,
   // 60% on every board). Each img_*.h carries one PRESCALED
   // variant per screen tier (240/480/600/720/800), so every board draws it
@@ -2300,17 +2290,17 @@ void App::set_saver_art(int art) {
   // stretched.
   const ui::Band box = saver_box();
   const int target_h = ui::saver_art_height(box.h);
-  const ui::ArtMap& map = ui::saver_art_map(static_cast<ui::SaverArt>(art), target_h);
+  const ui::ArtMap& map = ui::saver_art_map(target_h);
   // A8 map recolored by LVGL per frame. MEASURED and rejected (4.3C bench,
   // 2026-09-17): pre-blending the drawing once per bounce into an opaque
-  // RGB565 PSRAM copy (100 KB for Apollo on the 4.3C, 279 KB on the X-8)
+  // RGB565 PSRAM copy (100 KB for the Apollo artwork on the 4.3C, 279 KB on the X-8)
   // saved 2 ms of an ~28 ms frame (18|10 -> 16|9) and no fps -- the blend
   // is not where the time goes. Don't bring it back for speed.
   const lv_image_dsc_t* src = ui::saver_art_a8(map);
   lv_obj_set_style_image_recolor(saver_img_, lv_color_hex(kSaverColors[saver_color_i_]), 0);
   lv_obj_set_style_image_recolor_opa(saver_img_, LV_OPA_COVER, 0);
   lv_image_set_src(saver_img_, src);  // same pointer every time; contents changed
-  core::logf("saver: art %d %dx%d\n", art, map.w, map.h);
+  core::logf("saver: lion %dx%d\n", map.w, map.h);
   const int src_w = static_cast<int>(src->header.w);
   const int src_h = static_cast<int>(src->header.h);
   // Explicit box + STRETCH rather than lv_image_set_scale() for the fallback:
@@ -2323,13 +2313,6 @@ void App::set_saver_art(int art) {
   const int w = native_fits ? src_w : src_w * target_h / src_h;
   lv_obj_set_size(saver_img_, w, h);
   if (!native_fits) lv_image_set_inner_align(saver_img_, LV_IMAGE_ALIGN_STRETCH);
-  // A swap mid-bounce may land a wider artwork past an edge: pull it back in.
-  int x = lv_obj_get_x(saver_img_), y = lv_obj_get_y(saver_img_);
-  if (x + w > box.x + box.w) x = box.x + box.w - w;
-  if (y + h > box.y + box.h) y = box.y + box.h - h;
-  if (x < box.x) x = box.x;
-  if (y < box.y) y = box.y;
-  lv_obj_set_pos(saver_img_, x, y);
 }
 
 void App::stop_screensaver() {
@@ -2358,11 +2341,6 @@ void App::saver_anim_tick() {
     return;
   }
   if (saver_img_ == nullptr) return;
-  // Alternate: the other artwork takes over every kSaverSwapMs. Only the image
-  // changes -- position, direction and color carry on as they were.
-  if (saver_alternate_ && lv_tick_elaps(saver_art_since_) >= kSaverSwapMs) {
-    set_saver_art((saver_art_ + 1) % ui::kSaverArtCount);
-  }
   // Box == drawn size now (explicit size + STRETCH in set_saver_art).
   const int w = lv_obj_get_width(saver_img_);
   const int h = lv_obj_get_height(saver_img_);

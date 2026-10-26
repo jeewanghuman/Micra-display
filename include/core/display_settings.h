@@ -32,23 +32,20 @@ class IDisplaySettings {
   // must not. A no-op where the backlight can't dim. set_screensaver(kOff)
   // puts the user's level back.
   virtual void set_backlight_live(int percent) = 0;
-  // Persisted idle-screen style, as the Settings cycle button orders it:
-  // three bouncing artworks over the dimmed screen (Lion is the default;
-  // Alternate takes turns between them every few minutes), then Dim (the live UI
-  // stays, backlight down) and Off (display off), then Clock (round glass
-  // only: a large clock and a drifting glass orb with the machine's state).
-  // Takes effect when the screen-dim timeout fires; irrelevant while the
-  // timeout is 0. The device stores it as NVS keys that older builds keep
-  // reading unchanged (style + artwork, plus a separate Clock flag) -- see
-  // Config::screensaver_style().
+  // Persisted idle-screen style, as the Settings cycle button orders it: Lion
+  // (the default: the bouncing lion over the dimmed screen), Dim (the live UI
+  // stays, backlight down), Off (display off), then Clock (round glass only:
+  // a large clock and a drifting glass orb with the machine's state). Takes
+  // effect when the screen-dim timeout fires; irrelevant while the timeout is
+  // 0. These numbers are UI-side only: the device stores the choice as NVS
+  // keys that older builds keep reading unchanged (style + artwork, plus a
+  // separate Clock flag) -- see Config::screensaver_style().
   enum SaverStyle : int {
     kSaverLion = 0,
-    kSaverApollo = 1,
-    kSaverAlternate = 2,
-    kSaverDim = 3,
-    kSaverOff = 4,
-    kSaverClock = 5,
-    kSaverStyleCount = 6,
+    kSaverDim = 1,
+    kSaverOff = 2,
+    kSaverClock = 3,
+    kSaverStyleCount = 4,
   };
   virtual int screensaver_style() const = 0;
   virtual void set_screensaver_style(int style) = 0;

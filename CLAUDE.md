@@ -370,13 +370,13 @@ env adds `-DBOARD_P4_SILICON_REV3`), panel table `BOARD_DSI_PANEL_JD9365_RD34`
   glassify walk, the numeral roll).
   CLOCK IDLE SCREEN (`kSaverClock`, round only — the cycle skips it and a
   restored Clock falls back to Lion on rectangular boards): its own screen
-  like the artworks (`App::start_clock_saver` / `clock_saver_tick`, 10 Hz):
+  like the lion (`App::start_clock_saver` / `clock_saver_tick`, 10 Hz):
   faint bezel tracks, weekday + hero-font clock with a +-8 px 10-min sway,
   and a glass orb (brew temp + state, amber shadow as the glow) lapping an
   ellipse every 4 min — burn-in movement. Stored WITHOUT widening any old
   key: `ssclock` (bool) rides on ssstyle2 = Logo with ssart untouched, so an
   older build reads "Logo" and bounces the previous artwork (NVS RULE).
-  The artworks still bounce inside the band on round.
+  The lion still bounces inside the band on round.
 - HW bring-up (rev v1.3 unit, 2026-10): boots, panel + GT911 + hosted radio
   up, UI visible. Backlight is ACTIVE-LOW like the 4.3 (normal polarity =
   dark panel + POWERON reset loop), and it goes DARK at Brightness <= 30%
@@ -399,9 +399,13 @@ THIS REPO IS A FORK of mlsorensen/Apollo2 whose only product is the round
 `Micra-display` until then). Everything user-facing says Tondo: the Settings
 section, Stats > Info header, modal text, the History web page, the flasher,
 release notes and docs. Kept on purpose: the credit to Apollo 2 (README,
-flasher, MANUAL's backup notes), upstream's CHANGELOG history, the "Apollo"
-idle-screen ARTWORK (a picture of Apollo, like "Lion"), and upstream's
-hardware/paddle-bridge ("Apollo Link" board, prebuilt gerbers). The SD
+flasher, MANUAL's backup notes), upstream's CHANGELOG history, and upstream's
+hardware/paddle-bridge ("Apollo Link" board, prebuilt gerbers, and its
+silkscreen source tools/logo/apollo-silkscreen.svg). REMOVED on purpose
+(owner, 2026-10-26): upstream's Apollo idle-screen artwork and the
+Alternate style — Lion is the only artwork (`ssart` 1/2 are retired: read
+as Lion, never reused; see config.cpp). Merging upstream will conflict
+wherever it touches that saver code; keep them out. The SD
 folder is `/Tondo` (core::kShotDirName); ShotStore::try_mount's
 adopt_legacy_dir() renames a card's `/Apollo2` to `/Tondo` once, only when
 `/Tondo` doesn't exist (core::kLegacyShotDirName). Backups say "# Tondo

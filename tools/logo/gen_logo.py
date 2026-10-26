@@ -7,14 +7,15 @@ light-on-dark logo). The headers are COMMITTED because rasterizing needs
 rsvg-convert (brew install librsvg); re-run this only when the artwork changes:
 
     python3 tools/logo/gen_logo.py            # every artwork in ARTWORKS
-    python3 tools/logo/gen_logo.py apollo     # just that one
+    python3 tools/logo/gen_logo.py lion       # just that one
 
 Do NOT substitute qlmanage: its thumbnails squash the tall artwork square
 (that shipped once — a visibly cut-off lion).
 
 Each header carries only the maps plus a `k<Name>Sizes[]` table; the shared
 descriptor builder that picks a tier lives in include/ui/saver_art.h, which
-is also where a new artwork gets its SaverArt enum entry.
+is also where a new artwork would need a selector (the lion is the only one
+since the Apollo artwork was dropped, 2026-10-26).
 """
 
 import subprocess
@@ -30,16 +31,15 @@ INCLUDE = HERE.parent.parent / "include/ui"
 # key -> (source SVG, generated header, symbol prefix)
 ARTWORKS = {
     "lion": ("la-marzocco-lion.svg", "img_lion.h", "Lion"),
-    "apollo": ("apollo.svg", "img_apollo.h", "Apollo"),
 }
 
 # Every artwork is HEIGHT_TENTHS/10 of the screen height. MUST match
 # kSaverArtHeightTenths in include/ui/saver_art.h: the saver asks for that
 # height and expects a 1:1 tier. 6/10 (owner, 4.3C + P4-5 bench, 2026-09-17):
-# Apollo's hatching only reads at that size, and the lion grew to match.
+# set for the since-removed Apollo artwork's hatching; the lion grew to match.
 HEIGHT_TENTHS = 6
-# What rsvg renders before the LANCZOS downscale to each tier; 2048 keeps
-# Apollo's 1-3 px source hatching crisp at the 480 px tier.
+# What rsvg renders before the LANCZOS downscale to each tier (2048 was
+# chosen to keep the removed Apollo artwork's 1-3 px hatching crisp).
 RASTER_HEIGHT = 2048
 
 # One PRESCALED variant per screen tier, keyed by the screensaver's target
@@ -49,8 +49,8 @@ RASTER_HEIGHT = 2048
 # ~0.39us for solid fills, measured on the 4.3C), and LVGL pads a scaled
 # image's invalidation area by its box*(scale-1) -- 6-7x the lion's own area
 # on the P4 panels, the v0.12.0 saver regression there. A8 maps are small
-# (~340KB of flash for the lion's five, ~390KB for Apollo's), so every image
-# carries the full set and the sim renders them all.
+# (~340KB of flash for the lion's five), so every image carries the full set
+# and the sim renders them all.
 #
 #   screen height   boards                       art height (6/10)
 #   240             S3 2-inch (internal)         144

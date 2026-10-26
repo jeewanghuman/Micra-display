@@ -358,16 +358,6 @@ int main() {
           false, -1, 0, false, false, false, false, false, true);
   ok &= r({800, 480}, "renders/screensaver_800x480.png", 0, -1, false, 0, -1,
           false, -1, 0, false, false, false, false, false, true);
-  // The Apollo artwork (Idle screen: Apollo) at the same tiers -- taller
-  // aspect than the lion, so its widths and dirty areas differ.
-  disp.set_screensaver_style(core::IDisplaySettings::kSaverApollo);
-  ok &= r({800, 480}, "renders/screensaver_apollo_800x480.png", 0, -1, false, 0, -1,
-          false, -1, 0, false, false, false, false, false, true);
-  ok &= r({1280, 720, 1.5f}, "renders/screensaver_apollo_1280x720.png", 0, -1, false, 0, -1,
-          false, -1, 0, false, false, false, false, false, true);
-  ok &= r({320, 240}, "renders/screensaver_apollo_320x240.png", 0, -1, false, 0, -1,
-          false, -1, 0, false, false, false, false, false, true);
-  disp.set_screensaver_style(core::IDisplaySettings::kSaverLion);
   // Update-available modal (canned notes from FakeUpdateSource).
   updates.set_available(true);
   ok &= r({800, 480}, "renders/update_modal_800x480.png", 0, -1, false, 0, -1,

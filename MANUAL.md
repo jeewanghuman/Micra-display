@@ -57,7 +57,7 @@ Settings
 │  └─ Device settings — the scale's own settings (Beep · Auto-off/sleep · Unit …)
 ├─ Tondo
 │  ├─ Display     — Brightness · Screen timeout
-│  │               · Idle screen (Lion/Apollo/Alternate/Dim/Off/Clock) · Fahrenheit
+│  │               · Idle screen (Lion/Dim/Off/Clock) · Fahrenheit
 │  ├─ Sound       — Chime melody · Chime volume · Button sounds
 │  ├─ Time & date — Time · Date (until Auto time sets them) · 24-hour · Timezone
 │  ├─ WiFi        — Enable · Status · Set up WiFi → QR portal · Forget
@@ -475,14 +475,12 @@ scrolling.
   screen. A shot in progress never counts as idle, so the idle screen won't
   cover a live shot no matter how short the timeout — the countdown restarts
   when the shot ends.
-- ③ **Idle screen** *(Lion / Apollo / Alternate / Dim / Off / Clock, default
-  Lion; shown while Screen timeout is on)* — what the timeout shows. **Lion**
-  and **Apollo** turn the backlight down to its dimmest (low enough to read as
-  asleep, high enough that the panel isn't mistaken for switched off) and bounce that
-  drawing around a black screen, changing color at every wall it hits — the
-  La Marzocco lion, or Apollo sipping an espresso. **Alternate** does the
-  same, starting on either one and switching to the other every three
-  minutes. **Dim** turns the backlight down the same way but leaves the normal
+- ③ **Idle screen** *(Lion / Dim / Off / Clock, default Lion; shown while
+  Screen timeout is on)* — what the timeout shows. **Lion** turns the
+  backlight down to its dimmest (low enough to read as asleep, high enough
+  that the panel isn't mistaken for switched off) and bounces the La Marzocco
+  lion around a black screen, changing color at every wall it hits. **Dim**
+  turns the backlight down the same way but leaves the normal
   screen showing, so you can still glance at the machine from across the
   kitchen. **Off** switches the backlight off entirely. **Clock** is made for
   the round glass: the weekday and time, dimmed the same way, with a small

@@ -122,7 +122,7 @@ class App {
   void steam_set_enabled(bool on);       // steam boiler on/off switch
   void brightness_adjust(int dir);       // Display brightness +/-
   void cycle_screen_timeout();           // Device "Screen dim": Off / 1 / 5 / 15 / 30 min
-  void cycle_screensaver_style();        // Device "Idle screen": Lion / Apollo / Alternate / Dim / Off
+  void cycle_screensaver_style();        // Device "Idle screen": Lion / Dim / Off / Clock
   void screensaver_tick();               // idle-dim poll (from an lv_timer, ~4 Hz)
   void saver_anim_tick();                // bouncing-logo step (from its lv_timer)
   void pose_screensaver();               // sim: force the saver on for a render
@@ -380,11 +380,8 @@ class App {
   void clock_saver_tick();
   int saver_vx_ = 0, saver_vy_ = 0;     // px per anim tick
   int saver_color_i_ = 0;               // palette index; advances on bounce
-  int saver_art_ = 0;                   // ui::SaverArt currently on screen
-  bool saver_alternate_ = false;        // Alternate style: swap the art on a timer
-  uint32_t saver_art_since_ = 0;        // lv_tick when saver_art_ went up
   void start_screensaver(int style);  // core::IDisplaySettings::SaverStyle
-  void set_saver_art(int art);        // (re)size + source the bouncing image
+  void set_saver_art();               // size + source the bouncing lion
   // Where the saver art bounces: the whole screen, or the band on round glass.
   ui::Band saver_box() const { return ui::round_band(screen_); }
   void stop_screensaver();

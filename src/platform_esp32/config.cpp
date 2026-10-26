@@ -16,7 +16,10 @@ constexpr char kBrightnessKey[] = "bright";
 constexpr char kScreenTimeoutKey[] = "scrtimeout";
 constexpr char kSaverStyleKey[] = "ssstyle";   // legacy: 0=Logo, 1=Blank
 constexpr char kSaverStyle2Key[] = "ssstyle2";  // 0=Logo, 1=Dim, 2=Off
-constexpr char kSaverArtKey[] = "ssart";        // Logo artwork: 0=Lion, 1=Apollo, 2=Alternate
+// Logo artwork: 0=Lion. 1=Apollo and 2=Alternate are RETIRED (removed in this
+// fork, 2026-10-26): this build never reads the key and only ever writes 0.
+// Never reuse 1 or 2 -- older builds still show those two for them.
+constexpr char kSaverArtKey[] = "ssart";
 // The Clock idle screen (round glass). Its OWN key, not a new ssstyle2/ssart
 // value: older builds index those into fixed arrays (NVS add-only rule). A
 // build that predates it never reads it, and with ssstyle2 = Logo and ssart
@@ -492,12 +495,14 @@ void Config::set_pending_install(const std::string& version) {
 }
 
 int Config::screensaver_style() const {
-  // The UI's SaverStyle index (Lion/Apollo/Alternate/Dim/Off) is TWO keys here:
+  // The UI's SaverStyle index (Lion/Dim/Off/Clock) is THREE keys here:
   //   ssstyle2  0 = Logo, 1 = Dim, 2 = Off -- every shipped build reads this,
   //             and its range is frozen (NVS add-only rule).
-  //   ssart     which Logo artwork: 0 = Lion, 1 = Apollo, 2 = Alternate. Added
-  //             with the artwork choice; an older build simply never reads it
-  //             and keeps bouncing the lion, so a rollback lands sensibly.
+  //   ssart     which Logo artwork: 0 = Lion; 1 (Apollo) and 2 (Alternate)
+  //             are retired, so this build ignores it (any value is Lion).
+  //             Older builds still show them, so a rollback brings the old
+  //             choice back.
+  //   ssclock   Clock, riding on ssstyle2 = Logo (see kSaverClockKey).
   // "Dim" was inserted at ssstyle2's index 1 when the third style landed,
   // which would have flipped existing "Blank" users (legacy ssstyle index 1)
   // to Dim. So the value moved to ssstyle2 and the legacy key migrates: old 1
@@ -511,14 +516,12 @@ int Config::screensaver_style() const {
   } else if (p.isKey(kSaverStyleKey)) {
     style = p.getInt(kSaverStyleKey, 0) == 1 ? 2 : 0;
   }
-  int art = p.getInt(kSaverArtKey, IDisplaySettings::kSaverLion);
   const bool clock = p.isKey(kSaverClockKey) && p.getBool(kSaverClockKey, false);
   p.end();
-  if (art < 0 || art >= IDisplaySettings::kSaverDim) art = IDisplaySettings::kSaverLion;
   if (style == 1) return IDisplaySettings::kSaverDim;
   if (style == 2) return IDisplaySettings::kSaverOff;
   if (clock) return IDisplaySettings::kSaverClock;  // Clock rides on "Logo"
-  return art;
+  return IDisplaySettings::kSaverLion;  // whatever ssart holds: Lion is the only artwork
 }
 
 void Config::set_screensaver_style(int style) {
@@ -533,14 +536,13 @@ void Config::set_screensaver_style(int style) {
   } else if (style == IDisplaySettings::kSaverOff) {
     p.putInt(kSaverStyle2Key, 2);
   } else if (style == IDisplaySettings::kSaverClock) {
-    // Logo for every older build (which then bounces the remembered artwork);
-    // ssart is left alone so that artwork comes back if Clock is left.
+    // Logo for every older build, which then bounces the remembered artwork.
     p.putInt(kSaverStyle2Key, 0);
   } else {
-    // An artwork: Logo for the old key, and remember which one. Dim/Off leave
-    // ssart alone so the artwork choice survives a detour through them.
+    // Lion: Logo for the old key, and the lion for builds that still have a
+    // choice of artwork. Dim/Off/Clock leave ssart alone.
     p.putInt(kSaverStyle2Key, 0);
-    p.putInt(kSaverArtKey, style);
+    p.putInt(kSaverArtKey, 0);
   }
   p.end();
 }
