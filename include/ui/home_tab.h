@@ -275,6 +275,17 @@ struct HomeWidgets {
   lv_obj_t* rg_shot_status = nullptr;  // "Brewing · Auto shot", "Shot complete"
   lv_obj_t* rg_shot_target = nullptr;  // "of 36 g"
   lv_obj_t* rg_weight_small = nullptr; // idle: weight in its glass capsule
+  // Motion and state (update_round_home): faint gauge graduations inside the
+  // two arcs; where each arc is gliding to (-1: not set yet); the numerals'
+  // displayed tenths while they roll (kNoTenths: showing "--").
+  lv_obj_t* rg_brew_ticks = nullptr;
+  lv_obj_t* rg_steam_ticks = nullptr;
+  int rg_brew_to = -1;
+  int rg_steam_to = -1;
+  static constexpr int kNoTenths = -100000;
+  int rg_brew_tenths = kNoTenths;      // last reading the numerals were sent to
+  int rg_brew_shown = kNoTenths;       // what they show right now (mid-roll)
+  bool rg_shot_near = false;           // shot ring in its "nearly there" green
 };
 
 // Build the Home widgets into `parent`, sized for `screen`. `scale_enabled`
@@ -307,7 +318,7 @@ void build_round_home(lv_obj_t* page, const ScreenProfile& screen, bool scale_en
                       HomeWidgets& out);
 void update_round_home(HomeWidgets& w, const core::MachineSnapshot& state,
                        const core::ScaleSnapshot& scale, const core::BrewSnapshot& brew,
-                       bool fahrenheit);
+                       bool fahrenheit, bool heating);
 // The shot ring, fed at the scale's notify rate from App::pump_scale_chart
 // (update_round_home's 2 Hz alone would step visibly). No-op off round glass.
 void round_shot_progress(HomeWidgets& w, float shown_g, float target_g);

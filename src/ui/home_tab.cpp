@@ -1535,7 +1535,7 @@ void update_home(HomeWidgets& w, const core::MachineSnapshot& state,
     }
   }
 
-  update_round_home(w, state, scale, brew, fahrenheit);
+  update_round_home(w, state, scale, brew, fahrenheit, heating);
 }
 
 namespace {

@@ -6,6 +6,15 @@
 #include "ui/screen.h"
 #include "ui/theme.h"
 
+// Round glass text faces (src/ui/fonts, tools/gen_ui_fonts.sh).
+LV_FONT_DECLARE(font_outfit_14);
+LV_FONT_DECLARE(font_outfit_16);
+LV_FONT_DECLARE(font_outfit_20);
+LV_FONT_DECLARE(font_outfit_24);
+LV_FONT_DECLARE(font_outfit_28);
+LV_FONT_DECLARE(font_outfit_36);
+LV_FONT_DECLARE(font_outfit_48);
+
 namespace {
 
 std::function<void()> g_press_hook;
@@ -46,9 +55,22 @@ const lv_font_t* font_dp(int px) {
       {36, &lv_font_montserrat_36}, {40, &lv_font_montserrat_40},
       {48, &lv_font_montserrat_48},
   };
+  // Round glass sets its text in Outfit, the hero numerals' family, at the
+  // sizes it asks for (each falls back to the same-size Montserrat above for
+  // LV_SYMBOL_* glyphs). Rectangular boards keep Montserrat.
+  static const Face kRoundFaces[] = {
+      {14, &font_outfit_14}, {16, &font_outfit_16}, {20, &font_outfit_20},
+      {24, &font_outfit_24}, {28, &font_outfit_28}, {36, &font_outfit_36},
+      {48, &font_outfit_48},
+  };
+  const bool round = ui::round_glass();
+  const Face* faces = round ? kRoundFaces : kFaces;
+  const size_t count = round ? sizeof(kRoundFaces) / sizeof(kRoundFaces[0])
+                             : sizeof(kFaces) / sizeof(kFaces[0]);
   const float want = px * ui::scale();
-  const Face* best = &kFaces[0];
-  for (const Face& f : kFaces) {
+  const Face* best = &faces[0];
+  for (size_t i = 0; i < count; ++i) {
+    const Face& f = faces[i];
     const float d = want - f.size;
     const float bd = want - best->size;
     if ((d < 0 ? -d : d) <= (bd < 0 ? -bd : bd)) best = &f;  // <=: ties go larger

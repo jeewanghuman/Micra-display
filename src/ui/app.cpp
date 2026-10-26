@@ -10,6 +10,7 @@
 #include "core/log_ring.h"
 #include "core/system.h"
 #include "ui/glass.h"
+#include "ui/icons.h"
 #include "ui/saver_art.h"
 #include "ui/shot_card.h"
 #include "ui/stats_tab.h"
@@ -980,6 +981,12 @@ void App::build(core::IMachine& machine, core::IProvisioner& provisioner,
   // row and pins that palette; the stored choice is untouched (a settings
   // backup restored onto a rectangular board still carries it).
   ui::theme::set_active(round ? kRoundThemeIndex : display_->theme());
+  if (round) {
+    // Labels without a font of their own inherit the screen's (modals: the
+    // top layer's), which LVGL's theme sets to Montserrat — Outfit here too.
+    lv_obj_set_style_text_font(lv_screen_active(), ui::font_dp(14), 0);
+    lv_obj_set_style_text_font(lv_layer_top(), ui::font_dp(14), 0);
+  }
 
   // Button-press click on audio boards. The hook is read at event time and
   // checks the cached setting, so the switch takes effect immediately.
@@ -1103,7 +1110,12 @@ void App::build(core::IMachine& machine, core::IProvisioner& provisioner,
       lv_obj_set_style_radius(tb, LV_RADIUS_CIRCLE, 0);
       lv_obj_set_style_text_color(tb, lv_color_hex(0xFFFFFF), 0);
       lv_obj_set_style_text_opa(tb, 185, 0);
-      lv_obj_set_style_text_font(tb, ui::font_dp(24), 0);
+      // Thin-line icons (ui::icon) instead of LVGL's heavier symbols.
+      static const char* const kTabIcons[] = {ui::icon::kHome, ui::icon::kSettings,
+                                              ui::icon::kStats};
+      if (i < sizeof(kTabIcons) / sizeof(kTabIcons[0]))
+        lv_tabview_rename_tab(tv, i, kTabIcons[i]);
+      lv_obj_set_style_text_font(tb, &font_lucide_28, 0);
       lv_obj_set_style_text_opa(tb, LV_OPA_COVER, LV_STATE_CHECKED);
       lv_obj_set_style_text_color(tb, lv_color_hex(0xFFFFFF), LV_STATE_CHECKED);
       lv_obj_set_style_bg_color(tb, lv_color_hex(0xFFFFFF), LV_STATE_CHECKED);
@@ -5088,16 +5100,16 @@ void App::open_brew_dial() {
   lv_obj_align(now, LV_ALIGN_TOP_MID, 0, at(366));
 
   lv_obj_t* minus = make_sheet_button(bg, at(76), at(76), ui::glass::Tone::kClear,
-                                      LV_SYMBOL_MINUS, ui::font_dp(28));
+                                      ui::icon::kMinus, &font_lucide_28);
   lv_obj_align(minus, LV_ALIGN_TOP_MID, -at(112), at(420));
   lv_obj_add_event_cb(minus, on_dial_minus, LV_EVENT_CLICKED, this);
   lv_obj_t* plus = make_sheet_button(bg, at(76), at(76), ui::glass::Tone::kClear,
-                                     LV_SYMBOL_PLUS, ui::font_dp(28));
+                                     ui::icon::kPlus, &font_lucide_28);
   lv_obj_align(plus, LV_ALIGN_TOP_MID, at(112), at(420));
   lv_obj_add_event_cb(plus, on_dial_plus, LV_EVENT_CLICKED, this);
 
   lv_obj_t* cancel = make_sheet_button(bg, at(72), at(72), ui::glass::Tone::kClear,
-                                       LV_SYMBOL_CLOSE, ui::font_dp(24));
+                                       ui::icon::kClose, &font_lucide_24);
   lv_obj_align(cancel, LV_ALIGN_TOP_MID, -at(112), at(540));
   lv_obj_add_event_cb(cancel, on_dial_close, LV_EVENT_CLICKED, this);
   lv_obj_t* set = make_sheet_button(bg, at(190), at(72), ui::glass::Tone::kBright, "",

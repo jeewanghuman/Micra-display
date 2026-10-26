@@ -337,12 +337,37 @@ env adds `-DBOARD_P4_SILICON_REV3`), panel table `BOARD_DSI_PANEL_JD9365_RD34`
   default theme's selected-tab style is border_side BOTTOM (its underline),
   so a rim on the round tab bubble needs LV_BORDER_SIDE_FULL or it draws a
   line under the pill (fixed 2026-10-25).
+  TYPE + ICONS (2026-10-26): round text is Outfit Regular — `ui::font_dp`
+  returns `font_outfit_{14,16,20,24,28,36,48}` when `round_glass()` (font_dp(12)
+  rounds to 14), each FALLING BACK to the same-size Montserrat for LV_SYMBOL_*
+  glyphs, and App::build sets the round screen + top layer's text font so
+  unstyled labels follow; rectangular boards keep Montserrat. Every Outfit
+  face (hero included) has TABULAR digits — the generators point 0-9 at
+  Outfit's `.tf` glyphs, because lv_font_conv can't apply `tnum` and the
+  proportional '1' is half a '0' (numbers shimmied sideways as they changed).
+  Icons on Home's actions, the tab dock and the dial are Lucide (ISC,
+  src/ui/fonts/LICENSE-Lucide.txt) via `include/ui/icons.h` (`ui::icon::k*`,
+  `font_lucide_{24,28,32}`) — only the glyphs listed there are in the fonts;
+  add a codepoint to ICONS in tools/gen_ui_fonts.sh AND icons.h. Regenerate:
+  tools/gen_ui_fonts.sh (text + icons), tools/gen_hero_font.sh (numerals).
+  MOTION + STATE (round_home.cpp): arcs GLIDE to new values (lv_anim, 600 ms
+  ease-out, custom exec cb — lv_anim_start doesn't de-dupe those, so
+  glide_arc deletes first; the FIRST value is set outright so a fresh build
+  and the sim's single frame show real state, and the sweep plays on
+  connect); brew numerals ROLL through the tenths on moves >= 0.5 deg;
+  numerals tinted heating/ready/idle, arcs dimmed in standby, shot ring
+  green from 95 % (style writes only on change: any local style write
+  invalidates the whole arc). Faint lv_scale graduations inside both arcs
+  (`rg_brew_ticks`/`rg_steam_ticks`). build_round_home resets the glide/
+  roll state. No curved captions (lv_arclabel spacing, see the file header)
+  and no sheet/dial entrance animation (a large moving area every frame).
   Costs (owner-visible, see Memory budget rule): no backdrop buffer (black
-  fill); hero font
-  `src/ui/fonts/font_outfit_hero.c` ~38 KB flash (Outfit, OFL; digits . - g
-  deg; regenerate with tools/gen_hero_font.sh); ~40 extra LVGL objects on
-  Home, the dial/sheet only while open. Not yet measured on hardware: frame
-  times (the glassify walk).
+  fill); flash only for type — hero font ~40 KB, the seven Outfit text faces
+  ~117 KB, the three Lucide icon fonts ~10 KB (measured from the compiled
+  objects, 2026-10-26); ~40 extra LVGL objects on Home (+2 for the tick
+  scales), the dial/sheet only while open; motion allocates only LVGL's
+  transient lv_anim entries. Not yet measured on hardware: frame times (the
+  glassify walk, the numeral roll).
   CLOCK IDLE SCREEN (`kSaverClock`, round only — the cycle skips it and a
   restored Clock falls back to Lion on rectangular boards): its own screen
   like the artworks (`App::start_clock_saver` / `clock_saver_tick`, 10 Hz):

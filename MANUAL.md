@@ -94,7 +94,13 @@ there:
 The two **arcs** around the edge are the boilers: brew on the left (amber),
 steam on the right (blue). Each fills from room temperature towards its
 set‑point and is full when the boiler has arrived. Both are empty while the
-machine is disconnected, and the steam arc is empty while steam is off.
+machine is disconnected, and the steam arc is empty while steam is off. The
+arcs glide to each new reading, and fade back while the machine is in
+standby. The faint marks inside them are only a scale, like a gauge's.
+
+The big **temperature** changes colour with the machine: warm while it heats,
+white once it's ready, grey in standby or when the machine isn't connected.
+While it heats it counts smoothly through the tenths rather than jumping.
 
 - ① **Status** — `Not set up` (no machine chosen yet), `Setup unfinished`
   (a machine is chosen but pairing never completed — in both of these the
@@ -209,7 +215,8 @@ bring it back. It doesn't depend on the chime settings.
 
 When a shot starts, Home switches to the shot view. The two boiler arcs give
 way to one **progress ring** that fills as the weight climbs towards the
-target. It switches back once the review ends.
+target, turning **green** for the last 5 % — your cue to be at the cup. It
+switches back once the review ends.
 
 - ① **What's happening** — `Brewing (Auto shot)` (or Shot detect / Manual),
   `Finishing` while the drips settle, then `Shot complete` while the result is

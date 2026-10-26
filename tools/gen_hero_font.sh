@@ -13,6 +13,22 @@ curl -sSLf -o "$WORK/Outfit.ttf" \
 # Freeze the variable font at weight 150 (between Thin and ExtraLight).
 python3 -m fontTools.varLib.instancer "$WORK/Outfit.ttf" wght=150 \
   -o "$WORK/Outfit-150.ttf" -q
+# Tabular figures: point 0-9 at Outfit's .tf glyphs (its 'tnum' feature,
+# which lv_font_conv can't apply), so a changing number doesn't shift sideways
+# — the proportional '1' is half the width of '0'.
+python3 - "$WORK/Outfit-150.ttf" <<'PY'
+import sys
+from fontTools.ttLib import TTFont
+p = sys.argv[1]
+f = TTFont(p)
+names = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"]
+for t in f["cmap"].tables:
+    if t.isUnicode():
+        for i, n in enumerate(names):
+            if 0x30 + i in t.cmap:
+                t.cmap[0x30 + i] = n + ".tf"
+f.save(p)
+PY
 # Digits, '.', '-', ':', 'g', '°' and space: "93.0°", "36.4 g", the idle clock "7:42", "--".
 npx -y lv_font_conv --font "$WORK/Outfit-150.ttf" \
   -r 0x20,0x2D-0x2E,0x30-0x3A,0x67,0xB0 --size 150 --bpp 4 --format lvgl \
@@ -28,9 +44,9 @@ s = s.replace('''#ifdef LV_LVGL_H_INCLUDE_SIMPLE
 #else
 #include "lvgl/lvgl.h"
 #endif''', '''// Outfit (SIL Open Font License 1.1, see OFL-Outfit.txt beside this file),
-// variable font instanced at wght=150, digits/'.'/'-'/':'/'g'/'°' only: the round
-// Home's brew temperature and shot weight, and the idle clock. Regenerate with
-// tools/gen_hero_font.sh.
+// variable font instanced at wght=150, tabular digits, digits/'.'/'-'/':'/'g'/'°'
+// only: the round Home's brew temperature and shot weight, and the idle clock.
+// Regenerate with tools/gen_hero_font.sh.
 #include "lvgl.h"''', 1)
 import re
 s = re.sub(r" \* Opts: .*", " * Opts: --font Outfit-150.ttf -r 0x20,0x2D-0x2E,0x30-0x3A,0x67,0xB0 "

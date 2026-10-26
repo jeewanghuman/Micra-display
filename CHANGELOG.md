@@ -9,6 +9,13 @@ maps — plain ASCII plus `— – → … × ' "` — or they render as empty b
 
 ## Unreleased
 
+- **A new look.** The round display now uses the Outfit typeface throughout,
+  with thin-line icons on Home and in the tab bar. Numbers keep a fixed width,
+  so readings no longer shift sideways as they change.
+- **A livelier Home.** The arcs glide to each new reading and fade in
+  standby, faint gauge marks sit inside them, and the temperature is warm
+  while heating, white when ready and grey in standby. The shot ring turns
+  green just before the target.
 - **Ready alert.** When the machine finishes warming up, the screen wakes,
   turns green with a big check mark and pulses until you tap it — no speaker
   needed. It clears itself when a shot starts, the machine leaves Ready, or

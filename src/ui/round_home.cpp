@@ -15,13 +15,24 @@
 // and the colours already key them. The tab dock, the clock tray and the
 // temperature dial / steam sheet are App's (see App::build).
 //
+// Motion and state (2026-10-26): faint gauge graduations sit inside both
+// arcs; the arcs GLIDE to a new value (ease-out) instead of jumping, and the
+// numerals ROLL through the tenths on a real move (warm-up, cool-down); the
+// numerals are tinted by state — warm while heating, white at temperature,
+// grey in standby or offline — and the arcs dim in standby; the shot ring
+// turns green in the last 5 % before the target. All of it is small dirty
+// areas: LVGL redraws only the swept slice of an arc, and the numerals only
+// while they roll.
+//
 // Geometry is in fractions of the diameter D (an 800-px design scaled by
 // at()), so the layout follows the panel rather than a fixed 800.
 
 #include <cstdio>
+#include <cstdlib>
 
 #include "ui/glass.h"
 #include "ui/home_tab.h"
+#include "ui/icons.h"
 #include "ui/theme.h"
 #include "ui/units.h"
 #include "ui/widgets.h"
@@ -35,6 +46,17 @@ constexpr uint32_t kBrewColor = 0xF2A24A;   // amber
 constexpr uint32_t kSteamColor = 0xA9D2FF;  // pale blue
 constexpr uint32_t kShotColor = 0xFFD39B;   // light crema
 constexpr int kArcRange = 1000;             // arc values in permille
+
+// State inks for the numerals: warm while heating, white at temperature, grey
+// when the machine is in standby or out of reach.
+constexpr uint32_t kInkHeating = 0xFFE2C2;
+constexpr uint32_t kInkReady = 0xFFFFFF;
+constexpr uint32_t kInkIdle = 0x7D848C;
+
+constexpr uint32_t kArcGlideMs = 600;      // an arc easing to a new value
+constexpr uint32_t kRollMs = 450;          // the numerals rolling to a reading
+constexpr int kRollMinTenths = 5;          // smaller moves just change
+constexpr int kShotNearPermille = 950;     // shot ring goes green from 95 %
 
 // One bezel arc over [start, end] degrees (0 = 3 o'clock, clockwise). `r` is
 // the stroke's centre radius; LVGL draws an arc inside its object's box, so
@@ -108,7 +130,7 @@ lv_obj_t* make_round_action(lv_obj_t* parent, int size, const char* glyph,
 
   lv_obj_t* icon = lv_label_create(btn);
   lv_label_set_text(icon, glyph);
-  lv_obj_set_style_text_font(icon, ui::font_dp(28), 0);
+  lv_obj_set_style_text_font(icon, &font_lucide_32, 0);  // a ui::icon glyph
   lv_obj_center(icon);
   if (out_icon != nullptr) *out_icon = icon;
 
@@ -160,6 +182,125 @@ void set_bead(lv_obj_t* arc, int v) {
   }
 }
 
+// Style setters that skip a no-op: LVGL invalidates the whole object on any
+// local style write, and for a bezel arc that is most of the screen.
+void set_ink(lv_obj_t* obj, uint32_t rgb) {
+  if (obj == nullptr) return;
+  if (lv_color_to_u32(lv_obj_get_style_text_color(obj, LV_PART_MAIN)) ==
+      lv_color_to_u32(lv_color_hex(rgb)))
+    return;
+  lv_obj_set_style_text_color(obj, lv_color_hex(rgb), 0);
+}
+
+void set_arc_tint(lv_obj_t* arc, uint32_t rgb, lv_opa_t opa) {
+  if (arc == nullptr) return;
+  if (lv_color_to_u32(lv_obj_get_style_arc_color(arc, LV_PART_INDICATOR)) !=
+      lv_color_to_u32(lv_color_hex(rgb))) {
+    lv_obj_set_style_arc_color(arc, lv_color_hex(rgb), LV_PART_INDICATOR);
+    lv_obj_set_style_shadow_color(arc, lv_color_hex(rgb), LV_PART_KNOB);
+  }
+  if (lv_obj_get_style_arc_opa(arc, LV_PART_INDICATOR) != opa)
+    lv_obj_set_style_arc_opa(arc, opa, LV_PART_INDICATOR);
+}
+
+// An arc (and its glow) easing from where it is now to `v`. Restarted only
+// when the target moves, so the 2 Hz refresh doesn't keep re-arming it. The
+// very first value is set outright (`to` < 0): at boot that is the empty
+// ring before the machine connects, so the sweep plays on connect, and a
+// fresh build shows its real state in its first frame.
+void glide_exec(lv_anim_t* a, int32_t v) {
+  auto* arc = static_cast<lv_obj_t*>(a->var);
+  set_arc_value(arc, v);
+  set_arc_value(static_cast<lv_obj_t*>(lv_anim_get_user_data(a)), v);
+  set_bead(arc, v);
+}
+
+void glide_arc(lv_obj_t* arc, lv_obj_t* glow, int& to, int v) {
+  if (arc == nullptr || v == to) return;
+  const bool first = to < 0;
+  to = v;
+  // A custom exec callback isn't de-duplicated by lv_anim_start: drop any
+  // glide already running on this arc first.
+  lv_anim_delete(arc, nullptr);
+  const int from = lv_arc_get_value(arc);
+  if (first || from == v) {
+    set_arc_value(arc, v);
+    set_arc_value(glow, v);
+    set_bead(arc, v);
+    return;
+  }
+  lv_anim_t a;
+  lv_anim_init(&a);
+  lv_anim_set_var(&a, arc);
+  lv_anim_set_user_data(&a, glow);
+  lv_anim_set_custom_exec_cb(&a, glide_exec);
+  lv_anim_set_values(&a, from, v);
+  lv_anim_set_duration(&a, kArcGlideMs);
+  lv_anim_set_path_cb(&a, lv_anim_path_ease_out);
+  lv_anim_start(&a);
+}
+
+void show_tenths(lv_obj_t* label, int tenths) {
+  char buf[16];
+  std::snprintf(buf, sizeof(buf), "%.1f°", static_cast<double>(tenths) / 10.0);
+  ui::set_text(label, buf);
+}
+
+void roll_exec(lv_anim_t* a, int32_t tenths) {
+  static_cast<HomeWidgets*>(lv_anim_get_user_data(a))->rg_brew_shown = tenths;
+  show_tenths(static_cast<lv_obj_t*>(a->var), tenths);
+}
+
+// The brew numerals to a new reading (tenths of a display degree): a real
+// move rolls through the tenths; a wobble, or the first reading, just shows.
+void roll_numerals(HomeWidgets& w, int tenths) {
+  if (tenths == w.rg_brew_tenths) return;
+  const int from = w.rg_brew_shown;
+  w.rg_brew_tenths = tenths;
+  lv_anim_delete(w.brew_value, nullptr);
+  if (from == HomeWidgets::kNoTenths || std::abs(tenths - from) < kRollMinTenths) {
+    w.rg_brew_shown = tenths;
+    show_tenths(w.brew_value, tenths);
+    return;
+  }
+  lv_anim_t a;
+  lv_anim_init(&a);
+  lv_anim_set_var(&a, w.brew_value);
+  lv_anim_set_user_data(&a, &w);
+  lv_anim_set_custom_exec_cb(&a, roll_exec);
+  lv_anim_set_values(&a, from, tenths);
+  lv_anim_set_duration(&a, kRollMs);
+  lv_anim_set_path_cb(&a, lv_anim_path_ease_out);
+  lv_anim_start(&a);
+}
+
+// Faint gauge graduations just inside a bezel arc: a tick every 5 degrees, a
+// longer one every 30, no labels, no line of its own. Static — drawn only
+// when something over it redraws.
+lv_obj_t* make_ticks(lv_obj_t* parent, int r, int start, int span, int minor_len,
+                     int major_len) {
+  lv_obj_t* sc = lv_scale_create(parent);
+  lv_obj_remove_flag(sc, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_set_size(sc, 2 * r, 2 * r);
+  lv_obj_center(sc);
+  lv_scale_set_mode(sc, LV_SCALE_MODE_ROUND_INNER);
+  lv_scale_set_rotation(sc, start);
+  lv_scale_set_angle_range(sc, span);
+  lv_scale_set_total_tick_count(sc, static_cast<uint32_t>(span / 5 + 1));
+  lv_scale_set_major_tick_every(sc, 6);
+  lv_scale_set_label_show(sc, false);
+  lv_obj_set_style_arc_opa(sc, LV_OPA_TRANSP, LV_PART_MAIN);
+  lv_obj_set_style_line_color(sc, lv_color_hex(0xFFFFFF), LV_PART_ITEMS);
+  lv_obj_set_style_line_opa(sc, 46, LV_PART_ITEMS);
+  lv_obj_set_style_line_width(sc, ui::dp(2), LV_PART_ITEMS);
+  lv_obj_set_style_length(sc, minor_len, LV_PART_ITEMS);
+  lv_obj_set_style_line_color(sc, lv_color_hex(0xFFFFFF), LV_PART_INDICATOR);
+  lv_obj_set_style_line_opa(sc, 96, LV_PART_INDICATOR);
+  lv_obj_set_style_line_width(sc, ui::dp(2), LV_PART_INDICATOR);
+  lv_obj_set_style_length(sc, major_len, LV_PART_INDICATOR);
+  return sc;
+}
+
 }  // namespace
 
 void build_round_home(lv_obj_t* page, const ScreenProfile& screen, bool scale_enabled,
@@ -168,6 +309,10 @@ void build_round_home(lv_obj_t* page, const ScreenProfile& screen, bool scale_en
   auto at = [d](int design_px) { return design_px * d / 800; };  // 800-px design
   out.round_glass = true;
   out.scale_enabled = scale_enabled;
+  // Fresh widgets: forget where the old ones were gliding and rolling to.
+  out.rg_brew_to = out.rg_steam_to = -1;
+  out.rg_brew_tenths = out.rg_brew_shown = HomeWidgets::kNoTenths;
+  out.rg_shot_near = false;
 
   lv_obj_remove_flag(page, LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_set_style_pad_all(page, 0, 0);
@@ -209,6 +354,11 @@ void build_round_home(lv_obj_t* page, const ScreenProfile& screen, bool scale_en
     lv_obj_add_flag(out.rg_shot_glow, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(out.rg_shot_arc, LV_OBJ_FLAG_HIDDEN);
   }
+
+  // Graduations just inside the brew and steam arcs (the glow's inner edge
+  // is at ~359 of 800; the ticks run inward from 352).
+  out.rg_brew_ticks = make_ticks(out.rg_ring, at(352), 120, 120, at(8), at(15));
+  out.rg_steam_ticks = make_ticks(out.rg_ring, at(352), 300, 120, at(8), at(15));
 
   // Beads start hidden: an empty arc shows only its track.
   set_bead(out.rg_brew_arc, 0);
@@ -274,12 +424,12 @@ void build_round_home(lv_obj_t* page, const ScreenProfile& screen, bool scale_en
   lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
   lv_obj_set_style_pad_column(row, at(scale_enabled ? 52 : 76), 0);
   lv_obj_align(row, LV_ALIGN_TOP_MID, 0, at(scale_enabled ? 412 : 446));
-  out.power_btn = make_round_action(row, at(80), LV_SYMBOL_POWER, &out.rg_power_icon,
+  out.power_btn = make_round_action(row, at(80), ui::icon::kPower, &out.rg_power_icon,
                                     &out.power_label);
-  out.flush_btn = make_round_action(row, at(80), LV_SYMBOL_TINT, &out.rg_flush_icon,
+  out.flush_btn = make_round_action(row, at(80), ui::icon::kDroplet, &out.rg_flush_icon,
                                     &out.flush_label);
   if (scale_enabled) {
-    out.tare_btn = make_round_action(row, at(80), LV_SYMBOL_LOOP, nullptr, &out.tare_label);
+    out.tare_btn = make_round_action(row, at(80), ui::icon::kWeight, nullptr, &out.tare_label);
     lv_label_set_text(out.tare_label, "Tare");
   }
 
@@ -358,11 +508,20 @@ void round_shot_progress(HomeWidgets& w, float shown_g, float target_g) {
   set_arc_value(w.rg_shot_arc, v);
   set_arc_value(w.rg_shot_glow, v);
   set_bead(w.rg_shot_arc, v);
+  // The last stretch before the target turns green: the cue to be ready at
+  // the cup. Flips once each way per shot (a style write redraws the ring).
+  const bool near = v >= kShotNearPermille;
+  if (near != w.rg_shot_near) {
+    w.rg_shot_near = near;
+    const uint32_t c = near ? ui::theme::ok() : kShotColor;
+    set_arc_tint(w.rg_shot_arc, c, LV_OPA_COVER);
+    set_arc_tint(w.rg_shot_glow, c, 60);
+  }
 }
 
 void update_round_home(HomeWidgets& w, const core::MachineSnapshot& state,
                        const core::ScaleSnapshot& scale, const core::BrewSnapshot& brew,
-                       bool fahrenheit) {
+                       bool fahrenheit, bool heating) {
   if (!w.round_glass) return;
   const bool connected = state.link == core::Link::Connected;
   const bool on = state.power == core::Power::On;
@@ -375,6 +534,8 @@ void update_round_home(HomeWidgets& w, const core::MachineSnapshot& state,
   set_hidden(w.rg_brew_glow, shot_view);
   set_hidden(w.rg_steam_arc, shot_view);
   set_hidden(w.rg_steam_glow, shot_view);
+  set_hidden(w.rg_brew_ticks, shot_view);
+  set_hidden(w.rg_steam_ticks, shot_view);
   set_hidden(w.rg_shot_arc, !shot_view);
   set_hidden(w.rg_shot_glow, !shot_view);
   if (w.shot_btn != nullptr) {
@@ -389,12 +550,14 @@ void update_round_home(HomeWidgets& w, const core::MachineSnapshot& state,
   // Numerals without the unit (the design's "93.0°"), steam as a sentence.
   char buf[32];
   if (connected) {
-    std::snprintf(buf, sizeof(buf), "%.1f°",
-                  static_cast<double>(ui::temp_disp(state.brew_temp_c, fahrenheit)));
+    const float shown = ui::temp_disp(state.brew_temp_c, fahrenheit);
+    roll_numerals(w, static_cast<int>(shown * 10.0f + (shown < 0.0f ? -0.5f : 0.5f)));
   } else {
-    std::snprintf(buf, sizeof(buf), "--");
+    lv_anim_delete(w.brew_value, nullptr);
+    w.rg_brew_tenths = w.rg_brew_shown = HomeWidgets::kNoTenths;
+    ui::set_text(w.brew_value, "--");
   }
-  ui::set_text(w.brew_value, buf);
+  set_ink(w.brew_value, !connected || !on ? kInkIdle : heating ? kInkHeating : kInkReady);
   if (!connected) {
     std::snprintf(buf, sizeof(buf), "Steam --");
   } else if (state.steam_enabled) {
@@ -423,12 +586,14 @@ void update_round_home(HomeWidgets& w, const core::MachineSnapshot& state,
   const int steam_v = (connected && state.steam_enabled)
                           ? progress(state.boiler_temp_c, state.boiler_target_c)
                           : 0;
-  set_arc_value(w.rg_brew_arc, brew_v);
-  set_arc_value(w.rg_brew_glow, brew_v);
-  set_arc_value(w.rg_steam_arc, steam_v);
-  set_arc_value(w.rg_steam_glow, steam_v);
-  set_bead(w.rg_brew_arc, brew_v);
-  set_bead(w.rg_steam_arc, steam_v);
+  glide_arc(w.rg_brew_arc, w.rg_brew_glow, w.rg_brew_to, brew_v);
+  glide_arc(w.rg_steam_arc, w.rg_steam_glow, w.rg_steam_to, steam_v);
+  // In standby the boilers are coasting down: the arcs fade back with them.
+  const bool lit = connected && on;
+  set_arc_tint(w.rg_brew_arc, kBrewColor, lit ? LV_OPA_COVER : 110);
+  set_arc_tint(w.rg_brew_glow, kBrewColor, lit ? 60 : 24);
+  set_arc_tint(w.rg_steam_arc, kSteamColor, lit ? LV_OPA_COVER : 110);
+  set_arc_tint(w.rg_steam_glow, kSteamColor, lit ? 60 : 24);
 
   // --- Shot readouts -------------------------------------------------------
   if (shot_view) {
@@ -465,13 +630,13 @@ void update_round_home(HomeWidgets& w, const core::MachineSnapshot& state,
   // --- Power: update_home has set the enabled state; draw glass + words. ----
   using ui::glass::Tone;
   const bool pending = w.power_pending_until != 0;
-  const char* glyph = LV_SYMBOL_POWER;
+  const char* glyph = ui::icon::kPower;
   const char* word = "Standby";
   Tone tone = Tone::kClear;
   switch (state.link) {
     case core::Link::Connected:
       if (pending) {
-        glyph = LV_SYMBOL_REFRESH;
+        glyph = ui::icon::kBusy;
         word = "Working";
       } else if (!on) {
         word = "Turn on";
@@ -479,19 +644,19 @@ void update_round_home(HomeWidgets& w, const core::MachineSnapshot& state,
       }
       break;
     case core::Link::Disconnected:
-      glyph = LV_SYMBOL_REFRESH;
+      glyph = ui::icon::kBluetooth;
       word = "Connect";
       tone = Tone::kAmber;
       break;
     case core::Link::NeedsToken:
     case core::Link::Unconfigured:
-      glyph = LV_SYMBOL_SETTINGS;
+      glyph = ui::icon::kSettings;
       word = "Set up";
       tone = Tone::kAmber;
       break;
     case core::Link::Connecting:
     default:
-      glyph = LV_SYMBOL_REFRESH;
+      glyph = ui::icon::kBusy;
       word = "Connecting";
       break;
   }
@@ -507,7 +672,7 @@ void update_round_home(HomeWidgets& w, const core::MachineSnapshot& state,
     set_hidden(col, lv_obj_has_flag(w.flush_btn, LV_OBJ_FLAG_HIDDEN));
     if (!lv_obj_has_flag(w.flush_btn, LV_OBJ_FLAG_HIDDEN)) {
       ui::glass::set_tone(w.flush_btn, brew.manual_flush ? Tone::kAmber : Tone::kClear);
-      ui::set_text(w.rg_flush_icon, brew.manual_flush ? LV_SYMBOL_STOP : LV_SYMBOL_TINT);
+      ui::set_text(w.rg_flush_icon, brew.manual_flush ? ui::icon::kStop : ui::icon::kDroplet);
       ui::set_text(w.flush_label, brew.manual_flush ? "Stop" : "Flush");
     }
   }

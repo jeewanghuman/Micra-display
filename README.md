@@ -401,8 +401,11 @@ This project stands on the work of others. Grateful thanks to:
 - **Waveshare** — board bring‑up details, panel init tables and pin maps from
   their published demos and schematics.
 - **[Outfit](https://fonts.google.com/specimen/Outfit)** (SIL Open Font
-  License 1.1, see `src/ui/fonts/OFL-Outfit.txt`) — the typeface of the large
-  numerals on the round screens.
+  License 1.1, see `src/ui/fonts/OFL-Outfit.txt`) — the round display's
+  typeface, from the large numerals to the smallest label.
+- **[Lucide](https://lucide.dev)** (ISC, with icons derived from Feather under
+  MIT — see `src/ui/fonts/LICENSE-Lucide.txt`) — the thin-line icons on Home,
+  in the tab bar and on the temperature dial.
 - **[stb_image_write](https://github.com/nothings/stb)** by Sean Barrett (public
   domain / MIT) — vendored in `include/vendor/` for PNG output in the simulator;
   its license is retained in the file.
