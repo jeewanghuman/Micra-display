@@ -53,6 +53,10 @@ bool DisplaySettings::flash_write_disturbs_display() const {
 
 int DisplaySettings::screensaver_style() const { return config_.screensaver_style(); }
 
+void DisplaySettings::set_backlight_live(int percent) {
+  if (board::kSupportsBrightness) display_.set_brightness(percent);  // live only
+}
+
 void DisplaySettings::set_screensaver_style(int style) {
   config_.set_screensaver_style(style);
 }

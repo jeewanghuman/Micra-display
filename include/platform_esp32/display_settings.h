@@ -19,6 +19,7 @@ class DisplaySettings : public core::IDisplaySettings {
   int screen_timeout_min() const override;
   void set_screen_timeout_min(int minutes) override;
   void set_screensaver(SaverMode mode) override;
+  void set_backlight_live(int percent) override;
   int screensaver_style() const override;
   void set_screensaver_style(int style) override;
   bool flash_write_disturbs_display() const override;

@@ -27,6 +27,11 @@ class IDisplaySettings {
   // off on every board. kOff restores the user's brightness.
   enum class SaverMode { kOff = 0, kDim = 1, kBlank = 2 };
   virtual void set_screensaver(SaverMode mode) = 0;
+  // Backlight for a transient effect (the ready alert's pulse): applied live,
+  // NEVER persisted — set_brightness() writes flash, which a 25 Hz effect
+  // must not. A no-op where the backlight can't dim. set_screensaver(kOff)
+  // puts the user's level back.
+  virtual void set_backlight_live(int percent) = 0;
   // Persisted idle-screen style, as the Settings cycle button orders it:
   // three bouncing artworks over the dimmed screen (Lion is the default;
   // Alternate takes turns between them every few minutes), then Dim (the live UI

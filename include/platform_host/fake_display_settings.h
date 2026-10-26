@@ -14,6 +14,7 @@ class FakeDisplaySettings : public core::IDisplaySettings {
   int screen_timeout_min() const override { return screen_timeout_min_; }
   void set_screen_timeout_min(int minutes) override { screen_timeout_min_ = minutes; }
   void set_screensaver(SaverMode) override {}  // no backlight to dim in the sim
+  void set_backlight_live(int) override {}
   int screensaver_style() const override { return screensaver_style_; }
   void set_screensaver_style(int style) override { screensaver_style_ = style; }
   int theme() const override { return theme_; }

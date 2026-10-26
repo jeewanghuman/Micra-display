@@ -7,6 +7,13 @@ for someone reading the diff. These notes are also shown ON THE DEVICE, whose
 fonts are ASCII-only: stick to characters `sanitize_notes()` (src/ui/app.cpp)
 maps — plain ASCII plus `— – → … × ' "` — or they render as empty boxes.
 
+## Unreleased
+
+- **Ready alert.** When the machine finishes warming up, the screen wakes,
+  turns green with a big check mark and pulses until you tap it — no speaker
+  needed. It clears itself when a shot starts, the machine leaves Ready, or
+  after 10 minutes.
+
 ## v1.1.1
 
 - **Cleaner buttons.** The stray lines on buttons and panels (along the top,

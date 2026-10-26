@@ -126,6 +126,12 @@ class App {
   void screensaver_tick();               // idle-dim poll (from an lv_timer, ~4 Hz)
   void saver_anim_tick();                // bouncing-logo step (from its lv_timer)
   void pose_screensaver();               // sim: force the saver on for a render
+  // Ready alert: the end of a warm-up shown on the glass, for when nobody
+  // hears the chime (start_ready_alert). Stopped by a tap, a shot, the
+  // machine leaving Ready, or kReadyAlertMs.
+  void stop_ready_alert();
+  void ready_pulse_tick();               // backlight breath step (its lv_timer)
+  void pose_ready_alert();               // sim: show it for a render
   void open_update_modal();              // update-available notice (also sim pose)
   void open_checking_modal();            // "checking..." spinner during a live check
   void open_no_update_modal();           // "up to date" notice (forced check, boot)
@@ -358,6 +364,17 @@ class App {
   lv_obj_t* saver_orb_ = nullptr;
   lv_obj_t* saver_orb_temp_ = nullptr;
   lv_obj_t* saver_orb_state_ = nullptr;
+  // Ready alert (start_ready_alert): a full-screen cover on lv_layer_top,
+  // only while shown. The check mark's points live here because lv_line keeps
+  // the pointer rather than copying them.
+  void start_ready_alert();
+  void ready_alert_poll(const core::MachineSnapshot& state);
+  lv_obj_t* ready_alert_ = nullptr;
+  lv_obj_t* ready_alert_temps_ = nullptr;
+  lv_timer_t* ready_pulse_ = nullptr;   // backlight breath, where it can dim
+  uint32_t ready_alert_since_ = 0;      // lv_tick at start
+  int ready_pulse_last_ = -1;           // last level written (skip repeats)
+  lv_point_precise_t ready_check_pts_[3] = {};
   uint32_t saver_clock_t0_ = 0;
   void start_clock_saver();
   void clock_saver_tick();

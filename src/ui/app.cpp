@@ -1516,6 +1516,10 @@ void App::update_heating(const core::MachineSnapshot& state) {
   if (ready && ready_chime_vol_ > 0 && ready_chime_mel_ > 0 && sound_ != nullptr)
     sound_->play(core::ready_melody_playback(melody_variant(ready_chime_mel_),
                                              ready_chime_vol_));
+  // The same moment on the glass, chime or not: plenty of owners never hear
+  // the speaker from across the kitchen, or keep it off.
+  if (ready) start_ready_alert();
+  ready_alert_poll(state);
 }
 
 void App::refresh() {
@@ -2150,6 +2154,11 @@ void App::screensaver_tick() {
   if (wifi_setup_shown_ || wifi_portal_shown_) {
     lv_display_trigger_activity(nullptr);
   }
+  // Nor is the ready alert: it exists to be seen from across the room, so it
+  // holds the idle screen off until it's dismissed or gives up.
+  if (ready_alert_ != nullptr) {
+    lv_display_trigger_activity(nullptr);
+  }
   const int mins = settings_.screen_timeout_min;
   const bool idle = mins > 0 && lv_display_get_inactive_time(nullptr) >=
                                     static_cast<uint32_t>(mins) * 60000u;
@@ -2515,6 +2524,152 @@ void App::pose_screensaver() {
   screensaver_on_ = true;
   start_screensaver(settings_.screensaver_style);
 }
+
+// --- Ready alert -------------------------------------------------------------
+// The end of a warm-up, on the glass: the screen wakes, turns the theme's
+// Ready green with a big check, and the backlight breathes. Once per turn-on,
+// at the chime's moment (core::ReadyChime), whatever the chime settings.
+// Costs only while shown: five LVGL objects on the top layer and, where the
+// backlight dims, one 40 ms lv_timer. Nothing redraws for the breath — it is
+// all backlight.
+
+namespace {
+
+constexpr uint32_t kReadyAlertMs = 10u * 60u * 1000u;  // then it gives up
+constexpr uint32_t kReadyBreathMs = 2000;              // one breath
+
+void on_ready_alert_clicked(lv_event_t* e) {
+  static_cast<ui::App*>(lv_event_get_user_data(e))->stop_ready_alert();
+}
+
+void on_ready_pulse(lv_timer_t* t) {
+  static_cast<ui::App*>(lv_timer_get_user_data(t))->ready_pulse_tick();
+}
+
+}  // namespace
+
+void App::start_ready_alert() {
+  if (ready_alert_ != nullptr) return;
+  // Wake first — reset LVGL's inactivity clock and let the idle poll take any
+  // saver down and put the user's brightness back now, not on its next tick.
+  // (A pending update notice opens there too; the alert is created after it,
+  // so it lands on top.)
+  lv_display_trigger_activity(nullptr);
+  screensaver_tick();
+
+  const int d = screen_.width < screen_.height ? screen_.width : screen_.height;
+  const lv_color_t ink = lv_color_hex(0x07140C);  // near-black: ~10:1 on the green
+  lv_obj_t* bg = lv_obj_create(lv_layer_top());
+  lv_obj_remove_style_all(bg);
+  lv_obj_set_size(bg, lv_pct(100), lv_pct(100));
+  lv_obj_set_style_bg_color(bg, lv_color_hex(ui::theme::ok()), 0);
+  lv_obj_set_style_bg_opa(bg, LV_OPA_COVER, 0);
+  lv_obj_remove_flag(bg, LV_OBJ_FLAG_SCROLLABLE);
+  // Swallows the dismissing tap, so it can't press whatever sits beneath.
+  lv_obj_add_flag(bg, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_add_event_cb(bg, on_ready_alert_clicked, LV_EVENT_CLICKED, this);
+  lv_obj_set_flex_flow(bg, LV_FLEX_FLOW_COLUMN);
+  lv_obj_set_flex_align(bg, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER,
+                        LV_FLEX_ALIGN_CENTER);
+  lv_obj_set_style_pad_row(bg, d * 3 / 100, 0);
+
+  // The check: one thick stroke with round ends, sized off the short side.
+  const int cw = d * 30 / 100, ch = d * 19 / 100, stroke = d * 5 / 100, m = stroke / 2;
+  ready_check_pts_[0] = {static_cast<lv_value_precise_t>(m),
+                         static_cast<lv_value_precise_t>(m + ch * 52 / 100)};
+  ready_check_pts_[1] = {static_cast<lv_value_precise_t>(m + cw * 36 / 100),
+                         static_cast<lv_value_precise_t>(m + ch)};
+  ready_check_pts_[2] = {static_cast<lv_value_precise_t>(m + cw),
+                         static_cast<lv_value_precise_t>(m)};
+  lv_obj_t* check = lv_line_create(bg);
+  lv_line_set_points(check, ready_check_pts_, 3);
+  lv_obj_set_size(check, cw + 2 * m, ch + 2 * m);
+  lv_obj_set_style_line_width(check, stroke, 0);
+  lv_obj_set_style_line_color(check, ink, 0);
+  lv_obj_set_style_line_rounded(check, true, 0);
+
+  lv_obj_t* word = lv_label_create(bg);
+  lv_label_set_text(word, "Ready");
+  lv_obj_set_style_text_font(word, ui::font_dp(48), 0);
+  lv_obj_set_style_text_color(word, ink, 0);
+
+  ready_alert_temps_ = lv_label_create(bg);
+  lv_label_set_text(ready_alert_temps_, "");
+  lv_obj_set_style_text_font(ready_alert_temps_, ui::font_dp(24), 0);
+  lv_obj_set_style_text_color(ready_alert_temps_, ink, 0);
+  lv_obj_set_style_text_opa(ready_alert_temps_, 200, 0);
+
+  lv_obj_t* hint = lv_label_create(bg);
+  lv_label_set_text(hint, "Tap to dismiss");
+  lv_obj_set_style_text_font(hint, ui::font_dp(16), 0);
+  lv_obj_set_style_text_color(hint, ink, 0);
+  lv_obj_set_style_text_opa(hint, 150, 0);
+
+  ready_alert_ = bg;
+  ready_alert_since_ = lv_tick_get();
+  ready_pulse_last_ = -1;
+  if (machine_ != nullptr) ready_alert_poll(machine_->snapshot());  // fill the temps
+  if (display_ != nullptr && display_->supports_brightness())
+    ready_pulse_ = lv_timer_create(on_ready_pulse, 40, this);
+}
+
+void App::ready_alert_poll(const core::MachineSnapshot& state) {
+  if (ready_alert_ == nullptr) return;
+  // It says Ready, so it goes the moment that stops being true — standby, the
+  // link dropping, a boiler heating again (steam switched on) — and when a
+  // shot starts: someone is at the machine.
+  const bool still_ready = state.link == core::Link::Connected &&
+                           state.power == core::Power::On && !heating_;
+  const bool shot = brew_ != nullptr && core::shot_in_flight(brew_->snapshot());
+  if (!still_ready || shot || lv_tick_elaps(ready_alert_since_) >= kReadyAlertMs) {
+    stop_ready_alert();
+    return;
+  }
+  const bool f = display_ != nullptr && display_->use_fahrenheit();
+  char t[64];
+  if (state.steam_enabled) {
+    std::snprintf(t, sizeof(t), "Brew %.1f°  •  Steam %.0f°",
+                  static_cast<double>(ui::temp_disp(state.brew_temp_c, f)),
+                  static_cast<double>(ui::temp_disp(state.boiler_temp_c, f)));
+  } else {
+    std::snprintf(t, sizeof(t), "Brew %.1f°",
+                  static_cast<double>(ui::temp_disp(state.brew_temp_c, f)));
+  }
+  ui::set_text(ready_alert_temps_, t);
+}
+
+void App::ready_pulse_tick() {
+  if (ready_alert_ == nullptr || display_ == nullptr) return;
+  // A slow breath from the user's level down to ~30% of it and back, starting
+  // bright. All backlight: the frame doesn't change, so nothing redraws.
+  const int hi = settings_.brightness;
+  int lo = hi * 30 / 100;
+  if (lo < 10) lo = 10;
+  const uint32_t ms = lv_tick_elaps(ready_alert_since_) % kReadyBreathMs;
+  const float c = 0.5f + 0.5f * std::cos(2.0f * 3.14159265f * static_cast<float>(ms) /
+                                         static_cast<float>(kReadyBreathMs));
+  const int level = lo + static_cast<int>(std::lround(static_cast<float>(hi - lo) * c));
+  if (level == ready_pulse_last_) return;
+  ready_pulse_last_ = level;
+  display_->set_backlight_live(level);
+}
+
+void App::stop_ready_alert() {
+  if (ready_pulse_ != nullptr) {
+    lv_timer_delete(ready_pulse_);
+    ready_pulse_ = nullptr;
+  }
+  if (ready_alert_ == nullptr) return;
+  // Async: usually called from the cover's own click event.
+  lv_obj_delete_async(ready_alert_);
+  ready_alert_ = nullptr;
+  ready_alert_temps_ = nullptr;
+  // Back to the user's brightness (live only — the stored level never moved).
+  if (display_ != nullptr && !screensaver_on_)
+    display_->set_screensaver(core::IDisplaySettings::SaverMode::kOff);
+}
+
+void App::pose_ready_alert() { start_ready_alert(); }
 
 void App::open_checking_modal() {
   open_modal("Checking for updates", "Contacting the update server...");

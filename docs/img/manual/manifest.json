@@ -192,6 +192,17 @@
     "callouts": []
   },
   {
+    "src": "renders/glass/round_ready_alert_800x800.png",
+    "out": "home-ready.png",
+    "size": [
+      800,
+      800
+    ],
+    "round": true,
+    "scale": 0.75,
+    "callouts": []
+  },
+  {
     "src": "renders/glass/round_shot_800x800.png",
     "out": "home-shot.png",
     "size": [

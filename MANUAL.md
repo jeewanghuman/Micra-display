@@ -11,8 +11,8 @@ row of three buttons at the bottom switches between **Home**, **Settings** and
 **Contents:**
 
 - [Where everything lives](#nav-map) — a map of every screen and setting
-- [Home](#home) — the idle view · temperature dial · steam sheet · during a
-  shot · shot modes
+- [Home](#home) — the idle view · temperature dial · steam sheet · ready
+  alert · during a shot · shot modes
 - [Settings → Micra](#settings-micra) — Bluetooth · Controls · Cleaning
 - [Settings → Scale](#settings-scale) — Bluetooth · Shot settings (→ Graph) ·
   Device settings · Per‑scale nuances
@@ -41,6 +41,7 @@ Home
 ├─ [Flush]    quick group rinse                            (Wired paddle on)
 ├─ [Tare]                                                  (scale paired)
 ├─ [shot-mode pill]  Auto shot → Shot detect → Manual       (scale paired)
+├─ Ready alert: green screen + check when a warm-up ends (tap to dismiss)
 └─ During a shot: progress ring · weight · timer + target · flow graph
    (g/s ↔ g) · Reset
 
@@ -104,8 +105,10 @@ machine is disconnected, and the steam arc is empty while steam is off.
   `Heating` is inferred from the live boiler temperatures vs their set‑points.
   A boiler within **2 °C** of its set‑point counts as ready, because the
   machine's own thermostat works to about that tolerance — a steam boiler set
-  to 128 °C routinely settles at 127 °C and stops heating there. Tondo can
-  also chime when it turns `Ready` — see [Settings → Tondo → Sound](#sound).
+  to 128 °C routinely settles at 127 °C and stops heating there. When a
+  warm‑up finishes, the whole screen turns green — the
+  [ready alert](#ready-alert) — and Tondo can also chime (see
+  [Settings → Tondo → Sound](#sound)).
 - ② **Brew temperature** — the live coffee‑boiler temperature. **Tap it** to
   open the [temperature dial](#dial) and change the set‑point.
 - ③ **Steam** — the live steam‑boiler temperature (or `Steam off`). **Tap it**
@@ -177,6 +180,26 @@ Opened by tapping the steam capsule on Home (or **Settings → Micra → Control
 buttons below are the Micra's three steam levels (126, 128 and 131 °C). Each
 tap goes to the machine straight away. **Done** — or a tap outside the
 sheet — closes it.
+
+<a id="ready-alert"></a>
+
+### Ready alert
+
+<p align="center">
+  <img src="docs/img/manual/home-ready.png" width="60%" alt="The ready alert">
+</p>
+
+When the machine finishes warming up, the screen wakes (from any idle
+screen), turns green with a big check mark and **Ready** under the boiler
+temperatures, and the backlight slowly pulses — something you can see from
+across the kitchen, no speaker needed. **Tap anywhere** to dismiss it. It
+also clears itself when a shot starts, when the machine stops being ready
+(standby, or the steam boiler switched on and heating), or after 10 minutes,
+and the idle screen stays away while it shows.
+
+It follows the same rule as the [ready chime](#sound): **once per turn‑on**,
+at the end of a real warm‑up — the small dips that hold temperature don't
+bring it back. It doesn't depend on the chime settings.
 
 <a id="during-a-shot"></a>
 
@@ -493,7 +516,8 @@ Everything the speaker does, on one page.
   only when the machine goes to standby (or off, or disconnects), so the next
   turn‑on's warm‑up chimes again. With the steam boiler **off** the chime
   follows the coffee boiler alone; with it **on**, both boilers have to be
-  there.
+  there. The screen shows the [ready alert](#ready-alert) at the same moment,
+  whatever these settings are.
 - ③ **Button sounds** *(default on)* — click on button presses. With button
   sounds off *and* the chime volume `Off`, the audio hardware stays powered
   down until the next restart.

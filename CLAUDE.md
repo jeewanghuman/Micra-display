@@ -150,6 +150,25 @@ is on — swap hardware and every shot survives while every preference is lost.
   reasoning as the NVS RULE below.
 - Boards without a card slot pass `nullptr` for the port and the page is absent.
 
+## Ready alert (App::start_ready_alert, 2026-10-26)
+
+The end of a warm-up on the glass, for an owner who doesn't use the speaker:
+fires on the SAME latch as the chime (`core::ReadyChime::update` returning
+true in `App::update_heating` — once per turn-on, independent of the chime
+settings). It wakes the screen (`lv_display_trigger_activity` + an immediate
+`screensaver_tick`), covers lv_layer_top with theme `ok()` green + a big
+`lv_line` check (its points live in `ready_check_pts_`: lv_line keeps the
+POINTER) + "Ready" + live temps, and breathes the backlight from a 40 ms
+lv_timer via `IDisplaySettings::set_backlight_live` — live only. Never use
+`set_brightness()` for an effect: it persists to NVS (flash wear at 25 Hz).
+`ready_alert_poll` (every refresh) clears it when the machine stops being
+Ready (link/power/heating), a shot starts, or after 10 min; a tap clears it
+(the cover swallows that tap); `screensaver_tick` holds the idle screen off
+while it shows. Costs only while shown: 5 LVGL objects + that timer, no
+buffers; nothing redraws for the breath. Sim: `round_ready_alert_800x800`
+(the fake boilers are posed at their set points, or the alert clears
+itself), manual shot `home-ready.png`.
+
 ## Failed-allocation flight recorder (crash_record.*, 2026-09-12)
 
 Core dumps here hold task stacks only (CONFIG_ESP_COREDUMP_CAPTURE_DRAM is off
