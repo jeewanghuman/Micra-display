@@ -386,8 +386,17 @@ env adds `-DBOARD_P4_SILICON_REV3`), panel table `BOARD_DSI_PANEL_JD9365_RD34`
   onto 40..100 (0 stays off), which keeps kSaverDimPercent's idle screens lit
   too. Orientation (default MADCTL) and the
   touch mapping (swap XY + mirror Y, as committed) are correct as-is.
-  Not yet confirmed on the unit: paddle pins (J8 7/9/11 = GPIO52/GND/51 per
-  the schematic), audio, SD. No battery circuit: the block defines
+  Not yet confirmed on the unit: the paddle, audio, SD. PADDLE PINS (moved
+  2026-10-26): sense GPIO20 / drive GPIO21 / GND = J8 pins 27/29/31, side by
+  side and printed "20 21 GND" on the board — Waveshare's XC schematic and
+  its silkscreen page agree (rendered from the PDF; J8's net labels sit
+  ABOVE their wires, and Waveshare's pin 1 is at the opposite end from a
+  Raspberry Pi's). The older note here (J8 7/9/11 = 52/GND/51) was wrong:
+  52 is pin 5, 51 pin 11, pin 9 GPIO32. 52/51 have no GND beside them, and
+  GPIO39-48 (46/47/48 on J8) take their I/O supply from VDDPST_5 = the
+  on-chip LDO VO4, which ShotStore's ensure_bus() only enables when it first
+  mounts the card: never put the paddle, or anything live from boot, there.
+  No battery circuit: the block defines
   `BOARD_NO_BATTERY`, battery.cpp reports `BatteryState::hw = false`, and
   the UI drops the tray power indicator and the Stats > Info Runtime row
   (the sim poses this for every round render via FakeBattery::set_hw).

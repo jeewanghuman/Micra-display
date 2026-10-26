@@ -64,22 +64,21 @@ you're looking at:
 
 ## At the board: the 3.4C's header
 
-The paddle uses three pins that sit **in a row** on the board's 40‑pin header,
-which is laid out like a Raspberry Pi's: **pins 7, 9 and 11** — the
-odd‑numbered column, the one that starts with pin 1 — carry **GPIO 52, GND
-and GPIO 51**, in that order. A
+The paddle uses three pins that sit **side by side** in one row of the
+board's 40‑pin header. The board prints each pin's GPIO number beside it, and
+these three are printed **20, 21 and GND** — in the row whose labels end
+"… 28 **20 21 GND** 29 SCL SDA 3V3". A
 [2.54 mm 3‑pin screw‑terminal block](https://a.co/d/0eVdsD4h) clips straight
 onto them, no soldering.
 
 > [!CAUTION]
-> These positions come from Waveshare's schematic and haven't been checked
-> on a real 3.4C yet. Before clipping anything on, find pin 1 on the
-> silkscreen and confirm pin 9 is ground (continuity to the USB‑C shell, or
-> to a known GND pin such as 6).
+> These positions come from Waveshare's schematic and the board's printed
+> labels, which agree, but they haven't been tried with a paddle on a real
+> 3.4C yet. Before clipping anything on, read the labels on your board and
+> check that the pin printed GND has continuity to the USB‑C shell.
 
-The photos below are of upstream's 5" P4 board, whose header has the same
-three signals in a different order (GND, 52, 51 at its corner); they show the
-idea:
+The photos below are of upstream's 5" P4 board, whose header has its three
+paddle pins (GND, 52, 51) at its corner instead; they show the idea:
 
 ![The P4 header corner — GND, 52, 51 in a row](img/wiring/p4-header-pins.jpg)
 
@@ -92,13 +91,13 @@ there, the opto module provides the isolation:
 
 In detail:
 
-- **Drive (Tondo → Micra):** Tondo **GPIO 52** → opto module input **IO**,
+- **Drive (Tondo → Micra):** Tondo **GPIO 21** → opto module input **IO**,
   and Tondo **GND** → the module's input **GND**. On the output side leave
   **VCC unconnected** ("VCC suspended") so OUT/GND form an isolated dry
   contact: module **OUT** → Micra **white**, module output **GND** → Micra
-  **black**. When Tondo raises GPIO 52, the contact closes — exactly like the
+  **black**. When Tondo raises GPIO 21, the contact closes — exactly like the
   paddle.
-- **Sense (paddle → Tondo):** one paddle‑switch wire → Tondo **GPIO 51**,
+- **Sense (paddle → Tondo):** one paddle‑switch wire → Tondo **GPIO 20**,
   the other → Tondo **GND**. The physical paddle now touches only Tondo,
   never the Micra. Suggested: a 1 kΩ resistor in line with this wire at the
   terminal block — it protects the input by limiting current from static or
@@ -109,15 +108,16 @@ In detail:
   see the manual's "Paddle pin protection & per‑unit remapping" section.
 
 **No‑solder way to add that resistor:** use a **4‑slot** screw‑terminal block
-instead of the 3‑slot. Positions 1–3 land on pins 7 / 9 / 11 (52 / GND / 51)
-as usual; position 4 would land on pin 13 — **bend or cut off its header pin**
-so it doesn't insert into the board. Screw the **1 kΩ resistor** in as a jumper between
-positions 3 and 4, then land the paddle‑sense wire in position **4** instead
-of 3: the signal reaches GPIO 51 only through the resistor, and nothing was
-soldered or spliced.
+instead of the 3‑slot, with its extra slot over the pin printed **28**, so the
+four positions sit on 28 / 20 / 21 / GND. **Bend or cut off position 1's
+header pin** (the one over 28) so it doesn't insert into the board. Screw the
+**1 kΩ resistor** in as a jumper between positions 1 and 2, then land the
+paddle‑sense wire in position **1** instead of 2: the signal reaches GPIO 20
+only through the resistor, and nothing was soldered or spliced. (The photo is
+upstream's 5" board, where the spare slot sits at the other end.)
 
-![4-slot terminal block with the resistor jumpering positions 3-4 and the
-position-4 pin bent clear](img/wiring/paddle-resistor-terminal.jpg)
+![4-slot terminal block with the resistor jumpering the sense slot and the
+spare slot, whose pin is bent clear](img/wiring/paddle-resistor-terminal.jpg)
 
 A finished cable (upstream's P4 build) with the opto module spliced in near
 the machine end

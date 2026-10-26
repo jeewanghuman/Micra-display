@@ -22,6 +22,10 @@ maps — plain ASCII plus `— – → … × ' "` — or they render as empty b
   after 10 minutes.
 - **Fewer idle screens.** Apollo and Alternate are gone; the choice is now
   Lion, Dim, Off or Clock. If you had picked either, the Lion takes its place.
+- **Paddle pins moved.** The paddle now uses the header pins printed 20, 21
+  and GND, which sit side by side, so a 3-pin screw terminal clips straight
+  on. The wiring guide's earlier pin numbers were wrong — follow the updated
+  guide.
 
 ## v1.1.1
 

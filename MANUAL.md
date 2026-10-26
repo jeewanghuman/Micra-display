@@ -809,8 +809,9 @@ the 3.4C's header pins — is covered in the [wiring guide](docs/WIRING.md).
   or behaves erratically while everything meters fine — the diagnostic log's
   `Paddle: raw sense ...` lines will show a line stuck or drifting on its
   own), the pins are **remappable per unit** without a custom firmware
-  build: move the wire to a free GPIO on the header, connect the device over
-  USB, and run
+  build: move the wire to a spare pin on the header (good ones are printed
+  22, 28–32 or 49–52; avoid 46–48, which only get power once the SD card is
+  set up), connect the device over USB, and run
 
   ```
   make padsense PIN=50      # sense wire moved to GPIO50 (example)

@@ -921,10 +921,11 @@ constexpr bool kTouchSwapXY = true;
 constexpr bool kTouchMirrorX = false;
 constexpr bool kTouchMirrorY = true;
 
-// --- Battery: none. The schematic has no Li-ion charger or BAT_ADC (GPIO20
-//     is a free header pin here); the "RTC" connector J1 only backs the P4's
-//     VBAT/LP domain. BOARD_NO_BATTERY => battery.cpp reports external power
-//     with hw = false, so the UI shows no power indicator at all. ---
+// --- Battery: none. The schematic has no Li-ion charger or BAT_ADC (GPIO20,
+//     the 4.3's BAT_ADC, is a header pin here: the paddle's sense input); the
+//     "RTC" connector J1 only backs the P4's VBAT/LP domain. BOARD_NO_BATTERY
+//     => battery.cpp reports external power with hw = false, so the UI shows
+//     no power indicator at all. ---
 #define BOARD_NO_BATTERY
 constexpr int   kBatteryAdc = -1;
 constexpr float kBatteryDivider = 3.0f;
@@ -945,11 +946,18 @@ constexpr int kAudioDout = 9;     // ESP -> ES8311 SDIN (speaker)
 constexpr int kEs8311Addr = 0x18;
 constexpr int kAudioPaPin = 53;   // speaker power-amp enable, active-high
 
-// --- Paddle control (brew-by-weight): GPIO52 = J8 pin 7, GPIO51 = J8 pin 11
-//     on the 40-pin header (GND on pins 6/9), per the schematic — the same
-//     GPIOs and opto-module harness as the 4.3/5, different header position. ---
-constexpr int  kPaddleDrivePin = 52;
-constexpr int  kPaddleSensePin = 51;
+// --- Paddle control (brew-by-weight): GPIO20 = J8 pin 27 (sense), GPIO21 =
+//     pin 29 (drive), GND = pin 31 -- side by side in one row, printed
+//     "20 21 GND" beside the pins, so one 3-pin screw terminal clips on. Same
+//     opto-module harness as the 4.3/5, different GPIOs (2026-10-26; from
+//     Waveshare's XC schematic and its silkscreen page, both of which agree --
+//     not yet run on hardware). NOT the 4.3/5's 52/51: here those are pins 5
+//     and 11 with no GND beside them. And NEVER GPIO39-48 (header 46/47/48):
+//     their I/O supply VDDPST_5 is the on-chip LDO VO4 that ShotStore's
+//     ensure_bus() only switches on when it first mounts the card -- an
+//     unpowered sense pad can read "closed", which is the pump's signal. ---
+constexpr int  kPaddleDrivePin = 21;
+constexpr int  kPaddleSensePin = 20;
 constexpr bool kPaddleActiveHigh = true;
 
 // --- RTC: no discrete RTC chip (same as the other P4 boards). ---

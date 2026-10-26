@@ -15,7 +15,7 @@ README's [Hardware](../README.md#supported-hardware) section.
 | **Radio** | Wi‑Fi 6 and Bluetooth LE through an on‑board ESP32‑C6. Tondo keeps the C6's firmware matched to its own, so the first boot after flashing may restart once while it brings the C6 up to date. |
 | **Audio** | ES8311 codec and a speaker amplifier — the warm‑up chime and button clicks. |
 | **Storage** | microSD slot (use a FAT32 card) — shot history and settings backup. |
-| **Header** | 40‑pin, laid out like a Raspberry Pi's. The paddle wiring uses three of its pins — see the [wiring guide](WIRING.md). |
+| **Header** | 40‑pin, 2.54 mm, with each pin's GPIO number printed beside it. The paddle wiring uses three of its pins, side by side — see the [wiring guide](WIRING.md). |
 | **Power** | USB‑C. No battery circuit. |
 
 The 3.4C is electronically Waveshare's rectangular ESP32‑P4‑WIFI6‑Touch‑LCD‑4.3
