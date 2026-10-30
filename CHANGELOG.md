@@ -7,7 +7,7 @@ for someone reading the diff. These notes are also shown ON THE DEVICE, whose
 fonts are ASCII-only: stick to characters `sanitize_notes()` (src/ui/app.cpp)
 maps — plain ASCII plus `— – → … × ' "` — or they render as empty boxes.
 
-## Unreleased
+## v1.3.0
 
 - **Scale battery on Home.** The weight capsule now shows the scale's battery
   level, red when it runs low, and a notice says so once per connection. A
