@@ -227,6 +227,7 @@ class App {
   // to flash). Tap or timeout dismisses.
   void show_toast(const char* msg);
   void dismiss_toast();
+  void scale_battery_poll();  // the low-battery toast for the paired scale (refresh)
   // Sim-only pose: seed the unwired capture ring with a synthetic pre-shot
   // baseline + pour ramp and run the mid-shot handoff as if the detector just
   // confirmed — renders the back-filled live shot plot deterministically.
@@ -338,6 +339,10 @@ class App {
   core::ShotPhase shot_phase_ = core::ShotPhase::kIdle;  // last seen (graph reset/freeze edges)
   uint32_t brew_reject_seen_ = 0;  // last review_reject_seq (flash Reset on change)
   uint32_t scale_refuse_seen_ = 0;  // last scale_refuse_seq (toast on change)
+  // Scale battery notice (scale_battery_poll): one toast per connection at the
+  // model's low mark; pending while a shot runs or the screen is asleep.
+  bool scale_batt_warned_ = false;
+  bool scale_batt_pending_ = false;
   lv_obj_t* toast_ = nullptr;          // transient message card (lv_layer_top)
   lv_timer_t* toast_timer_ = nullptr;  // its auto-dismiss timer
   uint32_t unwired_shot_t0_ = 0;   // lv_tick of the detected shot's retro start

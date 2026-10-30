@@ -57,6 +57,10 @@ void ScaleLink::set_connected(bool c) {
   std::lock_guard<std::mutex> lk(mutex_);
   connected_ = c;
   if (!c) weight_g_ = 0.0f;
+  // Either edge drops the battery level too: it is the scale's to report, and
+  // a scale charged while it was away must not come back reading its old
+  // (low) level -- the UI would warn about a battery that is now full.
+  battery_valid_ = false;
   // Either edge invalidates the on-scale settings cache: a fresh link must
   // re-read them (the scale may have been adjusted while away), and posted
   // writes must not fire on some future reconnect the user didn't ask for.

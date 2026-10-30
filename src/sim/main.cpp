@@ -80,7 +80,7 @@ bool render(core::IMachine& machine, core::IProvisioner& provisioner,
             bool join_modal = false, bool screensaver = false,
             bool update_modal = false, core::IUpdateSource* updates = nullptr,
             core::ISettingsBackup* backup = nullptr, int backup_modal = 0,
-            int round_sheet = 0, bool ready_alert = false) {
+            int round_sheet = 0, bool ready_alert = false, bool scale_battery = false) {
   std::filesystem::path p(out_path);
   if (p.has_parent_path()) std::filesystem::create_directories(p.parent_path());
 
@@ -134,6 +134,7 @@ bool render(core::IMachine& machine, core::IProvisioner& provisioner,
   if (round_sheet == 1) app.open_brew_dial();
   if (round_sheet == 2) app.open_steam_sheet();
   if (ready_alert) app.pose_ready_alert();  // the end-of-warm-up cover
+  if (scale_battery) app.scale_battery_poll();  // a low scale battery's toast
   display.render_frame();
   // (The Clock idle screen has no bouncing artwork to check.)
   if (screensaver &&
@@ -183,12 +184,13 @@ int main() {
                bool log_modal = false, uint32_t unwired_midshot_ms = 0,
                bool toast = false, bool join_modal = false, bool screensaver = false,
                bool update_modal = false, int backup_modal = 0, int round_sheet = 0,
-               bool ready_alert = false) {
+               bool ready_alert = false, bool scale_battery = false) {
     return render(machine, provisioner, battery, disp, clock, history, scale,
                   scale_provisioner, brew, network, shots, s, path, tab, sec, modal, theme,
                   stats, clean_lock, shot_id, history_ym, backflush, log_modal,
                   unwired_midshot_ms, toast, join_modal, screensaver, update_modal,
-                  &updates, &backup, backup_modal, round_sheet, ready_alert);
+                  &updates, &backup, backup_modal, round_sheet, ready_alert,
+                  scale_battery);
   };
   // A round (3.4C) render posed outside the round block below, for the manual:
   // same fake state as the rectangular twin beside it, without a battery.
@@ -274,6 +276,12 @@ int main() {
     // With a scale: idle (weight / Tare / shot pill), a shot running (ring =
     // progress, weight as the numerals, flow graph), and the review.
     ok &= r(rd, "renders/round_home_scale_800x800.png");
+    // The scale battery at its low mark: red in the weight capsule, and the
+    // one-time toast (App::scale_battery_poll) over the bottom of the band.
+    scale.set_battery(12);
+    ok &= r(rd, "renders/round_home_scale_lowbatt_800x800.png", 0, -1, false, 0, -1,
+            false, -1, 0, false, false, 0, false, false, false, false, 0, 0, false, true);
+    scale.set_battery(78);
     brew.set_wired_paddle(false);  // the mid-shot pose back-fills an unwired shot
     brew.set_phase(core::ShotPhase::kBrewing);
     brew.set_shot_ms(24000);

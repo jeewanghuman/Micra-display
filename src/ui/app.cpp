@@ -1592,6 +1592,7 @@ void App::refresh() {
   }
   update_result_poll();  // surface a finished update check (notice / "up to date")
   backup_result_poll();  // ...and a finished settings backup/restore
+  scale_battery_poll();  // ...and a scale battery that has run low
   // Round glass: keep rows built after the tab (scan results, history list,
   // modal content) glassy. Last, so rows this tick's updates just added are
   // converted before they are ever drawn opaque. Cheap: only still-opaque
@@ -2938,6 +2939,40 @@ void App::show_toast(const char* msg) {
   // Long enough to READ, not just notice — the refusal message is two
   // sentences and the reader just looked up from the paddle.
   toast_timer_ = lv_timer_create(on_toast_timeout, 7000, this);
+}
+
+// The paired scale's battery reaching the model's low mark
+// (ScaleFeatures::battery_low_pct, where the Home readout turns red): one toast
+// per connection. It waits for a free moment -- no shot under way, the screen
+// awake, nothing else on the top layer -- so it never covers a live shot and
+// is still there to read after a wake. A reconnect re-arms it (ScaleLink drops
+// the level on every link edge, so a charged scale doesn't come back "low"),
+// and so does a charge 10 points past the mark while connected, without
+// re-firing on a reading that wobbles across it.
+void App::scale_battery_poll() {
+  if (scale_ == nullptr) return;
+  const core::ScaleSnapshot s = scale_->snapshot();
+  const core::ScaleFeatures f = scale_->features();
+  if (!s.connected || !f.battery) {
+    scale_batt_warned_ = scale_batt_pending_ = false;
+    return;
+  }
+  if (!s.battery_valid) return;
+  if (s.battery_pct > f.battery_low_pct) {
+    if (s.battery_pct > f.battery_low_pct + 10) scale_batt_warned_ = false;
+    scale_batt_pending_ = false;
+    return;
+  }
+  if (!scale_batt_warned_) scale_batt_warned_ = scale_batt_pending_ = true;
+  if (!scale_batt_pending_ || screensaver_on_ || modal_ != nullptr ||
+      ready_alert_ != nullptr || toast_ != nullptr)
+    return;
+  if (brew_ != nullptr && brew_->snapshot().phase != core::ShotPhase::kIdle) return;
+  scale_batt_pending_ = false;
+  char msg[80];
+  std::snprintf(msg, sizeof(msg), "Scale battery low (%d%%). Charge it soon.",
+                s.battery_pct);
+  show_toast(msg);
 }
 
 void App::dismiss_toast() {

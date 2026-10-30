@@ -1325,12 +1325,20 @@ void update_home(HomeWidgets& w, const core::MachineSnapshot& state,
   if (w.scale_status_label != nullptr)
     ui::set_text(w.scale_status_label, scale_txt);
 
-  // Scale battery: icon-only estimate beside the status, when reported.
+  // Scale battery: icon-only estimate beside the status, when reported (round
+  // glass: in the weight capsule, with the percent -- there's room for it).
   if (w.scale_batt_label != nullptr) {
     if (scale.connected && scale.battery_valid) {
       if (lv_obj_has_flag(w.scale_batt_label, LV_OBJ_FLAG_HIDDEN))
         lv_obj_remove_flag(w.scale_batt_label, LV_OBJ_FLAG_HIDDEN);
-      ui::set_text(w.scale_batt_label, battery_icon(scale.battery_pct));
+      if (w.round_glass) {
+        char sb[24];
+        std::snprintf(sb, sizeof(sb), "%s %d%%", battery_icon(scale.battery_pct),
+                      scale.battery_pct);
+        ui::set_text(w.scale_batt_label, sb);
+      } else {
+        ui::set_text(w.scale_batt_label, battery_icon(scale.battery_pct));
+      }
       ui::set_text_color(w.scale_batt_label,
                          scale.battery_pct <= scale_features.battery_low_pct
                              ? ui::theme::alert()

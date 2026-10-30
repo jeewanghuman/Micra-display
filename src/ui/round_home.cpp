@@ -412,7 +412,14 @@ void build_round_home(lv_obj_t* page, const ScreenProfile& screen, bool scale_en
                                           kSteamColor, &out.boiler_value);
   lv_obj_add_flag(out.rg_steam_capsule, LV_OBJ_FLAG_CLICKABLE);
   if (scale_enabled) {
-    make_dot_capsule(caps, at(196), at(48), kShotColor, &out.rg_weight_small);
+    lv_obj_t* weight =
+        make_dot_capsule(caps, at(196), at(48), kShotColor, &out.rg_weight_small);
+    // The scale's battery beside its weight: update_home shows it once the
+    // scale reports a level, red at the model's low mark.
+    out.scale_batt_label = lv_label_create(weight);
+    lv_obj_set_style_text_font(out.scale_batt_label, ui::font_dp(16), 0);
+    lv_obj_set_style_text_color(out.scale_batt_label, lv_color_hex(ui::theme::muted()), 0);
+    lv_obj_add_flag(out.scale_batt_label, LV_OBJ_FLAG_HIDDEN);
   }
 
   // Standby + Flush (+ Tare): round glass buttons, captions beneath. A flex

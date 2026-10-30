@@ -36,7 +36,7 @@ Every screen and setting, and how to reach it:
 Home
 ├─ Status · brew temperature (tap → temperature dial) · brew/steam arcs
 ├─ [Steam capsule]   tap → steam sheet (On/Off · three levels)
-├─ [Weight capsule]  live scale weight                     (scale paired)
+├─ [Weight capsule]  live scale weight · scale battery     (scale paired)
 ├─ [Standby]  Standby / Turn on / Connect / Set up
 ├─ [Flush]    quick group rinse                            (Wired paddle on)
 ├─ [Tare]                                                  (scale paired)
@@ -120,8 +120,16 @@ While it heats it counts smoothly through the tenths rather than jumping.
 - ③ **Steam** — the live steam‑boiler temperature (or `Steam off`). **Tap it**
   for the [steam sheet](#steam-sheet): on/off and the three steam levels.
 - ④ **Weight** *(scale paired)* — the scale's live reading, or `Scale off` when
-  it isn't connected. Connect and disconnect the scale under
+  it isn't connected, and beside it the scale's **battery** level once the
+  scale reports one. The battery turns red at the scale's low mark (15 % on
+  most scales; 20 % on the Aku, whose gauge moves in steps of 20), and a
+  notice says so — once each time the scale connects with a low battery, or
+  when it runs low while connected. A notice that comes due during a shot or
+  while the screen is asleep waits until the shot ends or the screen wakes.
+  Connect and disconnect the scale under
   [Settings → Scale → Bluetooth](#scale-bluetooth).
+
+  ![The scale battery at its low mark, and the notice](docs/img/manual/home-scale-battery.png)
 - ⑤ **Standby** — `Standby` / `Turn on` when connected. After a tap it briefly
   reads `Working...` (disabled) until the machine reports the change — the
   Micra's answer trails the command by a couple of seconds, and the button

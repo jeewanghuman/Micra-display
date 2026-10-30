@@ -169,6 +169,22 @@ buffers; nothing redraws for the breath. Sim: `round_ready_alert_800x800`
 (the fake boilers are posed at their set points, or the alert clears
 itself), manual shot `home-ready.png`.
 
+## Scale battery on round Home (2026-10-30)
+
+The paired scale's level in the weight capsule: build_round_home creates
+`HomeWidgets::scale_batt_label` inside it (the same pointer rectangular Home
+puts beside the scale status, icon only there), and update_home writes
+"<LV_SYMBOL_BATTERY_*> NN%" when `w.round_glass` — red at
+`ScaleFeatures::battery_low_pct` (per model: 15; the Aku 20, its gauge's last
+step). `App::scale_battery_poll` (every refresh) shows ONE toast per
+connection at that mark, pending while the shot phase isn't kIdle, the saver
+is up, or a modal / the ready alert / another toast is showing; a reconnect
+or a charge 10 points past the mark re-arms it. `ScaleLink::set_connected`
+drops `battery_valid_` on both edges, so a scale charged while away can't come
+back reading its old level and warn. Costs: one LVGL label (scale paired);
+the toast is the existing one. Sim: `round_home_scale_lowbatt_800x800`
+(FakeScale::set_battery), manual shot `home-scale-battery.png`.
+
 ## Failed-allocation flight recorder (crash_record.*, 2026-09-12)
 
 Core dumps here hold task stacks only (CONFIG_ESP_COREDUMP_CAPTURE_DRAM is off
