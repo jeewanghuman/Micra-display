@@ -1,0 +1,5 @@
+
+- **Scale battery on Home.** The weight capsule now shows the scale's battery
+  level, red when it runs low, and a notice says so once per connection. A
+  notice due during a shot or while the screen sleeps waits until it ends.
+
