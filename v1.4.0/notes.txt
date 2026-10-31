@@ -1,0 +1,6 @@
+
+- **Milk by weight.** A new Milk button on Home weighs the milk for a drink
+  into your steam pitcher. Pick the drink and the milk (whole, 2%, skim,
+  oat, soy or almond); the ring fills as you pour and turns green on target,
+  allowing for each milk's density.
+
