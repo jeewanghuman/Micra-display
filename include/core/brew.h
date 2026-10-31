@@ -228,6 +228,14 @@ class IBrewController {
 
   // Stop a running backflush and open the line. Safe to call when idle.
   virtual void cancel_backflush() = 0;
+
+  // The scale is lent to something that isn't a shot: the Milk sheet, with a
+  // pitcher filling on the scale under the group. While borrowed, the weight
+  // detector stays disarmed (a steady pour reads like a shot), and an
+  // auto-flush that is armed, counting down or running is called off -- it
+  // would rinse into the pitcher. Paddle edges and a shot already under way
+  // are untouched. Not persisted.
+  virtual void set_scale_borrowed(bool borrowed) = 0;
 };
 
 }  // namespace core

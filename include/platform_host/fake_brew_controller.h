@@ -58,6 +58,7 @@ class FakeBrewController : public core::IBrewController {
     if (phase_ == core::ShotPhase::kReview) phase_ = core::ShotPhase::kIdle;
   }
   void toggle_manual_flush() override { manual_flush_ = !manual_flush_; }
+  void set_scale_borrowed(bool borrowed) override { scale_borrowed_ = borrowed; }
   bool start_backflush() override {
     if (!(paddle_hw_ && wired_ && clean_ready_)) return false;
     bf_active_ = true;
@@ -107,6 +108,7 @@ class FakeBrewController : public core::IBrewController {
   int flush_delay_s_ = 3;
   bool clean_ready_ = true;   // machine on, no shot in flight
   bool manual_flush_ = false;
+  bool scale_borrowed_ = false;
   bool bf_active_ = false;
   bool bf_on_ = false;
   int bf_cycle_ = 0;

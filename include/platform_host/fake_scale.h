@@ -15,7 +15,7 @@ class FakeScale : public core::IScale {
     return core::ScaleSnapshot{
         .name = lunar_ ? "LUNAR-A1B2" : umbra_ ? "UMBRA-7F3A" : "BOOKOO_THEMIS",
         .connected = connected_,
-        .weight_g = 36.4f,
+        .weight_g = weight_g_,
         .timer_ms = 27000,
         .battery_valid = true,
         .battery_pct = battery_pct_,
@@ -80,6 +80,8 @@ class FakeScale : public core::IScale {
   void set_connected(bool c) { connected_ = c; }
   // Battery level the scale reports (78 by default; 15 is its low mark).
   void set_battery(int pct) { battery_pct_ = pct; }
+  // What's on the scale (36.4 g by default: a shot's worth).
+  void set_weight(float g) { weight_g_ = g; }
   // Umbra persona: sleep-capable scale, for rendering the "Sleeping" Home state.
   void set_umbra(bool u) { umbra_ = u; }
   // Lunar persona: Acaia with a Unit row + the read-only weighing-mode row.
@@ -91,6 +93,7 @@ class FakeScale : public core::IScale {
  private:
   bool connected_ = true;
   int battery_pct_ = 78;
+  float weight_g_ = 36.4f;
   bool umbra_ = false;
   bool lunar_ = false;
   int setting_value_[4] = {3, 2, 0, 3};  // Beep / Auto-off / Unit g / Mode 4

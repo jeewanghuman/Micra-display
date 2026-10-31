@@ -72,6 +72,8 @@ struct HomeWidgets {
   lv_obj_t* scale_target = nullptr;   // "/ 36 g" target sub
   lv_obj_t* tare_btn = nullptr;
   lv_obj_t* tare_label = nullptr;
+  lv_obj_t* milk_btn = nullptr;    // round Home: opens the Milk sheet (App)
+  lv_obj_t* milk_label = nullptr;
   // Connect/Disconnect inside the SCALE card (large scale-aware layout only).
   // Toggles the scale link — for a sleep-capable scale (Umbra) "Disconnect"
   // lets it doze off and "Connect" wakes it, so the pair double as sleep/wake.

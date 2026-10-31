@@ -112,6 +112,17 @@ class IDisplaySettings {
   // Separate from the volume so switching tunes keeps the level.
   virtual int ready_chime_melody() const = 0;
   virtual void set_ready_chime_melody(int melody) = 0;
+
+  // The Milk sheet (round Home): the drink and milk last picked, as indices
+  // into core::kMilkDrinks / kMilkTypes (core/milk.h; -1 = never picked, and
+  // the UI clamps an index it doesn't know to the default), and each drink's
+  // amount in ml once changed from its preset (0 = the preset). Persisted.
+  virtual int milk_drink() const = 0;
+  virtual void set_milk_drink(int index) = 0;
+  virtual int milk_type() const = 0;
+  virtual void set_milk_type(int index) = 0;
+  virtual int milk_ml(int drink) const = 0;
+  virtual void set_milk_ml(int drink, int ml) = 0;
 };
 
 }  // namespace core

@@ -84,6 +84,11 @@ void BrewController::poll(uint32_t now_ms) {
 
 void BrewController::poll_flush(uint32_t now_ms) {
   if (flush_state_ == FlushState::kOff) return;
+  // A pitcher on the scale (set_scale_borrowed) sits right under the group.
+  if (scale_borrowed_) {
+    cancel_flush();
+    return;
+  }
   // A new shot starting (any mode) or losing the wired relay cancels the
   // sequence — the flush only runs into a quiet, cup-less drip tray.
   if (!relay() || phase_ == ShotPhase::kBrewing || phase_ == ShotPhase::kSettling) {
@@ -464,7 +469,8 @@ void BrewController::poll_unwired(uint32_t now_ms) {
   // detector only runs while it can matter — armed-and-idle (looking for a
   // start) or brewing (looking for the end); settle/review keep it reset so
   // drips can't re-trigger.
-  const bool armed = phase_ == ShotPhase::kIdle && eff_mode() == ShotMode::kDetect;
+  const bool armed = phase_ == ShotPhase::kIdle && eff_mode() == ShotMode::kDetect &&
+                     !scale_borrowed_;
   if (!armed && phase_ != ShotPhase::kBrewing) {
     detector_.reset();  // settle/review, or detection disarmed
     return;
@@ -728,6 +734,15 @@ void BrewController::cancel_shot() {
   phase_ = ShotPhase::kIdle;
   stop_hint_ = false;
   hint_fired_ = false;  // a cancelled shot teaches nothing
+}
+
+void BrewController::set_scale_borrowed(bool borrowed) {
+  if (borrowed == scale_borrowed_) return;
+  scale_borrowed_ = borrowed;
+  // poll_flush and poll_unwired do the rest on the next pass; a flush is
+  // stopped here as well, so no pulse slips out before it.
+  if (borrowed) cancel_flush();
+  logf("Brew: scale %s\n", borrowed ? "borrowed (milk)" : "returned");
 }
 
 void BrewController::set_wired_paddle(bool on) {

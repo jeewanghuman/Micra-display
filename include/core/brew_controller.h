@@ -73,6 +73,7 @@ class BrewController : public IBrewController {
   void toggle_manual_flush() override;
   bool start_backflush() override;
   void cancel_backflush() override;
+  void set_scale_borrowed(bool borrowed) override;
 
  private:
   // end_ms = when brewing ACTUALLY ceased, which is not always now: the unwired
@@ -128,6 +129,7 @@ class BrewController : public IBrewController {
   ShotPhase phase_ = ShotPhase::kIdle;
   ShotMode mode_ = ShotMode::kDetect;
   bool wired_paddle_ = false;  // user setting; effective only with paddle hardware
+  bool scale_borrowed_ = false;  // set_scale_borrowed: no detection, no auto-flush
                                // (default OFF — a fresh device must not relay the
                                // line until the user says the harness is wired)
   bool stop_hint_ = false;    // unwired: manual-stop point reached (see BrewSnapshot)

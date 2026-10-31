@@ -28,5 +28,6 @@ inline constexpr const char kBusy[] = "\xEE\x84\x8A";       // U+E10A loader-cir
 inline constexpr const char kMinus[] = "\xEE\x84\x9C";      // U+E11C minus
 inline constexpr const char kPlus[] = "\xEE\x84\xBD";       // U+E13D plus
 inline constexpr const char kClose[] = "\xEE\x86\xB2";      // U+E1B2 x
+inline constexpr const char kMilk[] = "\xEE\x8E\x99";       // U+E399 milk
 
 }  // namespace ui::icon

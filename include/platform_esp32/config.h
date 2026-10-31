@@ -112,6 +112,14 @@ class Config {
   void set_ready_chime_volume(int percent);  // (default 80; audio boards)
   int ready_chime_melody() const;  // warm-up tune: 0 = off, 1.. = melody
   void set_ready_chime_melody(int melody);  // (default 1 = Blue)
+  // Milk sheet picks (core/milk.h indices, -1 = never picked) and each
+  // drink's ml (0 = its preset). See IDisplaySettings::milk_drink().
+  int milk_drink() const;
+  void set_milk_drink(int index);
+  int milk_type() const;
+  void set_milk_type(int index);
+  int milk_ml(int drink) const;
+  void set_milk_ml(int drink, int ml);
 
   // WiFi station (home network join + NTP time sync). Credentials are entered via
   // the setup portal; timezone/NTP server via Settings.

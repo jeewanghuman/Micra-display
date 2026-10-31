@@ -939,6 +939,7 @@ void build_home_tab(lv_obj_t* parent, const ScreenProfile& screen, bool scale_en
   out.brew_set = out.boiler_set = nullptr;
   out.scale_weight = out.scale_target = nullptr;
   out.tare_btn = out.tare_label = nullptr;
+  out.milk_btn = out.milk_label = nullptr;  // round glass only
   out.flush_btn = out.flush_label = nullptr;  // large layouts only
   out.scale_connect_btn = out.scale_connect_label = nullptr;
   out.scale_batt_label = nullptr;
@@ -1362,6 +1363,13 @@ void update_home(HomeWidgets& w, const core::MachineSnapshot& state,
       lv_obj_remove_state(w.tare_btn, LV_STATE_DISABLED);
     else
       lv_obj_add_state(w.tare_btn, LV_STATE_DISABLED);
+  }
+  // Milk borrows the scale, so it follows Tare: a live link, no shot.
+  if (w.milk_btn != nullptr) {
+    if (scale.connected && !shot)
+      lv_obj_remove_state(w.milk_btn, LV_STATE_DISABLED);
+    else
+      lv_obj_add_state(w.milk_btn, LV_STATE_DISABLED);
   }
   if (w.scale_connect_btn != nullptr) {
     ui::set_text(w.scale_connect_label,

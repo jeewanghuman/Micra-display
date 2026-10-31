@@ -101,6 +101,13 @@ void DisplaySettings::set_ready_chime_melody(int melody) {
   config_.set_ready_chime_melody(melody);
 }
 
+int DisplaySettings::milk_drink() const { return config_.milk_drink(); }
+void DisplaySettings::set_milk_drink(int index) { config_.set_milk_drink(index); }
+int DisplaySettings::milk_type() const { return config_.milk_type(); }
+void DisplaySettings::set_milk_type(int index) { config_.set_milk_type(index); }
+int DisplaySettings::milk_ml(int drink) const { return config_.milk_ml(drink); }
+void DisplaySettings::set_milk_ml(int drink, int ml) { config_.set_milk_ml(drink, ml); }
+
 void DisplaySettings::set_ready_chime_volume(int percent) {
   config_.set_ready_chime_volume(percent);
 }

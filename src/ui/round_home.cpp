@@ -5,7 +5,8 @@
 //           temperature as large thin numerals with a status line above,
 //           steam in a glass capsule (tap: steam sheet), round glass Standby /
 //           Flush buttons. With a scale: a weight capsule beside steam, a
-//           Tare button, and the shot-mode pill.
+//           Tare button, a Milk button (App's Milk sheet: milk for the
+//           pitcher by weight), and the shot-mode pill.
 //   Shot  — (scale paired; a shot running, settling or up for review) the
 //           ring becomes progress toward the target weight, the weight is
 //           the numerals, the timer and target under it, the flow graph in a
@@ -422,14 +423,14 @@ void build_round_home(lv_obj_t* page, const ScreenProfile& screen, bool scale_en
     lv_obj_add_flag(out.scale_batt_label, LV_OBJ_FLAG_HIDDEN);
   }
 
-  // Standby + Flush (+ Tare): round glass buttons, captions beneath. A flex
+  // Standby + Flush (+ Tare + Milk): round glass buttons, captions beneath. A flex
   // row, so a hidden Flush (no drive line) lets the rest re-centre.
   lv_obj_t* row = lv_obj_create(idle);
   lv_obj_remove_style_all(row);
   lv_obj_remove_flag(row, LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_set_size(row, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
   lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
-  lv_obj_set_style_pad_column(row, at(scale_enabled ? 52 : 76), 0);
+  lv_obj_set_style_pad_column(row, at(scale_enabled ? 40 : 76), 0);
   lv_obj_align(row, LV_ALIGN_TOP_MID, 0, at(scale_enabled ? 412 : 446));
   out.power_btn = make_round_action(row, at(80), ui::icon::kPower, &out.rg_power_icon,
                                     &out.power_label);
@@ -438,6 +439,8 @@ void build_round_home(lv_obj_t* page, const ScreenProfile& screen, bool scale_en
   if (scale_enabled) {
     out.tare_btn = make_round_action(row, at(80), ui::icon::kWeight, nullptr, &out.tare_label);
     lv_label_set_text(out.tare_label, "Tare");
+    out.milk_btn = make_round_action(row, at(80), ui::icon::kMilk, nullptr, &out.milk_label);
+    lv_label_set_text(out.milk_label, "Milk");
   }
 
   if (!scale_enabled) return;

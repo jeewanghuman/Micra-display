@@ -4,6 +4,7 @@
 
 #include <Preferences.h>
 #include <cmath>
+#include <cstdio>
 
 // NVS is initialized by the Arduino-ESP32 core at boot, so we just open the
 // namespace per call (cheap, and avoids holding the handle open).
@@ -46,6 +47,11 @@ constexpr char kReadyChimeKey[] = "rdychime";    // legacy on/off, migrated belo
 constexpr char kReadyChimeVolKey[] = "rdychimev";  // legacy LINEAR-AMPLITUDE %
 constexpr char kReadyChimeUiKey[] = "rdychimeu";   // current: perceptual 0-100
 constexpr char kReadyMelodyKey[] = "rdymel";     // warm-up tune: 0 off, 1.. melody
+// Milk sheet: indices into core/milk.h's APPEND-ONLY tables, and one ml key
+// per drink ("milkml0".."milkml9" -- the drink index is its last digit).
+constexpr char kMilkDrinkKey[] = "milkdrk";
+constexpr char kMilkTypeKey[] = "milktyp";
+constexpr char kMilkMlKeyPrefix[] = "milkml";
 // Out of the box: loud enough to carry, quiet enough that the first warm-up
 // after a flash doesn't startle anyone. 80 on the perceptual scale is the same
 // loudness the old linear 50 % produced (see migrate_chime_volume).
@@ -694,6 +700,45 @@ void Config::set_ready_chime_melody(int melody) {
   p.begin(kNamespace, /*readOnly=*/false);
   p.putInt(kReadyMelodyKey, melody < 0 ? 0 : melody);
   p.end();
+}
+
+namespace {
+int read_int(const char* key, int fallback) {
+  Preferences p;
+  if (!p.begin(kNamespace, /*readOnly=*/true)) return fallback;
+  const int v = p.isKey(key) ? p.getInt(key, fallback) : fallback;
+  p.end();
+  return v;
+}
+
+void write_int(const char* key, int v) {
+  Preferences p;
+  p.begin(kNamespace, /*readOnly=*/false);
+  p.putInt(key, v);
+  p.end();
+}
+
+// "milkml<d>" for drink d, or false past the one-digit range.
+bool milk_ml_key(int drink, char (&key)[12]) {
+  if (drink < 0 || drink > 9) return false;
+  std::snprintf(key, sizeof(key), "%s%d", kMilkMlKeyPrefix, drink);
+  return true;
+}
+}  // namespace
+
+int Config::milk_drink() const { return read_int(kMilkDrinkKey, -1); }
+void Config::set_milk_drink(int index) { write_int(kMilkDrinkKey, index); }
+int Config::milk_type() const { return read_int(kMilkTypeKey, -1); }
+void Config::set_milk_type(int index) { write_int(kMilkTypeKey, index); }
+
+int Config::milk_ml(int drink) const {
+  char key[12];
+  return milk_ml_key(drink, key) ? read_int(key, 0) : 0;
+}
+
+void Config::set_milk_ml(int drink, int ml) {
+  char key[12];
+  if (milk_ml_key(drink, key)) write_int(key, ml);
 }
 
 bool Config::wifi_enabled() const {

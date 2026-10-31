@@ -37,6 +37,16 @@ class FakeDisplaySettings : public core::IDisplaySettings {
   void set_ready_chime_volume(int percent) override { ready_chime_volume_ = percent; }
   int ready_chime_melody() const override { return ready_chime_melody_; }
   void set_ready_chime_melody(int melody) override { ready_chime_melody_ = melody; }
+  int milk_drink() const override { return milk_drink_; }
+  void set_milk_drink(int index) override { milk_drink_ = index; }
+  int milk_type() const override { return milk_type_; }
+  void set_milk_type(int index) override { milk_type_ = index; }
+  int milk_ml(int drink) const override {
+    return (drink >= 0 && drink < 10) ? milk_ml_[drink] : 0;
+  }
+  void set_milk_ml(int drink, int ml) override {
+    if (drink >= 0 && drink < 10) milk_ml_[drink] = ml;
+  }
 
  private:
   int brightness_ = 80;
@@ -52,6 +62,9 @@ class FakeDisplaySettings : public core::IDisplaySettings {
   bool click_sound_ = true;
   int ready_chime_volume_ = 50;  // matches the device default
   int ready_chime_melody_ = 1;   // 1 = Blue (device default)
+  int milk_drink_ = -1;          // never picked: Latte, whole milk, presets
+  int milk_type_ = -1;
+  int milk_ml_[10] = {};
 };
 
 }  // namespace host

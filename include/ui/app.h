@@ -85,6 +85,14 @@ class App {
   void dial_commit();                  // Set
   void steam_choose_level(int level);  // steam sheet: level 0..2
   void steam_choose_enabled(bool on);  // steam sheet: on / off
+  // The Milk sheet (round Home's Milk button, scale paired): weigh milk into
+  // the steam pitcher for a drink -- its volume times the milk's density
+  // (core/milk.h). Same layer and close path as the dial (dial_).
+  void open_milk_sheet();
+  void milk_cycle_drink();          // tap the drink capsule
+  void milk_cycle_type();           // tap the milk capsule
+  void milk_step_ml(int dir);       // -/+ by core::kMilkMlStep (remembered per drink)
+  void milk_tare();                 // the sheet's Tare
   // Round-glass Home: show its screen-level backdrop only while Home is the
   // active tab (called on every tab change; a no-op elsewhere).
   void sync_round_backdrop();
@@ -325,6 +333,29 @@ class App {
   void steam_sheet_refresh();       // re-tone the sheet's buttons in place
   void dial_refresh_labels();
   void hide_home_for_sheet();
+  // Milk sheet: open iff milk_arc_ != nullptr. Opening lends the scale away
+  // from the shot machinery (IBrewController::set_scale_borrowed) and
+  // close_dial gives it back.
+  lv_obj_t* milk_arc_ = nullptr;       // progress ring to the target weight
+  lv_obj_t* milk_weight_ = nullptr;    // live grams (hero numerals)
+  lv_obj_t* milk_target_ = nullptr;    // "of 175 g · 1.030 g/ml"
+  lv_obj_t* milk_status_ = nullptr;    // what to do next
+  lv_obj_t* milk_drink_label_ = nullptr;
+  lv_obj_t* milk_type_label_ = nullptr;
+  lv_obj_t* milk_ml_label_ = nullptr;
+  int milk_drink_ = 0;                 // core::kMilkDrinks index
+  int milk_type_ = 0;                  // core::kMilkTypes index
+  int milk_ml_ = 0;                    // that drink's amount, ml
+  bool milk_tared_ = false;            // the sheet's Tare used since opening
+  bool milk_seen_ = false;             // drawn since the last change of inputs
+  bool milk_connected_ = false;        // scale link as last drawn
+  uint32_t milk_seq_ = 0;              // scale seq as last drawn
+  int milk_tone_ = -1;                 // ring/status colour as last written
+  float milk_last_g_ = 0.0f;           // weight at the last movement
+  uint32_t milk_moved_ms_ = 0;         // lv_tick of the last movement or tap
+  void milk_refresh_labels();          // picks/amount/target text, then a redraw
+  void milk_tick();                    // weight -> ring + numerals (each loop; cheap)
+  void milk_poll();                    // refresh: close on a shot or when left idle
   // Log-viewer modal (live tail): refreshed from core::log_ring() by a timer
   // while open; all three are torn down together in close_modal().
   lv_obj_t* log_box_ = nullptr;

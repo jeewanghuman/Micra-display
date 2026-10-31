@@ -72,8 +72,8 @@ done
 (cd "$WORK" && npm pack lucide-static@1.61.0 --silent >/dev/null &&
    tar -xzf lucide-static-1.61.0.tgz)
 # house settings chart-spline power droplet square weight bluetooth
-# loader-circle minus plus x
-ICONS="0xE0F5,0xE154,0xE60D,0xE140,0xE0B4,0xE167,0xE530,0xE05C,0xE10A,0xE11C,0xE13D,0xE1B2"
+# loader-circle minus plus x milk
+ICONS="0xE0F5,0xE154,0xE60D,0xE140,0xE0B4,0xE167,0xE530,0xE05C,0xE10A,0xE11C,0xE13D,0xE1B2,0xE399"
 for SIZE in 24 28 32; do
   npx -y lv_font_conv --font "$WORK/package/font/lucide.ttf" -r "$ICONS" --size "$SIZE" \
     --bpp 4 --format lvgl --no-compress --lv-font-name "font_lucide_$SIZE" \

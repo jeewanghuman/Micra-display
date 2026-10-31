@@ -43,6 +43,12 @@ class DisplaySettings : public core::IDisplaySettings {
   void set_ready_chime_volume(int percent) override;
   int ready_chime_melody() const override;
   void set_ready_chime_melody(int melody) override;
+  int milk_drink() const override;
+  void set_milk_drink(int index) override;
+  int milk_type() const override;
+  void set_milk_type(int index) override;
+  int milk_ml(int drink) const override;
+  void set_milk_ml(int drink, int ml) override;
 
  private:
   Display& display_;

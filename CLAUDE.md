@@ -185,6 +185,30 @@ back reading its old level and warn. Costs: one LVGL label (scale paired);
 the toast is the existing one. Sim: `round_home_scale_lowbatt_800x800`
 (FakeScale::set_battery), manual shot `home-scale-battery.png`.
 
+## Milk by weight (round Home, 2026-10-31)
+
+Home's Milk button (round only, scale paired; locked out like Tare without a
+link or mid-shot) opens the Milk sheet: App::open_milk_sheet, on the dial's
+layer and root (`dial_`), so close_dial closes it. Drinks (preset ml of cold
+milk) and milks (g/ml) are APPEND-ONLY tables in `core/milk.h` (NVS-indexed:
+`milkdrk`, `milktyp`, one `milkml<d>` per drink, 0 = the preset; readers clamp
+an unknown index to the default). Target = ml x density; on target within
+max(3 %, 3 g). Opening calls `IBrewController::set_scale_borrowed(true)`: the
+unwired detector stays disarmed (a pour reads like a shot -- host-tested)
+and an armed/delayed/running auto-flush is cancelled (the pitcher sits under
+the group). close_dial returns the scale. So the sheet must not linger: it
+closes when a shot goes in flight (the paddle still runs one) and after 5
+minutes with no tap and no >= 2 g change (`milk_poll`, from refresh), and
+holds the idle screen off meanwhile. The ring/numerals follow the scale per
+loop (`milk_tick` from pump_scale_chart, redrawing only on a new seq; arc
+colour written only on a tone change). The scale-battery toast waits while
+any sheet is up. Costs: four LVGL objects on Home (column, button, icon,
+caption); the sheet's ~20 objects exist only while open; the milk glyph in
+the three Lucide fonts (regenerated from the cached lucide-static 1.61.0; the
+other glyphs' bitmaps are unchanged, only the offsets after it move). Sim:
+`round_milk_800x800` / `round_milk_done_800x800` (round_sheet 3 = open +
+Tare, FakeScale::set_weight), manual shot `home-milk.png`.
+
 ## Failed-allocation flight recorder (crash_record.*, 2026-09-12)
 
 Core dumps here hold task stacks only (CONFIG_ESP_COREDUMP_CAPTURE_DRAM is off

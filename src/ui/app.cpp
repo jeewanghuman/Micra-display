@@ -8,6 +8,7 @@
 #include <lvgl.h>
 
 #include "core/log_ring.h"
+#include "core/milk.h"
 #include "core/system.h"
 #include "ui/glass.h"
 #include "ui/icons.h"
@@ -58,6 +59,10 @@ void on_power_clicked(lv_event_t* e) {
 
 void on_tare_clicked(lv_event_t* e) {
   static_cast<ui::App*>(lv_event_get_user_data(e))->tare_scale();
+}
+
+void on_milk_clicked(lv_event_t* e) {
+  static_cast<ui::App*>(lv_event_get_user_data(e))->open_milk_sheet();
 }
 
 void on_shot_clicked(lv_event_t* e) {
@@ -1214,6 +1219,8 @@ void App::build(core::IMachine& machine, core::IProvisioner& provisioner,
   lv_obj_add_event_cb(home_.power_btn, on_power_clicked, LV_EVENT_CLICKED, this);
   if (home_.tare_btn != nullptr)
     lv_obj_add_event_cb(home_.tare_btn, on_tare_clicked, LV_EVENT_CLICKED, this);
+  if (home_.milk_btn != nullptr)
+    lv_obj_add_event_cb(home_.milk_btn, on_milk_clicked, LV_EVENT_CLICKED, this);
   if (home_.scale_connect_btn != nullptr)  // in-card connect toggle (sleep/wake)
     lv_obj_add_event_cb(home_.scale_connect_btn, on_scale_connect_clicked,
                         LV_EVENT_CLICKED, this);
@@ -1593,6 +1600,7 @@ void App::refresh() {
   update_result_poll();  // surface a finished update check (notice / "up to date")
   backup_result_poll();  // ...and a finished settings backup/restore
   scale_battery_poll();  // ...and a scale battery that has run low
+  milk_poll();           // the Milk sheet closes itself on a shot or when left
   // Round glass: keep rows built after the tab (scan results, history list,
   // modal content) glassy. Last, so rows this tick's updates just added are
   // converted before they are ever drawn opaque. Cheap: only still-opaque
@@ -2166,6 +2174,11 @@ void App::screensaver_tick() {
   // Nor is the ready alert: it exists to be seen from across the room, so it
   // holds the idle screen off until it's dismissed or gives up.
   if (ready_alert_ != nullptr) {
+    lv_display_trigger_activity(nullptr);
+  }
+  // Nor is the Milk sheet: nobody touches the glass while pouring. It closes
+  // itself once left alone (milk_poll), and the timeout runs from there.
+  if (milk_arc_ != nullptr) {
     lv_display_trigger_activity(nullptr);
   }
   const int mins = settings_.screen_timeout_min;
@@ -2964,7 +2977,7 @@ void App::scale_battery_poll() {
     return;
   }
   if (!scale_batt_warned_) scale_batt_warned_ = scale_batt_pending_ = true;
-  if (!scale_batt_pending_ || screensaver_on_ || modal_ != nullptr ||
+  if (!scale_batt_pending_ || screensaver_on_ || modal_ != nullptr || dial_ != nullptr ||
       ready_alert_ != nullptr || toast_ != nullptr)
     return;
   if (brew_ != nullptr && brew_->snapshot().phase != core::ShotPhase::kIdle) return;
@@ -3021,6 +3034,7 @@ void App::pose_unwired_midshot(uint32_t shot_ms) {
 
 void App::pump_scale_chart() {
   if (scale_ == nullptr) return;
+  milk_tick();  // the Milk sheet follows the scale at its own rate (cheap no-op)
 
   // Sweep the flow graph left->right by wall-clock time (smooth regardless of the
   // sample rate); flow is derived from the streamed weight. Cheap no-op without a graph.
@@ -4955,6 +4969,21 @@ void on_dial_arc(lv_event_t* e) {
 void on_dial_set(lv_event_t* e) {
   static_cast<ui::App*>(lv_event_get_user_data(e))->dial_commit();
 }
+void on_milk_drink(lv_event_t* e) {
+  static_cast<ui::App*>(lv_event_get_user_data(e))->milk_cycle_drink();
+}
+void on_milk_type(lv_event_t* e) {
+  static_cast<ui::App*>(lv_event_get_user_data(e))->milk_cycle_type();
+}
+void on_milk_minus(lv_event_t* e) {
+  static_cast<ui::App*>(lv_event_get_user_data(e))->milk_step_ml(-1);
+}
+void on_milk_plus(lv_event_t* e) {
+  static_cast<ui::App*>(lv_event_get_user_data(e))->milk_step_ml(+1);
+}
+void on_milk_tare(lv_event_t* e) {
+  static_cast<ui::App*>(lv_event_get_user_data(e))->milk_tare();
+}
 template <int L>
 void on_steam_level(lv_event_t* e) {
   static_cast<ui::App*>(lv_event_get_user_data(e))->steam_choose_level(L);
@@ -5005,6 +5034,10 @@ void App::close_dial() {
   lv_obj_delete_async(dial_);
   dial_ = dial_value_ = dial_set_label_ = dial_arc_ = nullptr;
   for (lv_obj_t*& b : steam_btns_) b = nullptr;
+  // The Milk sheet hands the scale back to the shot machinery.
+  if (milk_arc_ != nullptr && brew_ != nullptr) brew_->set_scale_borrowed(false);
+  milk_arc_ = milk_weight_ = milk_target_ = milk_status_ = nullptr;
+  milk_drink_label_ = milk_type_label_ = milk_ml_label_ = nullptr;
   // Bring Home back (open_* hid it so the sheet reads cleanly).
   if (tabview_ != nullptr && modal_ == nullptr)
     lv_obj_remove_flag(tabview_, LV_OBJ_FLAG_HIDDEN);
@@ -5260,6 +5293,240 @@ void App::steam_choose_level(int level) {
 void App::steam_choose_enabled(bool on) {
   steam_set_enabled(on);
   steam_sheet_refresh();
+}
+
+// ---- Milk sheet -------------------------------------------------------------
+// Weigh milk into the steam pitcher for a drink. The drink sets a VOLUME of
+// cold milk; the scale reads WEIGHT, so the target is that volume times the
+// chosen milk's density (core/milk.h). A ring fills towards the target and
+// turns green inside a small tolerance, amber past it.
+//
+// While it is open the scale is borrowed (IBrewController::set_scale_borrowed):
+// a pour reads like a shot to the weight detector, and a pending auto-flush
+// would rinse into the pitcher. So the sheet must not linger: it closes itself
+// when a shot starts (the paddle still works) and after kMilkIdleMs without a
+// change on the scale or a tap, and it holds the idle screen off until then.
+
+namespace {
+constexpr uint32_t kMilkInk = 0xF4ECE0;    // the ring while pouring: milk
+constexpr uint32_t kMilkOver = 0xF2A24A;   // past the target: amber
+constexpr uint32_t kMilkIdleMs = 5u * 60u * 1000u;
+}  // namespace
+
+void App::open_milk_sheet() {
+  close_dial();
+  if (!ui::is_round(screen_) || scale_ == nullptr || brew_ == nullptr) return;
+  if (core::shot_in_flight(brew_->snapshot())) return;  // the shot owns the scale
+  const int d = screen_.width < screen_.height ? screen_.width : screen_.height;
+  auto at = [d](int px) { return px * d / 800; };
+  milk_drink_ = core::milk_drink_index(display_->milk_drink());
+  milk_type_ = core::milk_type_index(display_->milk_type());
+  const int stored = display_->milk_ml(milk_drink_);
+  milk_ml_ = stored > 0 ? core::clamp_milk_ml(stored) : core::kMilkDrinks[milk_drink_].ml;
+
+  lv_obj_t* bg = make_sheet_layer(screen_);
+  dial_ = bg;
+  hide_home_for_sheet();
+
+  // The progress ring: the Home arcs' 300 deg, full at the target.
+  lv_obj_t* arc = lv_arc_create(bg);
+  lv_obj_remove_style_all(arc);
+  lv_obj_set_size(arc, 2 * (at(326) + at(6)), 2 * (at(326) + at(6)));
+  lv_obj_center(arc);
+  lv_arc_set_rotation(arc, 0);
+  lv_arc_set_bg_angles(arc, 120, 60);
+  lv_arc_set_range(arc, 0, 1000);
+  lv_arc_set_value(arc, 0);
+  lv_obj_set_style_arc_width(arc, at(12), LV_PART_MAIN);
+  lv_obj_set_style_arc_rounded(arc, true, LV_PART_MAIN);
+  lv_obj_set_style_arc_color(arc, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
+  lv_obj_set_style_arc_opa(arc, 36, LV_PART_MAIN);
+  lv_obj_set_style_arc_width(arc, at(12), LV_PART_INDICATOR);
+  lv_obj_set_style_arc_rounded(arc, true, LV_PART_INDICATOR);
+  lv_obj_set_style_arc_color(arc, lv_color_hex(kMilkInk), LV_PART_INDICATOR);
+  lv_obj_remove_flag(arc, LV_OBJ_FLAG_CLICKABLE);  // a gauge, not a dial
+  milk_arc_ = arc;
+
+  milk_status_ = make_sheet_label(bg, ui::font_dp(20), 230);
+  lv_obj_align(milk_status_, LV_ALIGN_TOP_MID, 0, at(150));
+  milk_weight_ = make_sheet_label(bg, &font_outfit_hero, LV_OPA_COVER);
+  lv_obj_set_style_text_letter_space(milk_weight_, -at(4), 0);
+  lv_obj_align(milk_weight_, LV_ALIGN_TOP_MID, 0, at(184));
+  milk_target_ = make_sheet_label(bg, ui::font_dp(20), 200);
+  lv_obj_align(milk_target_, LV_ALIGN_TOP_MID, 0, at(334));
+
+  auto row = [&](int y, int gap) {
+    lv_obj_t* r = lv_obj_create(bg);
+    lv_obj_remove_style_all(r);
+    lv_obj_remove_flag(r, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_size(r, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+    lv_obj_set_flex_flow(r, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(r, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER,
+                          LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_pad_column(r, gap, 0);
+    lv_obj_align(r, LV_ALIGN_TOP_MID, 0, y);
+    return r;
+  };
+  // The drink and the milk: tap to step through each list.
+  lv_obj_t* picks = row(at(382), at(14));
+  lv_obj_t* drink = make_sheet_button(picks, at(214), at(56), ui::glass::Tone::kClear, "",
+                                      ui::font_dp(20));
+  milk_drink_label_ = lv_obj_get_child(drink, -1);
+  lv_obj_add_event_cb(drink, on_milk_drink, LV_EVENT_CLICKED, this);
+  lv_obj_t* type = make_sheet_button(picks, at(214), at(56), ui::glass::Tone::kClear, "",
+                                     ui::font_dp(20));
+  milk_type_label_ = lv_obj_get_child(type, -1);
+  lv_obj_add_event_cb(type, on_milk_type, LV_EVENT_CLICKED, this);
+
+  // The drink's amount, remembered per drink.
+  lv_obj_t* vol = row(at(456), at(10));
+  lv_obj_t* minus = make_sheet_button(vol, at(64), at(64), ui::glass::Tone::kClear,
+                                      ui::icon::kMinus, &font_lucide_28);
+  lv_obj_add_event_cb(minus, on_milk_minus, LV_EVENT_CLICKED, this);
+  milk_ml_label_ = make_sheet_label(vol, ui::font_dp(28), LV_OPA_COVER);
+  lv_obj_set_width(milk_ml_label_, at(150));
+  lv_obj_set_style_text_align(milk_ml_label_, LV_TEXT_ALIGN_CENTER, 0);
+  lv_obj_t* plus = make_sheet_button(vol, at(64), at(64), ui::glass::Tone::kClear,
+                                     ui::icon::kPlus, &font_lucide_28);
+  lv_obj_add_event_cb(plus, on_milk_plus, LV_EVENT_CLICKED, this);
+
+  lv_obj_t* acts = row(at(546), at(24));
+  lv_obj_t* tare = make_sheet_button(acts, at(150), at(64), ui::glass::Tone::kClear, "Tare",
+                                     ui::font_dp(20));
+  lv_obj_add_event_cb(tare, on_milk_tare, LV_EVENT_CLICKED, this);
+  lv_obj_t* done = make_sheet_button(acts, at(150), at(64), ui::glass::Tone::kBright, "Done",
+                                     ui::font_dp(20));
+  lv_obj_add_event_cb(done, on_dial_close, LV_EVENT_CLICKED, this);
+
+  brew_->set_scale_borrowed(true);
+  milk_tared_ = false;
+  milk_tone_ = -1;
+  milk_last_g_ = scale_->snapshot().weight_g;
+  milk_moved_ms_ = lv_tick_get();
+  milk_refresh_labels();
+}
+
+void App::milk_refresh_labels() {
+  if (milk_arc_ == nullptr) return;
+  char t[48];
+  std::snprintf(t, sizeof(t), "%s  \u203A", core::kMilkDrinks[milk_drink_].name);
+  lv_label_set_text(milk_drink_label_, t);
+  std::snprintf(t, sizeof(t), "%s  \u203A", core::kMilkTypes[milk_type_].name);
+  lv_label_set_text(milk_type_label_, t);
+  std::snprintf(t, sizeof(t), "%d ml", milk_ml_);
+  lv_label_set_text(milk_ml_label_, t);
+  std::snprintf(t, sizeof(t), "of %d g  \u00B7  %.3f g/ml",
+                core::milk_target_g(milk_ml_, milk_type_),
+                static_cast<double>(core::kMilkTypes[milk_type_].g_per_ml));
+  lv_label_set_text(milk_target_, t);
+  milk_seen_ = false;  // the target moved: redraw the ring and status
+  milk_tick();
+}
+
+void App::milk_tick() {
+  if (milk_arc_ == nullptr || scale_ == nullptr) return;
+  const core::ScaleSnapshot s = scale_->snapshot();
+  // Called every loop from pump_scale_chart: only a new reading redraws.
+  if (milk_seen_ && s.seq == milk_seq_ && s.connected == milk_connected_) return;
+  milk_seen_ = true;
+  milk_seq_ = s.seq;
+  milk_connected_ = s.connected;
+  const int target = core::milk_target_g(milk_ml_, milk_type_);
+  const int tol = target * 3 / 100 > 3 ? target * 3 / 100 : 3;  // 3 %, at least 3 g
+  char st[40];
+  char wt[16];
+  int permille = 0;
+  int tone = 0;  // 0 pouring, 1 on target, 2 over, 3 no reading
+  if (!s.connected) {
+    tone = 3;
+    std::snprintf(st, sizeof(st), "Scale off");
+    std::snprintf(wt, sizeof(wt), "--");
+  } else {
+    if (std::fabs(s.weight_g - milk_last_g_) >= 2.0f) {
+      milk_last_g_ = s.weight_g;
+      milk_moved_ms_ = lv_tick_get();
+    }
+    const int g = static_cast<int>(std::lround(s.weight_g));
+    permille = g <= 0 ? 0 : (g >= target ? 1000 : g * 1000 / target);
+    std::snprintf(wt, sizeof(wt), "%d g", g);
+    if (!milk_tared_) {
+      std::snprintf(st, sizeof(st), "Pitcher on the scale, then Tare");
+    } else if (g < -tol) {
+      std::snprintf(st, sizeof(st), "Pitcher off? Tare again");
+    } else if (g < target - tol) {
+      std::snprintf(st, sizeof(st), "Pour %d g more", target - g);
+    } else if (g > target + tol) {
+      tone = 2;
+      std::snprintf(st, sizeof(st), "%d g over", g - target);
+    } else {
+      tone = 1;
+      std::snprintf(st, sizeof(st), "On target");
+    }
+  }
+  ui::set_text(milk_weight_, wt);
+  ui::set_text(milk_status_, st);
+  if (lv_arc_get_value(milk_arc_) != permille) lv_arc_set_value(milk_arc_, permille);
+  if (tone != milk_tone_) {  // a style write redraws the whole ring: only on change
+    milk_tone_ = tone;
+    const uint32_t ink = tone == 1   ? ui::theme::ok()
+                         : tone == 2 ? kMilkOver
+                         : tone == 3 ? ui::theme::muted()
+                                     : kMilkInk;
+    lv_obj_set_style_arc_color(milk_arc_, lv_color_hex(ink), LV_PART_INDICATOR);
+    lv_obj_set_style_text_color(milk_status_, lv_color_hex(tone == 0 ? 0xFFFFFF : ink), 0);
+  }
+}
+
+void App::milk_poll() {
+  if (milk_arc_ == nullptr) return;
+  // A shot takes the scale back (the paddle runs one even with the sheet up).
+  if (brew_ != nullptr && core::shot_in_flight(brew_->snapshot())) {
+    close_dial();
+    return;
+  }
+  if (lv_tick_elaps(milk_moved_ms_) >= kMilkIdleMs) {
+    close_dial();
+    return;
+  }
+  milk_tick();  // also catches a link that dropped without a new reading
+}
+
+void App::milk_cycle_drink() {
+  if (milk_arc_ == nullptr) return;
+  milk_moved_ms_ = lv_tick_get();
+  milk_drink_ = (milk_drink_ + 1) % core::kMilkDrinkCount;
+  display_->set_milk_drink(milk_drink_);
+  const int stored = display_->milk_ml(milk_drink_);
+  milk_ml_ = stored > 0 ? core::clamp_milk_ml(stored) : core::kMilkDrinks[milk_drink_].ml;
+  milk_refresh_labels();
+}
+
+void App::milk_cycle_type() {
+  if (milk_arc_ == nullptr) return;
+  milk_moved_ms_ = lv_tick_get();
+  milk_type_ = (milk_type_ + 1) % core::kMilkTypeCount;
+  display_->set_milk_type(milk_type_);
+  milk_refresh_labels();
+}
+
+void App::milk_step_ml(int dir) {
+  if (milk_arc_ == nullptr) return;
+  milk_moved_ms_ = lv_tick_get();
+  const int ml = core::clamp_milk_ml(milk_ml_ + dir * core::kMilkMlStep);
+  if (ml == milk_ml_) return;
+  milk_ml_ = ml;
+  // Back at the preset stores "preset" (0), so the drink follows the table.
+  display_->set_milk_ml(milk_drink_, ml == core::kMilkDrinks[milk_drink_].ml ? 0 : ml);
+  milk_refresh_labels();
+}
+
+void App::milk_tare() {
+  if (milk_arc_ == nullptr || scale_ == nullptr) return;
+  milk_moved_ms_ = lv_tick_get();
+  scale_->tare();
+  milk_tared_ = true;
+  milk_seen_ = false;  // the status changes now; the weight follows the scale
+  milk_tick();
 }
 
 }  // namespace ui

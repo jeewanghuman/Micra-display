@@ -7,6 +7,13 @@ for someone reading the diff. These notes are also shown ON THE DEVICE, whose
 fonts are ASCII-only: stick to characters `sanitize_notes()` (src/ui/app.cpp)
 maps — plain ASCII plus `— – → … × ' "` — or they render as empty boxes.
 
+## Unreleased
+
+- **Milk by weight.** A new Milk button on Home weighs the milk for a drink
+  into your steam pitcher. Pick the drink and the milk (whole, 2%, skim,
+  oat, soy or almond); the ring fills as you pour and turns green on target,
+  allowing for each milk's density.
+
 ## v1.3.0
 
 - **Scale battery on Home.** The weight capsule now shows the scale's battery

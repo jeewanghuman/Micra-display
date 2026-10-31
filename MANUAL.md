@@ -11,8 +11,8 @@ row of three buttons at the bottom switches between **Home**, **Settings** and
 **Contents:**
 
 - [Where everything lives](#nav-map) — a map of every screen and setting
-- [Home](#home) — the idle view · temperature dial · steam sheet · ready
-  alert · during a shot · shot modes
+- [Home](#home) — the idle view · temperature dial · steam sheet · milk
+  sheet · ready alert · during a shot · shot modes
 - [Settings → Micra](#settings-micra) — Bluetooth · Controls · Cleaning
 - [Settings → Scale](#settings-scale) — Bluetooth · Shot settings (→ Graph) ·
   Device settings · Per‑scale nuances
@@ -40,6 +40,7 @@ Home
 ├─ [Standby]  Standby / Turn on / Connect / Set up
 ├─ [Flush]    quick group rinse                            (Wired paddle on)
 ├─ [Tare]                                                  (scale paired)
+├─ [Milk]     → milk sheet: milk for the pitcher by weight  (scale paired)
 ├─ [shot-mode pill]  Auto shot → Shot detect → Manual       (scale paired)
 ├─ Ready alert: green screen + check when a warm-up ends (tap to dismiss)
 └─ During a shot: progress ring · weight · timer + target · flow graph
@@ -141,7 +142,10 @@ While it heats it counts smoothly through the tenths rather than jumping.
   flight or the machine is in standby.
 - ⑦ **Tare** *(scale paired)* — zeroes the scale. (Tares are sent twice under
   the hood; some scales drop single tare commands.)
-- ⑧ **Shot mode pill** *(scale paired)* — tap to cycle the shot mode:
+- ⑧ **Milk** *(scale paired)* — opens the [milk sheet](#milk-sheet): weigh the
+  right amount of milk into the steam pitcher for a drink. Greyed out while
+  the scale isn't connected or a shot is in flight.
+- ⑨ **Shot mode pill** *(scale paired)* — tap to cycle the shot mode:
   - **Auto shot** *(only with a wired paddle — see below)*: flipping the
     Micra's paddle starts the shot (auto‑tare, timer, graph), and the firmware
     opens the paddle circuit by itself when the weight reaches
@@ -194,6 +198,58 @@ Opened by tapping the steam capsule on Home (or **Settings → Micra → Control
 buttons below are the Micra's three steam levels (126, 128 and 131 °C). Each
 tap goes to the machine straight away. **Done** — or a tap outside the
 sheet — closes it.
+
+<a id="milk-sheet"></a>
+
+### Milk sheet
+
+<p align="center">
+  <img src="docs/img/manual/home-milk.png" width="60%" alt="The milk sheet">
+</p>
+
+Opened by **Milk** on Home *(scale paired)*: it weighs the milk for a drink
+into your steam pitcher. Drinks are measured by **volume**, but the scale
+reads **weight**, and milks differ in density — so Tondo works out the
+weight for the drink's volume of the milk you pick.
+
+Put the empty pitcher on the scale, tap **Tare**, then pour. The ring around
+the edge fills as you pour and turns **green** when you're on target (within
+3 %, or 3 g for small amounts); it turns amber if you pour too much.
+
+- ① **What to do next** — `Pitcher on the scale, then Tare` until you tare,
+  then `Pour 42 g more`, `On target`, or `12 g over`.
+- ② **Weight** — the milk in the pitcher, live.
+- ③ **Target** — the weight to pour, and the density it was worked out with.
+- ④ **Drink** — tap to step through Cortado, Flat white, Cappuccino, Latte and
+  Large latte.
+- ⑤ **Milk** — tap to step through Whole, 2 %, Skim, Oat, Soy and Almond.
+- ⑥ **Amount** — **−** / **+** change the drink's milk in steps of 10 ml
+  (30–500 ml). Each drink remembers its own amount, and the sheet reopens
+  on the drink and milk you used last.
+- ⑦ **Tare** — zeroes the scale with the pitcher on it.
+- ⑧ **Done** — closes the sheet.
+
+The amounts are cold milk before steaming, for a double shot; steaming
+roughly adds a fifth in volume for a latte and more for a cappuccino's foam.
+Adjust them to your cups:
+
+| Drink | Milk | | Milk | Density |
+|---|---|---|---|---|
+| Cortado | 60 ml | | Whole | 1.030 g/ml |
+| Flat white | 110 ml | | 2 % | 1.032 g/ml |
+| Cappuccino | 120 ml | | Skim | 1.034 g/ml |
+| Latte | 170 ml | | Oat | 1.025 g/ml |
+| Large latte | 260 ml | | Soy | 1.020 g/ml |
+| | | | Almond | 1.010 g/ml |
+
+The densities are typical chilled values from published measurements;
+brands differ by up to about 1 %, a gram or two in a latte's milk.
+
+While the sheet is open the scale belongs to it: **Shot detect** won't
+mistake the pour for a shot, and a pending **Auto flush** is called off so it
+can't rinse into the pitcher. Pulling a shot with the paddle closes the
+sheet, and so does leaving it untouched with nothing changing on the scale
+for 5 minutes. The idle screen stays away while it's open.
 
 <a id="ready-alert"></a>
 

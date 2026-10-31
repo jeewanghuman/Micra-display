@@ -49,6 +49,9 @@ here; the screens are new.
 - **Brew by weight** — stop the shot at a target weight with the paddle wired
   in, or detect shots from the weight stream alone with no wiring at all.
   Finished shots freeze into a review graph.
+- **Milk by weight** — pick a drink and a milk (whole, 2 %, skim, oat, soy,
+  almond) and pour into the pitcher on the scale until the ring turns green;
+  the target weight accounts for each milk's density.
 - **Group care** — auto‑flush after the cup lifts, flush on demand, and a
   backflush cleaning cycle, with the paddle wired in.
 - **Warm‑up chime** — the built‑in speaker plays a tune when the machine is
