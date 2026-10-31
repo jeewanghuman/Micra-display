@@ -7,7 +7,7 @@ for someone reading the diff. These notes are also shown ON THE DEVICE, whose
 fonts are ASCII-only: stick to characters `sanitize_notes()` (src/ui/app.cpp)
 maps — plain ASCII plus `— – → … × ' "` — or they render as empty boxes.
 
-## Unreleased
+## v1.4.0
 
 - **Milk by weight.** A new Milk button on Home weighs the milk for a drink
   into your steam pitcher. Pick the drink and the milk (whole, 2%, skim,
